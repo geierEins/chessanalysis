@@ -12,6 +12,8 @@ export class CustomSelect {
   #onChange;
   #options = [];
   #value = null;
+  #itemsByValue = new Map();
+  #selectedItem = null;
 
   /**
    * @param {{buttonId: string, labelId: string, menuId: string, onChange?: (value: string) => void}} ids
@@ -49,6 +51,11 @@ export class CustomSelect {
     this.#menu.style.left = `${rect.left}px`;
     this.#menu.style.minWidth = `${rect.width}px`;
     this.#menu.classList.remove('hidden');
+    // Jumps a long list (e.g. the game picker, up to MAX_GAMES entries)
+    // straight to whichever entry is already selected, instead of always
+    // reopening scrolled to the top - 'instant' since this is the menu's own
+    // opening frame, not a user-visible scroll animation.
+    this.#selectedItem?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   }
 
   /**
@@ -71,6 +78,7 @@ export class CustomSelect {
   setOptions(options, selectedValue) {
     this.#options = options;
     this.#menu.innerHTML = '';
+    this.#itemsByValue.clear();
     for (const opt of options) {
       const item = document.createElement('button');
       item.type = 'button';
@@ -83,6 +91,7 @@ export class CustomSelect {
       if (opt.color) item.style.color = opt.color;
       item.addEventListener('click', () => this.select(opt.value));
       this.#menu.appendChild(item);
+      this.#itemsByValue.set(opt.value, item);
     }
     const initial = options.find((o) => o.value === selectedValue) ?? options[0];
     this.#applySelection(initial);
@@ -105,6 +114,13 @@ export class CustomSelect {
       this.#btnLabel.textContent = (opt?.shortLabel ?? opt?.label) ?? '';
     }
     this.#btnLabel.style.color = opt?.color ?? '';
+    // Highlights whichever option row is the current selection, so reopening
+    // the menu later shows at a glance what's already picked (not just the
+    // collapsed button's own label) - #openMenu() also scrolls straight to
+    // this same element for long lists.
+    this.#selectedItem?.classList.remove('custom-select-option-selected');
+    this.#selectedItem = opt ? this.#itemsByValue.get(opt.value) ?? null : null;
+    this.#selectedItem?.classList.add('custom-select-option-selected');
   }
 
   get value() {

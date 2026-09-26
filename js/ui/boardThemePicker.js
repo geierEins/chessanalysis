@@ -51,11 +51,30 @@ export function initBoardThemePicker() {
       `conic-gradient(${light} 90deg, ${dark} 90deg 180deg, ${light} 180deg 270deg, ${dark} 270deg)`;
   }
 
+  // Highlights whichever swatch button matches the active theme, so
+  // reopening the menu shows at a glance what's already picked (reuses
+  // js/ui/customSelect.js's own .custom-select-option-selected class/look).
+  let selectedOption = null;
+  function markSelected(option) {
+    selectedOption?.classList.remove('custom-select-option-selected');
+    selectedOption = option ?? null;
+    selectedOption?.classList.add('custom-select-option-selected');
+  }
+
   const storedTheme = loadBoardTheme();
-  setBoardTheme(
-    storedTheme?.light ?? getComputedStyle(document.documentElement).getPropertyValue('--board-light').trim(),
-    storedTheme?.dark ?? getComputedStyle(document.documentElement).getPropertyValue('--board-dark').trim(),
-    storedTheme?.isWood ?? false
+  const initialLight =
+    storedTheme?.light ?? getComputedStyle(document.documentElement).getPropertyValue('--board-light').trim();
+  const initialDark =
+    storedTheme?.dark ?? getComputedStyle(document.documentElement).getPropertyValue('--board-dark').trim();
+  const initialIsWood = storedTheme?.isWood ?? false;
+  setBoardTheme(initialLight, initialDark, initialIsWood);
+  markSelected(
+    [...document.querySelectorAll('.board-theme-option')].find(
+      (o) =>
+        o.dataset.light === initialLight &&
+        o.dataset.dark === initialDark &&
+        (o.dataset.wood === 'true') === initialIsWood
+    )
   );
 
   boardThemeBtn.addEventListener('click', () => {
@@ -68,6 +87,7 @@ export function initBoardThemePicker() {
       boardThemeMenu.style.top = `${rect.bottom + 4}px`;
       boardThemeMenu.style.right = `${window.innerWidth - rect.right}px`;
       boardThemeMenu.classList.remove('hidden');
+      selectedOption?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
     } else {
       boardThemeMenu.classList.add('hidden');
     }
@@ -78,6 +98,7 @@ export function initBoardThemePicker() {
       const isWood = option.dataset.wood === 'true';
       setBoardTheme(option.dataset.light, option.dataset.dark, isWood);
       saveBoardTheme(option.dataset.light, option.dataset.dark, isWood);
+      markSelected(option);
       boardThemeMenu.classList.add('hidden');
     });
   }

@@ -236,7 +236,9 @@ gameSelect.setOptions([{ value: '', label: 'Erst Benutzername laden…' }]);
 gameSelect.disabled = true;
 const analyzeToggleBtn = el('analyze-toggle-btn');
 const analyzeToggleBtnIcon = el('analyze-toggle-btn-icon');
-const analyzeToggleBtnLabel = el('analyze-toggle-btn-label');
+const analyzeToggleBtnCancelIcon = el('analyze-toggle-btn-cancel-icon');
+const analyzeToggleBtnSpinner = el('analyze-toggle-btn-spinner');
+const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
 // shortLabel: "SF" plus the version number ("SF19L" for the one Lite build,
 // since it's the odd one out - every other build is implicitly "full", so
 // those just get their bare number) - keeps the collapsed button from
@@ -276,7 +278,6 @@ depthSelect.setOptions(
 );
 const loaderPanel = el('loader-panel');
 const loaderToggleBtn = el('loader-toggle-btn');
-const progressText = el('progress-text');
 const reviewPanel = el('review-panel');
 const evalBarWrapEl = el('eval-bar-wrap');
 const boardWrapEl = el('board-wrap');
@@ -935,11 +936,15 @@ usernameInput.addEventListener('keydown', (e) => {
 /** Toggles #analyze-toggle-btn between its two states in place (same
  *  element, same position in the row - not two separately shown/hidden
  *  buttons) - green-gradient magnifying-glass icon when idle (css/styles.css's
- *  .analyze-btn-ready), red "Abbrechen" text while running. */
+ *  .analyze-btn-ready), red X icon + spinner + progress fill while running -
+ *  the same loading visualization #fetch-games-btn uses, so the row's own
+ *  width never shifts the way the old "Analysiere Zug X von Y" text did. */
 function setAnalyzing(analyzing) {
   isAnalyzing = analyzing;
   analyzeToggleBtnIcon.classList.toggle('hidden', analyzing);
-  analyzeToggleBtnLabel.classList.toggle('hidden', !analyzing);
+  analyzeToggleBtnCancelIcon.classList.toggle('hidden', !analyzing);
+  analyzeToggleBtnSpinner.classList.toggle('hidden', !analyzing);
+  analyzeToggleBtnFill.style.width = '0%';
   analyzeToggleBtn.title = analyzing ? 'Analyse abbrechen' : 'Ausgewähltes Spiel analysieren';
   analyzeToggleBtn.classList.toggle('analyze-btn-ready', !analyzing);
   analyzeToggleBtn.classList.toggle('bg-red-600', analyzing);
@@ -962,8 +967,6 @@ async function startAnalysis() {
   stopAutoPlay();
   setAnalyzing(true);
   fetchGamesBtn.disabled = true;
-  progressText.classList.remove('hidden');
-  progressText.textContent = '';
 
   try {
     const playersPromise = Promise.all([
@@ -974,11 +977,8 @@ async function startAnalysis() {
     const engineId = engineSelect.value;
     if (!engine || loadedEngineId !== engineId) {
       engine?.terminate();
-      progressText.textContent = 'Engine wird geladen…';
       engine = new StockfishEngine();
-      await engine.init((status) => {
-        progressText.textContent = status;
-      }, engineId);
+      await engine.init(() => {}, engineId);
       loadedEngineId = engineId;
     }
 
@@ -994,7 +994,7 @@ async function startAnalysis() {
       depth,
       avgRating,
       onProgress: (done, total) => {
-        progressText.textContent = `Analysiere Zug ${done} von ${total}`;
+        analyzeToggleBtnFill.style.width = `${Math.round((done / total) * 100)}%`;
       },
     });
 
@@ -1067,7 +1067,6 @@ async function startAnalysis() {
   } finally {
     setAnalyzing(false);
     fetchGamesBtn.disabled = false;
-    progressText.classList.add('hidden');
   }
 }
 

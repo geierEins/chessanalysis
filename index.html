@@ -240,22 +240,26 @@
 
       <!-- One button, two states (js/main.js's setAnalyzing) - a plain
            magnifying-glass icon only (blue, idle) starts analysis, to save
-           horizontal space; while running, the exact same button turns into
-           the text "Abbrechen" (red) in place, rather than swapping in a
-           second element with its own gap in the layout. -->
+           horizontal space; while running, the exact same button turns red
+           and shows an X icon + spinner + progress fill instead (same
+           loading visualization as #fetch-games-btn) - never a second
+           element with its own gap in the layout, and never text that grows/
+           shrinks the row's own width as "Analysiere Zug X von Y" changes. -->
       <button id="analyze-toggle-btn" disabled title="Ausgewähltes Spiel analysieren"
-              class="analyze-btn-ready disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded px-4 py-1 text-xs font-medium gap-1.5">
-        <svg id="analyze-toggle-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              class="relative overflow-hidden analyze-btn-ready disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded px-4 py-1 text-xs font-medium gap-1.5">
+        <span id="analyze-toggle-btn-fill" class="absolute inset-y-0 left-0 z-0 bg-white/25" style="width:0%"></span>
+        <svg id="analyze-toggle-btn-icon" class="relative z-10" width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="white" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
           <circle cx="10" cy="10" r="7"></circle>
           <line x1="21" y1="21" x2="15.5" y2="15.5"></line>
         </svg>
-        <span id="analyze-toggle-btn-label" class="hidden">Abbrechen</span>
+        <svg id="analyze-toggle-btn-cancel-icon" class="relative z-10 hidden" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="5" y1="5" x2="19" y2="19"></line>
+          <line x1="19" y1="5" x2="5" y2="19"></line>
+        </svg>
+        <span id="analyze-toggle-btn-spinner" class="relative z-10 btn-spinner hidden"></span>
       </button>
-      <!-- Compact inline status ("Engine wird geladen…", "Analysiere Zug X
-           von Y") - part of the same centered row, not a separate block/bar
-           below it. -->
-      <span id="progress-text" class="hidden text-xs text-neutral-400"></span>
     </div>
   </div>
 </section>

@@ -224,6 +224,13 @@ html {
   background-color: #404040;
 }
 
+/* The currently-selected option (js/ui/customSelect.js) - shown regardless
+   of hover, so reopening a long-scrolled menu (e.g. the game picker) still
+   shows at a glance which entry is already picked, not just on hover. */
+.custom-select-option-selected {
+  background-color: #4b5563;
+}
+
 /* Fixed-width column so every option's icon (whatever shape) takes up the
    same horizontal space - this is what keeps every row's label starting at
    the exact same x position, "in einer Spalte". */
@@ -709,8 +716,8 @@ body {
 /* Empty destination square: a small filled dot. */
 .move-hint-move::before {
   content: '';
-  width: 20%;
-  height: 20%;
+  width: 30%; /* 20% * 1.5 - 50% bigger */
+  height: 30%;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.22);
 }
