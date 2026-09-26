@@ -29,21 +29,34 @@ export async function fetchArchives(username) {
  * Fetches games from the N most recent monthly archives, one at a time (not
  * in parallel) - slower for a large monthsBack, but it's what lets onProgress
  * report real, meaningful progress (archives done / total) instead of just
- * an indeterminate "loading" state.
+ * an indeterminate "loading" state. Stops fetching further (older) archives
+ * entirely once maxGames is reached, rather than fetching everything and
+ * truncating afterward - a prolific player's "since the beginning" range can
+ * span hundreds of monthly archives, which would otherwise make this hang
+ * for a very long time even though only the newest few months are ever kept.
  * @param {string} username
- * @param {{monthsBack?: number, onProgress?: (fraction: number) => void}} [options]
+ * @param {{monthsBack?: number, maxGames?: number, onProgress?: (fraction: number) => void}} [options]
  *   monthsBack: how many months back to include; defaults to 1 (current/most
- *   recent month only). Pass Infinity for all time. onProgress, if given, is
- *   called after each archive finishes, with the fraction (0-1) done so far.
+ *   recent month only). Pass Infinity for all time. maxGames, if given, stops
+ *   fetching once at least this many games have been collected (the actual
+ *   count returned may exceed it slightly - whole archives aren't split).
+ *   onProgress, if given, is called after each archive finishes, with the
+ *   fraction (0-1) done so far - relative to monthsBack, not maxGames, so it
+ *   still jumps straight to 100% on an early stop rather than stalling
+ *   partway.
  * @returns {Promise<object[]>} raw Chess.com game objects, newest first.
  */
-export async function fetchRecentGames(username, { monthsBack = 1, onProgress } = {}) {
+export async function fetchRecentGames(username, { monthsBack = 1, maxGames, onProgress } = {}) {
   const archives = await fetchArchives(username);
   const selected = archives.slice(-monthsBack).reverse(); // newest month first
   const games = [];
   for (let i = 0; i < selected.length; i++) {
     const data = await fetchJson(selected[i]);
     games.push(...(data.games ?? []).slice().reverse());
+    if (maxGames != null && games.length >= maxGames) {
+      onProgress?.(1);
+      break;
+    }
     onProgress?.((i + 1) / selected.length);
   }
   if (games.length === 0) {

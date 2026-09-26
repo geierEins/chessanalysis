@@ -12,9 +12,22 @@ export function initBoardThemePicker() {
   const boardThemeMenu = document.getElementById('board-theme-menu');
   const boardThemeBtnSwatch = document.getElementById('board-theme-btn-swatch');
 
-  function setBoardTheme(light, dark) {
+  function setBoardTheme(light, dark, isWood = false) {
     document.documentElement.style.setProperty('--board-light', light);
     document.documentElement.style.setProperty('--board-dark', dark);
+    // "Holzmaserung" option only - self-generated SVG turbulence textures
+    // (--wood-grain-image-light/-dark, defined in css/styles.css) layered
+    // over both squares' own flat colors instead of a plain fill - light
+    // squares got left flat at first, which just looked wrong/inconsistent
+    // next to a textured dark square.
+    document.documentElement.style.setProperty(
+      '--board-light-image',
+      isWood ? 'var(--wood-grain-image-light)' : 'none'
+    );
+    document.documentElement.style.setProperty(
+      '--board-dark-image',
+      isWood ? 'var(--wood-grain-image-dark)' : 'none'
+    );
     // Derived (not picked per-theme) so the last-move highlight and the best-
     // move arrow always contrast with whichever board theme is active, instead
     // of a fixed color that might barely show up against some of them - and
@@ -41,7 +54,8 @@ export function initBoardThemePicker() {
   const storedTheme = loadBoardTheme();
   setBoardTheme(
     storedTheme?.light ?? getComputedStyle(document.documentElement).getPropertyValue('--board-light').trim(),
-    storedTheme?.dark ?? getComputedStyle(document.documentElement).getPropertyValue('--board-dark').trim()
+    storedTheme?.dark ?? getComputedStyle(document.documentElement).getPropertyValue('--board-dark').trim(),
+    storedTheme?.isWood ?? false
   );
 
   boardThemeBtn.addEventListener('click', () => {
@@ -61,8 +75,9 @@ export function initBoardThemePicker() {
 
   for (const option of document.querySelectorAll('.board-theme-option')) {
     option.addEventListener('click', () => {
-      setBoardTheme(option.dataset.light, option.dataset.dark);
-      saveBoardTheme(option.dataset.light, option.dataset.dark);
+      const isWood = option.dataset.wood === 'true';
+      setBoardTheme(option.dataset.light, option.dataset.dark, isWood);
+      saveBoardTheme(option.dataset.light, option.dataset.dark, isWood);
       boardThemeMenu.classList.add('hidden');
     });
   }

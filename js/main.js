@@ -156,11 +156,20 @@ document.addEventListener('click', (e) => {
 // instead of growing to fit "Letzte 12 Monate" etc.) and next to the full
 // label once the menu is open.
 const pieIcon = (percent) => `<span class="pie-icon" style="--pie:${percent}%"></span>`;
+const timeRangeMenu = el('time-range-menu');
 const timeRangeSelect = new CustomSelect({
   buttonId: 'time-range-btn',
   labelId: 'time-range-btn-label',
   menuId: 'time-range-menu',
-  onChange: saveTimeRange,
+  onChange: (value) => {
+    saveTimeRange(value);
+    updateCustomDateInputsVisibility(value);
+    // CustomSelect.select() always hides the menu after any option - but for
+    // "custom" there's still a choice left to make (the two dates below),
+    // so it's reopened right back up instead of requiring a second click on
+    // the button. No-op for every other option.
+    if (value === 'custom') timeRangeMenu.classList.remove('hidden');
+  },
 });
 timeRangeSelect.setOptions(
   [
@@ -169,9 +178,34 @@ timeRangeSelect.setOptions(
     { value: '6', label: 'Letzte 6 Monate', icon: pieIcon(50) },
     { value: '12', label: 'Letzte 12 Monate', icon: pieIcon(75) },
     { value: 'all', label: 'Von Beginn an', icon: pieIcon(100) },
+    { value: 'custom', label: 'Benutzerdefiniert', icon: '🗓️' },
   ],
   loadTimeRange() ?? 'all'
 );
+// The two native date inputs for the "custom" option above - appended into
+// the SAME floating dropdown menu (not a docked element permanently sitting
+// in the filter bar), so they only ever appear/disappear right along with
+// the rest of this popover. setOptions() above already replaced the menu's
+// innerHTML for the last time (it's never called again for this select), so
+// appending here persists across every later open/close. No dedicated
+// picker widget - plain <input type="date"> gets a native calendar popup
+// for free.
+const customDateRow = document.createElement('div');
+customDateRow.id = 'custom-date-range-row';
+customDateRow.className = 'hidden items-center gap-1 px-2 py-1.5 border-t border-neutral-700';
+customDateRow.innerHTML = `
+  <input id="custom-date-from" type="date" title="Von" class="bg-neutral-700 border border-neutral-600 rounded px-1 py-0.5 text-xs w-full">
+  <span class="text-neutral-500 text-xs">–</span>
+  <input id="custom-date-to" type="date" title="Bis" class="bg-neutral-700 border border-neutral-600 rounded px-1 py-0.5 text-xs w-full">
+`;
+timeRangeMenu.appendChild(customDateRow);
+const customDateFromEl = el('custom-date-from');
+const customDateToEl = el('custom-date-to');
+function updateCustomDateInputsVisibility(value) {
+  customDateRow.classList.toggle('hidden', value !== 'custom');
+  customDateRow.classList.toggle('flex', value === 'custom');
+}
+updateCustomDateInputsVisibility(timeRangeSelect.value);
 // Game-type filter (Spielart) DOM refs - wired further down, mirroring the
 // outcome/color filters' checkbox-multi-select pattern.
 const gameTypeBtn = el('game-type-btn');
@@ -782,6 +816,19 @@ function isSameCalendarDay(a, b) {
   );
 }
 
+// Protects against a prolific player's "Von Beginn an"/large custom range
+// hanging for a very long time (hundreds of monthly archives) or crashing
+// the game picker (one <button> per game) - fetchRecentGames stops fetching
+// further archives once this many games are already in hand.
+const MAX_GAMES = 1000;
+
+/** Whole months between two dates (>= 0), rounded up so the "from" date's own
+ *  month is always included. Used to size monthsBack for the "custom" time
+ *  filter's own date range, from just the "from" date. */
+function monthsBetween(from, to) {
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1;
+}
+
 /** Shows/hides the spinner inside #fetch-games-btn in place of the old
  *  "Lade Partien…" inline text - loading state now lives entirely on the
  *  button itself so the top bar never grows a second row. */
@@ -809,20 +856,38 @@ fetchGamesBtn.addEventListener('click', async () => {
   try {
     const monthsBackValue = timeRangeSelect.value;
     const isTodayFilter = monthsBackValue === 'today';
+    const isCustomRange = monthsBackValue === 'custom';
+    // Empty native <input type="date"> value is '' - both bounds are
+    // optional, an empty "from" just falls back to Infinity below.
+    const customFrom = isCustomRange && customDateFromEl.value ? new Date(customDateFromEl.value) : null;
+    const customTo = isCustomRange && customDateToEl.value ? new Date(customDateToEl.value) : null;
+    if (customTo) customTo.setHours(23, 59, 59, 999); // include the whole "to" day, not just its midnight
+
     // "Heute" only needs the current month's archive (today is always in it).
-    const monthsBack = monthsBackValue === 'all' ? Infinity : isTodayFilter ? 1 : Number(monthsBackValue);
+    const monthsBack =
+      monthsBackValue === 'all'
+        ? Infinity
+        : isTodayFilter
+        ? 1
+        : isCustomRange
+        ? (customFrom ? monthsBetween(customFrom, new Date()) : Infinity)
+        : Number(monthsBackValue);
 
     const rawGames = await fetchRecentGames(username, {
       monthsBack,
+      maxGames: MAX_GAMES,
       onProgress: (fraction) => {
         fetchGamesBtnFill.style.width = `${Math.round(fraction * 100)}%`;
       },
     });
+    const wasCapped = rawGames.length >= MAX_GAMES;
     const today = new Date();
     games = rawGames
       .map(summarizeGame)
       .filter((game) => selectedGameTypes.has(game.timeClass))
       .filter((game) => !isTodayFilter || isSameCalendarDay(game.endDate, today))
+      .filter((game) => !isCustomRange || !customFrom || game.endDate >= customFrom)
+      .filter((game) => !isCustomRange || !customTo || game.endDate <= customTo)
       .filter((game) => {
         const category = ownOutcomeCategory(game, username);
         return !category || selectedOutcomes.has(category);
@@ -851,7 +916,11 @@ fetchGamesBtn.addEventListener('click', async () => {
     gameSelect.setOptions(gameOptions, gameOptions[0]?.value);
     gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
-    showToast(`${games.length} Partien erfolgreich geladen.`, 'success');
+    if (wasCapped) {
+      showToast(`Limit erreicht: nur die neuesten ${MAX_GAMES} Partien wurden geladen.`, 'success');
+    } else {
+      showToast(`${games.length} Partien erfolgreich geladen.`, 'success');
+    }
   } catch (err) {
     showToast(err.message ?? 'Fehler beim Laden der Partien.', 'error');
   } finally {

@@ -28,8 +28,10 @@ export class MoveList {
 
   /** @param {{white: {avatar: string|null}, black: {avatar: string|null}}} players */
   setPlayers(players) {
+    // No color argument - unlike every other setAvatar() call in this app,
+    // this one shouldn't get the white/black ring (just the plain avatar).
     for (const [color, info] of [['w', players.white], ['b', players.black]]) {
-      setAvatar(this.#avatarEl[color], info.avatar, color);
+      setAvatar(this.#avatarEl[color], info.avatar);
     }
   }
 

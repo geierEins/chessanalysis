@@ -174,14 +174,19 @@ export class BoardView {
   }
 
   /**
-   * Switches the piece sprite set (e.g. wikipedia/alpha/uscf/cburnett -
+   * Switches the piece sprite set (e.g. wikipedia/alpha/uscf/neo -
    * js/ui/pieceThemePicker.js), preserving the current position/orientation/
    * overlays. chessboard.js reads config.pieceTheme once at construction and
    * bakes it into every piece <img> src it renders - there's no public API to
    * swap it live, so this destroys and rebuilds the whole chessboard.js
    * instance instead (our own BoardView wrapper, its overlays and DOM
    * container all survive; only chessboard.js's internal widget is replaced).
-   * @param {string} urlTemplate - e.g. '.../{piece}.png', {piece} becomes e.g. "wP"
+   * @param {string|((piece: string) => string)} urlTemplate - either a plain
+   *   string template (e.g. '.../{piece}.png', {piece} becomes e.g. "wP" -
+   *   chessboard.js's own interpolation), or a function for a set whose CDN
+   *   needs the piece code transformed first (e.g. chess.com's own sets want
+   *   it lowercased to "wp") - passed straight through to chessboard.js's
+   *   config.pieceTheme, which already supports both forms itself.
    */
   setPieceTheme(urlTemplate) {
     if (this.#pieceTheme === urlTemplate) return;

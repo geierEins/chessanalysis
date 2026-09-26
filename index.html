@@ -78,9 +78,9 @@
              below the two above - a native <datalist> can't render a visual
              divider between groups, so this is a flat continuation, not a
              separated section. -->
-        <option value="magnuscarlsen">
-        <option value="hikaru">
-        <option value="fabianocaruana">
+        <option value="MagnusCarlsen">
+        <option value="Hikaru">
+        <option value="FabianoCaruana">
       </datalist>
       <!-- Zeitraum-Filter: eigenes Dropdown statt <select>, damit im
            eingeklappten Zustand nur ein kompaktes Icon steht statt des
@@ -216,6 +216,14 @@
           <button type="button" class="board-theme-option" data-light="#687182" data-dark="#282E3B">
             <span class="board-theme-swatch" style="background: conic-gradient(#687182 90deg, #282E3B 90deg 180deg, #687182 180deg 270deg, #282E3B 270deg)"></span>
           </button>
+          <!-- Self-generated wood-grain texture on the dark squares only
+               (js/ui/boardThemePicker.js) - data-dark is just the fallback
+               base tone the texture sits on top of, not the swatch's own
+               real look (a small conic-gradient swatch can't meaningfully
+               preview an SVG turbulence filter at that size anyway). -->
+          <button type="button" class="board-theme-option" data-light="#EDDEBE" data-dark="#8B5A2B" data-wood="true">
+            <span class="board-theme-swatch" style="background: conic-gradient(#EDDEBE 90deg, #8B5A2B 90deg 180deg, #EDDEBE 180deg 270deg, #8B5A2B 270deg)"></span>
+          </button>
         </div>
       </div>
 
@@ -288,7 +296,7 @@
       <div id="board-player-top" class="player-row flex items-center text-base rounded px-2">
         <div class="player-row-left">
           <div class="player-row-info">
-            <img id="board-avatar-top" alt="" class="w-6 h-6 rounded-full hidden">
+            <img id="board-avatar-top" alt="" class="w-8 h-8 rounded-full hidden shrink-0">
             <span id="board-username-top" class="player-username"></span>
           </div>
           <div id="board-material-top" class="material-display"></div>
@@ -313,7 +321,7 @@
       <div id="board-player-bottom" class="player-row flex items-center text-base rounded px-2">
         <div class="player-row-left">
           <div class="player-row-info">
-            <img id="board-avatar-bottom" alt="" class="w-6 h-6 rounded-full hidden">
+            <img id="board-avatar-bottom" alt="" class="w-8 h-8 rounded-full hidden shrink-0">
             <span id="board-username-bottom" class="player-username"></span>
           </div>
           <div id="board-material-bottom" class="material-display"></div>
@@ -329,14 +337,21 @@
     </div>
 
     <!-- Nur auf Desktop sichtbar (vgl. #move-strip-wrap oben). -->
-    <div id="move-list-panel" class="bg-neutral-900 rounded-lg border border-neutral-800 pl-1.5 pr-3 pt-1.5 pb-3">
-      <div class="grid grid-cols-[2.25rem_1fr_1fr] gap-2 mb-2 shrink-0">
+    <div id="move-list-panel" class="bg-neutral-900 rounded-lg border border-neutral-800 pl-1.5 pr-3 pt-4 pb-3">
+      <div class="grid grid-cols-[2.25rem_1fr_1fr] gap-2 mb-4 shrink-0">
         <div></div>
-        <div class="player-row flex items-center justify-start rounded">
-          <img id="move-list-avatar-white" alt="" class="w-6 h-6 rounded-full hidden">
+        <!-- Just the avatar (no username text - that got awkwardly
+             truncated in this narrow a column) - a plain circle, no
+             white/black ring (js/ui/moveList.js's setPlayers deliberately
+             omits the color argument here so setAvatar never adds one).
+             Positioned (css/styles.css's .move-list-header-avatar) so its
+             center lines up with a move's own classification icon center
+             below it, not just centered in the column. -->
+        <div class="player-row move-list-avatar-cell min-w-0">
+          <img id="move-list-avatar-white" alt="" class="move-list-header-avatar hidden">
         </div>
-        <div class="player-row flex items-center justify-start rounded">
-          <img id="move-list-avatar-black" alt="" class="w-6 h-6 rounded-full hidden">
+        <div class="player-row move-list-avatar-cell min-w-0">
+          <img id="move-list-avatar-black" alt="" class="move-list-header-avatar hidden">
         </div>
       </div>
       <ol id="move-list" class="text-base leading-8 overflow-y-auto min-h-0 pr-1"></ol>

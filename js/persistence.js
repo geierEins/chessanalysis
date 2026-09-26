@@ -40,7 +40,7 @@ export function saveLastUsername(username) {
   if (username) safeSet(USERNAME_KEY, username);
 }
 
-/** @returns {{light: string, dark: string}|null} */
+/** @returns {{light: string, dark: string, isWood?: boolean}|null} */
 export function loadBoardTheme() {
   const raw = safeGet(THEME_KEY);
   if (!raw) return null;
@@ -52,9 +52,9 @@ export function loadBoardTheme() {
   }
 }
 
-/** @param {string} light @param {string} dark */
-export function saveBoardTheme(light, dark) {
-  safeSet(THEME_KEY, JSON.stringify({ light, dark }));
+/** @param {string} light @param {string} dark @param {boolean} [isWood] */
+export function saveBoardTheme(light, dark, isWood = false) {
+  safeSet(THEME_KEY, JSON.stringify({ light, dark, isWood }));
 }
 
 /** @returns {string|null} */

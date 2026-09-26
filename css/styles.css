@@ -14,6 +14,20 @@
      .user-highlight-red below, on every board theme, since both are the same
      right-click annotation feature (js/ui/board.js). */
   --user-arrow-color: rgb(220, 60, 50);
+  /* Light/dark-square texture (js/ui/boardThemePicker.js's "Holzmaserung"
+     option) - 'none' for every flat-color theme; that option alone sets
+     --board-light-image/--board-dark-image to these instead. Two self-
+     generated SVG filters (feTurbulence, tinted tan/brown via feColorMatrix -
+     different seeds so the grain doesn't look like a simple recolor of the
+     exact same noise field), not hotlinked photos: several attempts to match
+     a specific chess.com board asset for this didn't pan out (either wrong
+     folder name, or grain on both squares looking identical, or - even once
+     both squares had grain - a different look entirely than wanted), so this
+     is a from-scratch approximation instead of a real wood photograph. */
+  --board-light-image: none;
+  --board-dark-image: none;
+  --wood-grain-image-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.09' numOctaves='5' seed='3' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 0.93 0 0 0 0 0.85 0 0 0 0 0.70 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --wood-grain-image-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.09' numOctaves='5' seed='11' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 0.45 0 0 0 0 0.30 0 0 0 0 0.16 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Mobile browsers (notably iOS/Android Safari and Chrome) silently inflate
@@ -55,10 +69,14 @@ html {
    so js/main.js can swap the theme by just changing the two custom properties. */
 .white-1e1d7 {
   background-color: var(--board-light);
+  background-image: var(--board-light-image);
+  background-size: cover;
 }
 
 .black-3c85d {
   background-color: var(--board-dark);
+  background-image: var(--board-dark-image);
+  background-size: cover;
 }
 
 /* One square per theme (button and menu options alike) instead of two
@@ -414,13 +432,20 @@ body {
   min-width: 0;
 }
 
+/* A dezent left-to-right gradient (not flat anymore) - still clearly reads
+   as "the light/white side" vs. "the dark/black side" at a glance, just with
+   a bit more depth than a single flat fill. background-color kept as a
+   fallback (same as the gradient's own midpoint) for the unlikely case a
+   browser doesn't resolve the gradient at all. */
 .player-row-white {
   background-color: #d4d4d4;
+  background-image: linear-gradient(to right, #e2e2e2, #c6c6c6);
   color: #171717;
 }
 
 .player-row-black {
   background-color: rgba(245, 245, 245, 0.12);
+  background-image: linear-gradient(to right, rgba(245, 245, 245, 0.16), rgba(245, 245, 245, 0.07));
   color: #e5e5e5;
 }
 
@@ -821,6 +846,29 @@ body {
   width: 16px;
   height: 16px;
   vertical-align: -3px;
+}
+
+.move-list-avatar-cell {
+  position: relative;
+}
+
+/* Bigger than the plain w-6/h-6 circle this replaced, and positioned by
+   its own center rather than centered in the column: a move's own
+   classification icon (.move-list-icon, 16px) sits 4px in from
+   .move-list-item's own left padding, so its center is 4px + 16px/2 = 12px
+   from the column's left edge - this avatar's center is pinned to that same
+   12px mark (translate(-50%, -50%), so its size can freely differ from the
+   icon's own without needing the offset recalculated) so both line up on
+   one vertical line. */
+.move-list-header-avatar {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 /* A variation's block (js/ui/moveList.js #renderVariationBlock) - indented
