@@ -1,0 +1,7 @@
+Stockfish.js 16 (single-threaded WASM/NNUE build), by Chess.com, LLC / Nathan Rugg.
+Source: https://github.com/nmrugg/stockfish.js
+Package: https://www.npmjs.com/package/stockfish (v16.0.0)
+License: GPLv3
+
+Vendored here (rather than loaded from a CDN) because browsers refuse to
+construct a classic Web Worker from a cross-origin script URL.

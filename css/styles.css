@@ -1,0 +1,1255 @@
+:root {
+  color-scheme: dark;
+  --board-light: #EAE9D2;
+  --board-dark: #4B7399;
+  /* Overridden inline per-square by js/ui/board.js when marking a
+     termination square; this default just keeps the property resolvable. */
+  --marker-color: transparent;
+  /* Overridden by js/main.js (setBoardTheme, complementaryHighlight) to the
+     complement of whichever board theme is active; this default only
+     applies for the brief moment before that first runs. */
+  --lastmove-color: hsl(210 85% 55%);
+  --best-move-arrow-color: hsl(210 85% 55%);
+  /* NOT theme-derived, unlike the two above - a fixed red matching
+     .user-highlight-red below, on every board theme, since both are the same
+     right-click annotation feature (js/ui/board.js). */
+  --user-arrow-color: rgb(220, 60, 50);
+}
+
+/* Mobile browsers (notably iOS/Android Safari and Chrome) silently inflate
+   font sizes beyond the author's explicit font-size in narrow viewports
+   ("text inflation"), which is what made every text-xs control (and
+   especially the long game-select entries) render far bigger than 12px and
+   wrap onto multiple lines. This opts every element out of that. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Keeps every top-bar control (#filter-row) the same, compact height -
+   Tailwind's own utility classes left every element's height driven by its
+   own padding+font-size combo instead, which didn't match consistently
+   (#analyze-toggle-btn's text-sm/py-1.5 in particular came out taller than
+   everything else's text-xs/py-1). Scoped to DIRECT children of #filter-row
+   and of its immediate wrapper divs only, so the *closed* dropdown buttons
+   are unified without also resizing every OPEN dropdown's own option rows
+   (further nested, a separate concern with its own already-consistent
+   sizing). #username-presets-btn is the one exception - the small overlay
+   triangle inside #username-picker, not a real control of its own. */
+#filter-row > input,
+#filter-row > button,
+#filter-row > div.relative > input,
+#filter-row > div.relative > button:not(#username-presets-btn) {
+  height: 26px;
+  box-sizing: border-box;
+}
+
+#filter-row > button,
+#filter-row > div.relative > button:not(#username-presets-btn) {
+  display: flex;
+  align-items: center;
+}
+
+/* chessboard.js's own bundled classes for the square colors - overridden here
+   (same specificity, but this stylesheet loads after chessboard's own CSS)
+   so js/main.js can swap the theme by just changing the two custom properties. */
+.white-1e1d7 {
+  background-color: var(--board-light);
+}
+
+.black-3c85d {
+  background-color: var(--board-dark);
+}
+
+/* One square per theme (button and menu options alike) instead of two
+   side-by-side ones - a conic-gradient split into 4 alternating quadrants
+   (js/main.js's setBoardTheme, or inlined per option below) reads as a
+   miniature 2x2 checkerboard of the theme's own light/dark colors. */
+.board-theme-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.board-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.board-theme-option:hover {
+  background-color: #404040;
+}
+
+/* Piece-theme picker (js/ui/pieceThemePicker.js) - a black knight sprite
+   from the actual set stands in as that set's own icon, so the collapsed
+   button and each menu row show a real sample of the art style rather than
+   an abstract glyph. */
+.piece-theme-btn-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+}
+
+.piece-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  width: 100%;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.piece-theme-option:hover {
+  background-color: #404040;
+}
+
+.piece-theme-option-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* #outcome-filter-btn's collapsed icon - the same 3 outcome-circle emoji
+   used at the end of each game entry (js/main.js's ownOutcomeCircle),
+   overlapped left-to-right: each one covers ~67% of the next one to its
+   right, leaving roughly a third of that one peeking out. Positioned (not
+   static) so js/main.js's inline z-index - descending left to right - can
+   put the earlier icon on top; painting order alone (later DOM siblings on
+   top by default) would otherwise overlap the other way round. */
+.outcome-filter-stack-icon {
+  display: inline-block;
+  position: relative;
+  width: 14px;
+  text-align: center;
+}
+
+.outcome-filter-stack-icon:not(:first-child) {
+  margin-left: -9px;
+}
+
+/* #game-type-btn's collapsed icon stack (js/main.js) - same idea as
+   .outcome-filter-stack-icon above, just a lighter overlap (less of each
+   icon covered) since up to 4 of these can show at once, vs. that one's 3. */
+.game-type-filter-stack-icon {
+  display: inline-block;
+  position: relative;
+  width: 14px;
+  text-align: center;
+}
+
+.game-type-filter-stack-icon:not(:first-child) {
+  margin-left: -5px;
+}
+
+/* #color-filter-btn's collapsed icon (pawn images, not emoji) - same
+   left-over-right overlap idea as .outcome-filter-stack-icon above, sized
+   for the actual chessboard.js piece image instead of a text glyph. */
+.color-filter-stack-icon {
+  display: inline-block;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+.color-filter-stack-icon:not(:first-child) {
+  margin-left: -10px;
+}
+
+/* The small pawn icon shown next to "Weiß"/"Schwarz" inside the open menu
+   (not the collapsed-button stack above). */
+.color-filter-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+.outcome-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  width: 100%;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.outcome-filter-option:hover {
+  background-color: #404040;
+}
+
+/* js/ui/customSelect.js - #game-type-menu/#game-menu/#time-range-menu's
+   option items. Flex row (not plain block) so an option with an icon lines
+   its text up in its own column, at a consistent gap from the icon, rather
+   than the icon+label just being one run-together text string. */
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.custom-select-option:hover {
+  background-color: #404040;
+}
+
+/* Fixed-width column so every option's icon (whatever shape) takes up the
+   same horizontal space - this is what keeps every row's label starting at
+   the exact same x position, "in einer Spalte". */
+.custom-select-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* Growing "pie slice" icon (js/main.js's time-range filter) - a plain circle
+   outline with a conic-gradient wedge filled in from noon, clockwise, sized
+   by the --pie custom property (a percentage: 8% = "a sliver" up to 100% =
+   "full circle"). currentColor so it always matches whatever text color the
+   button/option already has (including a per-option override color). */
+.pie-icon {
+  --pie: 0%; /* overridden per-instance via inline style; declared here too so tooling can resolve the custom property */
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: conic-gradient(currentColor var(--pie), transparent 0);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* #username-presets-btn - overlaid on #username-input's own right edge
+   (not a separate button beside the field), invisible until the field is
+   hovered/focused or its own menu is open - mirroring a native dropdown
+   indicator rather than sitting there permanently. */
+#username-presets-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #737373;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  cursor: pointer;
+}
+
+#username-picker:hover #username-presets-btn,
+#username-input:focus ~ #username-presets-btn,
+#username-presets-btn:hover,
+#username-presets-btn.menu-open {
+  opacity: 1;
+}
+
+/* #username-avatar - overlaid on #username-input's own LEFT edge (mirroring
+   #username-presets-btn's overlay on the right), so the picture reads as
+   part of the field itself rather than a separate element floating beside
+   it. Always visible once it has a src (unlike the triangle above, which is
+   hover-only) - #username-input's own padding-left (below) permanently
+   reserves its space either way, so nothing shifts once it loads. */
+#username-avatar {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+}
+
+#username-input {
+  padding-left: 26px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Desktop: never wraps to a second line, guaranteed - native controls (the
+   remaining <select>s especially) render measurably wider on some platforms
+   (seen on macOS Firefox) than their CSS alone would suggest, which could
+   silently push the row's natural width past its container even with room
+   to spare on other platforms. Rather than chase that per-platform, this
+   structurally rules out wrapping: if it ever doesn't fit, the row scrolls
+   horizontally instead - not eliminated. Mobile (media query below) reverts
+   to wrapping, since stacking the filters there is intentional. */
+#filter-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  align-items: center;
+  /* `safe` falls back to start-alignment if the row ever does overflow -
+     plain `center` would let true centering clip/hide the row's own start
+     behind the scrollport's left edge (a well-known centered-overflow
+     pitfall), silently defeating the whole point of overflow-x:auto above. */
+  justify-content: safe center;
+}
+
+/* flex-shrink defaults to 1, and a flex item's default min-width is its
+   min-content size - for text, that's only as wide as its LONGEST WORD (text
+   can still wrap to get there), not its unwrapped width. So without this,
+   flex-nowrap alone doesn't actually stop things from wrapping - it just
+   lets the browser squeeze each control below its natural size, wrapping
+   their own label text internally, before the row would ever need to
+   scroll. This forces every control to stay at its natural size, so the row
+   itself (not any control's own text) is what ends up overflowing/scrolling. */
+#filter-row > * {
+  flex-shrink: 0;
+}
+
+#filter-row::-webkit-scrollbar {
+  height: 6px;
+}
+
+#filter-row::-webkit-scrollbar-thumb {
+  background-color: #404040;
+  border-radius: 3px;
+}
+
+.nav-btn {
+  background-color: #262626;
+  border: 1px solid #404040;
+  border-radius: 0.25rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  transition: background-color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background-color: #404040;
+}
+
+/* Visually distinct from the timeline controls (first/prev/play/next/last) -
+   this button doesn't move through the game, it flips the board. */
+.nav-btn-flip {
+  background-color: #52525b;
+  border-color: #71717a;
+}
+
+.nav-btn-flip:hover {
+  background-color: #71717a;
+}
+
+/* All review-panel sections are direct grid children, positioned purely by
+   name via grid-template-areas - the mobile media query at the bottom of
+   this file redefines only that template (different area layout, some areas
+   dropped/swapped for their mobile counterpart), never the DOM. Column/row
+   sizing is intentionally left to each item's own explicit pixel width/height
+   (set at runtime by js/main.js's syncBoardRowLayout, not derived from CSS
+   vw/vh or content-driven grid auto-sizing - both proved unreliable across
+   browser zoom levels and long move lists in earlier iterations of this
+   layout) - `auto` grid tracks simply size to whatever their item's own
+   explicit size already is. */
+#review-panel {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-areas:
+    "eb     board  moves"
+    "eb     board  graph"
+    "eb     board  nav"
+    "dashboard dashboard dashboard";
+  gap: 0.75rem;
+  align-items: start;
+  justify-content: center;
+}
+
+/* #review-panel's own id selector otherwise outranks Tailwind's plain
+   .hidden class (both are display, but #id beats .class), which made the
+   (still-empty) grid areas visible before any game had been analyzed. The
+   extra class-qualified selector here has higher specificity than #id alone,
+   so it wins back the override while .hidden is present. */
+#review-panel.hidden {
+  display: none;
+}
+
+#eval-graph-wrap { grid-area: graph; }
+#eval-bar-wrap { grid-area: eb; width: 24px; }
+#board-column { grid-area: board; }
+#move-list-panel { grid-area: moves; }
+#nav-wrap { grid-area: nav; }
+#dashboard-wrap { grid-area: dashboard; }
+
+/* Mobile-only counterpart of #move-list-panel (see the media query below) -
+   hidden on desktop so it never takes part in layout/measurement there. */
+#move-strip-wrap {
+  display: none;
+}
+
+/* Width/background color are set from js/main.js (updateBoardPlayerLabels):
+   width matches the board square, background tints toward whichever color
+   (white/black) is currently shown on that side. */
+/* Two groups - a left cluster (info + material, bundled in .player-row-left
+   so captures sit right up against the elo number instead of floating in the
+   middle) and the clock, pinned to the right via justify-content. Only the
+   leftover space between the captures and the clock is ever free. */
+.player-row {
+  height: 26px;
+  justify-content: space-between;
+  transition: background-color 0.2s ease;
+}
+
+/* No overflow:hidden here either - same reason as .player-row-info below:
+   it clipped the avatar's own ring (box-shadow extending past the image).
+   Truncation lives solely on .player-username now. */
+.player-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.player-row-white {
+  background-color: #d4d4d4;
+  color: #171717;
+}
+
+.player-row-black {
+  background-color: rgba(245, 245, 245, 0.12);
+  color: #e5e5e5;
+}
+
+/* No overflow:hidden here - it used to clip the avatar's own ring
+   (.avatar-ring-white/black, a box-shadow extending 2px past the image
+   itself) at the row's edges. Truncation instead lives on .player-username
+   alone, which is also the only way text-overflow:ellipsis can actually
+   apply (it needs to sit on the text's own element, not a flex container
+   wrapping both the avatar image and the text). */
+.player-row-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Captured-pieces tray (js/main.js updateMaterialDisplay, values from
+   js/analysis/material.js). */
+.material-display {
+  display: flex;
+  align-items: center;
+  /* No gap here - js/main.js (renderMaterialDisplay) sets each icon's own
+     margin-left instead, so it can overlap same-type pieces and only add
+     real spacing between different-type groups. */
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.material-display-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.material-display-advantage {
+  margin-left: 3px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* Remaining-time clock (js/main.js updatePlayerClocks, from the PGN's own
+   [%clk] comments - js/analysis/pgnClock.js). Hidden whenever the loaded
+   game's PGN has no clock data at all for that position - see the .hidden
+   override just below, needed for the same reason as elsewhere in this file
+   (#id/.class specificity notes): a bare .hidden class alone ties with
+   .player-clock's own specificity, so source order alone would decide, which
+   isn't reliable against Tailwind's CDN-injected stylesheet. */
+.player-clock {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  /* No color here - inherits from .player-row-white/.player-row-black so the
+     clock always matches that side's username color exactly. */
+}
+
+.player-clock.hidden {
+  display: none;
+}
+
+/* Under 30 seconds remaining. */
+.player-clock.low-time {
+  color: #f87171;
+}
+
+.player-clock-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.player-clock-time {
+  white-space: nowrap;
+}
+
+#move-list-panel {
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The move list takes all the vertical space the navigation controls below
+   it don't need - the nav controls are sized to their own (small) content
+   instead of stretching to fill a fixed share, so shrinking the buttons
+   (.nav-btn) hands that space straight back to the move list. */
+#move-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#nav-wrap {
+  align-self: start;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+}
+
+#eval-graph-wrap {
+  height: 40px;
+  position: relative;
+}
+
+/* Chart.js (responsive:true) sets its own inline width/height on this canvas
+   from the container's measured size, which can round a fractional pixel
+   short in either dimension - invisible against a square corner, but it left
+   a sliver of #eval-graph-wrap's own square inner edge poking out from behind
+   its rounded-lg/overflow-hidden corner (sharp at the far bottom-right,
+   perfect at the top-left where the canvas starts flush regardless). Forcing
+   the canvas to exactly 100% - overriding Chart.js's own inline style, which
+   only !important can do - closes that gap; the actual backing pixel buffer
+   Chart.js allocated for HiDPI sharpness is untouched, so at most this
+   stretches the render by under a pixel, never softens it noticeably. */
+#eval-graph {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Current-position indicator (js/ui/evalGraph.js's setActivePly, called from
+   js/main.js's goToNode) - a thin vertical line at the active move. Purely a
+   visual overlay: pointer-events:none so it never steals the chart's own
+   click-to-jump handling underneath it. */
+.eval-graph-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.5px;
+  height: 100%;
+  /* Same color as the board's best-move suggestion arrow (js/main.js's
+     setBoardTheme derives --best-move-arrow-color per board theme), so both
+     "here's the good move"/"here's where we are" cues read as one visual
+     language instead of an unrelated fixed color. */
+  background: var(--best-move-arrow-color);
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 0.15s ease-out;
+}
+
+.eval-graph-indicator.hidden {
+  display: none;
+}
+
+/* js/ui/evalGraph.js's own DOM tooltip (Chart.js's "external" tooltip mode) -
+   pinned to the graph's own bottom-right corner by default (not at the
+   hovered point, which on this short a graph covered exactly the dot/area
+   being aimed at). Positioning it ABOVE the graph entirely (an earlier
+   attempt) escaped #eval-graph-wrap's own box, so an adjacent grid sibling
+   (the move list) painted over it - staying fully inside this box avoids
+   that. Flips to the bottom-LEFT corner instead (.eval-graph-tooltip-left)
+   once the hovered point/cursor gets close enough to the right edge that
+   the tooltip would otherwise sit right under it. */
+.eval-graph-tooltip {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: #262626;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.eval-graph-tooltip.hidden {
+  display: none;
+}
+
+.eval-graph-tooltip-left {
+  right: auto;
+  left: 2px;
+}
+
+#eval-bar-white,
+#eval-bar-black {
+  transition: height 0.3s ease;
+}
+
+#eval-bar-label {
+  transition: color 0.3s ease;
+}
+
+#eval-bar-center-line {
+  height: 1px;
+  background-color: rgba(128, 128, 128, 0.6);
+  pointer-events: none;
+}
+
+/* chessboard.js always rounds its own internal board size down to a multiple
+   of 8 (by up to 8px short of the container), then left-aligns the result
+   instead of centering it - this is what made every piece (and square)
+   appear slightly shifted left relative to our own badge/arrow overlays,
+   which size themselves from the container's actual full width. Centering
+   its output here removes that bias. */
+#board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#board-arrow-layer {
+  z-index: 5;
+  overflow: visible;
+}
+
+/* Colors as CSS classes (not a literal `fill` attribute set in JS), so
+   js/main.js can re-color every already-drawn arrow instantly on a board-
+   theme change just by updating these custom properties, with no redraw. */
+.arrow-best-move {
+  fill: var(--best-move-arrow-color);
+  fill-opacity: 0.75;
+}
+
+.arrow-user {
+  fill: var(--user-arrow-color);
+  fill-opacity: 0.8;
+}
+
+/* Move-classification icon, appended directly into its square's own DOM
+   element (js/ui/board.js) - percentage sizing so it scales with the square
+   (and thus the board) instead of staying a fixed pixel size, and paints on
+   top of the square's background/piece by normal DOM stacking (no z-index
+   needed - it's the square element's last child). */
+.move-badge {
+  position: absolute;
+  top: 3%;
+  right: 3%;
+  width: 38%;
+  height: 38%;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+/* Legal-move indicators (js/ui/board.js's showMoveHighlights, on drag-start
+   or a click-to-select) - appended into the target square's own element like
+   every other overlay in this file. pointer-events:none so a click still
+   reaches the square underneath (js/ui/board.js's own click handler reads
+   it via e.target.closest('[data-square]')). */
+.move-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Empty destination square: a small filled dot. */
+.move-hint-move::before {
+  content: '';
+  width: 20%;
+  height: 20%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+/* Capturable square: a ring around the edge instead, so the piece being
+   threatened stays fully visible in the center. */
+.move-hint-capture::before {
+  content: '';
+  width: 86%;
+  height: 86%;
+  border-radius: 50%;
+  border: 4px solid rgba(0, 0, 0, 0.22);
+  box-sizing: border-box;
+}
+
+.avatar-ring-white {
+  box-shadow: 0 0 0 2px #f5f5f5;
+}
+
+/* Darker than the panel/page backgrounds (#171717 / #0a0a0a) so it stays
+   visible against them - equal to or lighter than those would blend in. */
+.avatar-ring-black {
+  box-shadow: 0 0 0 2px #000000;
+}
+
+/* Marks the king that explains how the game ended (checkmate/timeout/
+   resignation/draw) on the final position. Set directly on the square's own
+   DOM element (js/ui/board.js) rather than a separately-positioned overlay,
+   so it's always pixel-perfect aligned with the square, and - since it's the
+   square's own background, painted before its child piece - never tints or
+   obscures the piece standing on it. */
+.termination-square {
+  background-color: var(--marker-color);
+}
+
+.termination-marker-icon {
+  position: absolute;
+  width: 44%;
+  height: 44%;
+  top: 4%;
+  right: 4%;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+/* Fills the from/to squares of the currently-shown move with a near-opaque
+   veil in --lastmove-color (js/main.js: the active board theme's own
+   complementary hue, so it's guaranteed to contrast with it - not a fixed
+   color that might barely show up against some themes). A `background-image`
+   (flat-color gradient), not `background-color`, so it composites on top of
+   the existing .white-1e1d7/.black-3c85d background-color instead of
+   replacing it - at this opacity the square's own checker color barely
+   contributes anyway, but the layering still keeps this from clobbering that
+   background-color outright. Set directly on the square's own DOM element
+   (like .termination-square above), so it's still painted behind the piece
+   standing on it. */
+.lastmove-highlight {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--lastmove-color) 88%, transparent),
+    color-mix(in srgb, var(--lastmove-color) 88%, transparent)
+  );
+}
+
+/* Right-click-drawn annotation highlight (js/ui/board.js) - same translucent
+   "veil" technique as .lastmove-highlight above, just red. Declared after it
+   so a right-clicked last-move square shows the (more deliberate) user
+   annotation rather than the two gradients silently fighting over the same
+   background-image property. */
+.user-highlight-red {
+  background-image: linear-gradient(rgba(220, 60, 50, 0.5), rgba(220, 60, 50, 0.5));
+}
+
+/* Click-to-move selection (js/ui/board.js's #showMoveHighlights) - same
+   translucent "veil" technique AND color as .lastmove-highlight above (not
+   its own fixed color), so picking up a piece reads as the same visual
+   language as the before/after-move highlight rather than a third, unrelated
+   hue. Declared last so an actively-selected square (the more immediate
+   action) wins the shared background-image property over a stale last-move
+   highlight or annotation. */
+.selected-square {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--lastmove-color) 88%, transparent),
+    color-mix(in srgb, var(--lastmove-color) 88%, transparent)
+  );
+}
+
+/* Overrides chessboard.js's own bundled CSS (chessboard-1.0.0.min.css:
+   `.highlight1-32417, .highlight2-9c5d2 { box-shadow: inset 0 0 3px 3px #ff0 }`,
+   its native drag-source/drag-hover square highlight) with the same
+   --lastmove-color used everywhere else, instead of a fixed yellow that
+   ignores the active board theme entirely. Wins the cascade at equal
+   selector specificity because index.html loads this stylesheet after
+   chessboard.js's own - no !important needed. */
+.highlight1-32417,
+.highlight2-9c5d2 {
+  box-shadow: inset 0 0 3px 3px var(--lastmove-color);
+}
+
+/* Widths as classes (not inline on the <col>s) so the mobile media query
+   below can override them - an inline style can't be beaten by a stylesheet
+   rule without `!important`. */
+.table-label-col {
+  width: 180px;
+}
+
+.table-value-col {
+  width: calc((100% - 180px) / 2);
+}
+
+.move-list-item {
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.move-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Same --lastmove-color as the board's own before/after-move square
+   highlight (js/main.js's setBoardTheme derives it per board theme), so the
+   move list's "you are here" marker matches whichever color scheme is
+   active instead of a fixed, unrelated green. */
+.move-list-item.active {
+  background-color: color-mix(in srgb, var(--lastmove-color) 25%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--lastmove-color) 50%, transparent);
+}
+
+.move-list-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+
+/* A variation's block (js/ui/moveList.js #renderVariationBlock) - indented
+   under the row it branches off from, exactly one level regardless of how
+   deep it itself later branches again: a deeper branch renders as its OWN
+   flat sibling block (appended to the same top-level list, not nested inside
+   this one), so indentation never compounds. Each move pair inside gets its
+   own row (#renderLineRows, the same grid-row mechanism the main line uses),
+   per the reference layout. */
+.move-variation {
+  margin: 2px 0;
+  padding: 3px 6px 4px 24px;
+  margin-left: 0.9rem;
+  border-left: 2px solid #404040;
+}
+
+/* The toggle/delete icons are NOT a separate header line - they're
+   absolutely positioned into the variation body's own first row (see
+   js/ui/moveList.js #renderVariationBlock), which is why that row alone
+   needs `position: relative` as their positioning context. Being absolute,
+   they sit on top of - without disturbing - that row's own
+   `grid-cols-[2.25rem_1fr_1fr]` number/move columns. */
+.move-variation-first-row {
+  position: relative;
+}
+
+/* Sits in .move-variation's own left padding (widened to 24px above, from
+   the plain 6px every other side keeps), to the left of the move number:
+   ~6px clear of the indent border on one side, ~4px clear of the number
+   column on the other - a real gap on both sides, not flush against either. */
+.move-variation-toggle {
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  text-align: center;
+  font-size: 0.9em;
+  color: #737373;
+  cursor: pointer;
+}
+
+.move-variation-toggle:hover {
+  color: #d4d4d4;
+}
+
+.move-variation-delete {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 2px;
+  font-size: 0.9em;
+  color: #737373;
+  cursor: pointer;
+}
+
+.move-variation-delete:hover {
+  color: #f87171;
+}
+
+/* "(…)" shown after the first row's own move while the rest of the
+   variation's body is collapsed - the same "there's more, folded away"
+   signal the old separate preview line gave. */
+.move-variation-collapsed-marker {
+  color: #737373;
+}
+
+.move-variation-collapsed-marker.hidden {
+  display: none;
+}
+
+.move-variation-body {
+  font-size: 0.9em;
+}
+
+.move-variation-number,
+.move-variation-paren {
+  color: #737373;
+}
+
+/* #id beats .hidden's specificity otherwise (see #review-panel.hidden
+   elsewhere in this file) - reasserted here the same way. */
+#branch-controls {
+  display: flex;
+}
+
+#branch-controls.hidden {
+  display: none;
+}
+
+/* Pawn-promotion piece picker (js/ui/promotionPicker.js), overlaid directly
+   on the target square - same "inject into the square" technique board.js
+   uses for badges/termination markers. */
+.promotion-picker {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 400%;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background-color: rgba(23, 23, 23, 0.95);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.promotion-piece {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.promotion-piece:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.promotion-piece img {
+  width: 90%;
+  height: 90%;
+}
+
+#move-list::-webkit-scrollbar,
+#eval-bar-wrap::-webkit-scrollbar {
+  width: 6px;
+}
+
+#move-list::-webkit-scrollbar-thumb {
+  background-color: #404040;
+  border-radius: 3px;
+}
+
+/* Mobile move strip (js/ui/moveList.js's second, flat rendering of the same
+   move data) - a single horizontally-scrolling line instead of the desktop
+   vertical list, so it costs almost no vertical space. */
+#move-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+#move-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.move-strip-number {
+  flex-shrink: 0;
+  color: #737373;
+  font-size: 0.85rem;
+}
+
+.move-strip-item {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.move-strip-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.move-strip-item.active {
+  background-color: color-mix(in srgb, var(--lastmove-color) 25%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--lastmove-color) 50%, transparent);
+}
+
+.move-strip-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+/* Toggle between #classification-table and #time-management-chart-wrap
+   (js/main.js's setDashboardView) - small tab-style buttons, not a native
+   <select> or a checkbox, since there are exactly two named views to flip
+   between and both should stay visible as options at all times. */
+.dashboard-view-btn {
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.375rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #a3a3a3;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dashboard-view-btn:hover {
+  color: #e5e5e5;
+}
+
+.dashboard-view-btn.active {
+  color: #e5e5e5;
+  background: #262626;
+  border-color: #404040;
+}
+
+/* "(Zug N)" jump link inside a #stats-table cell (js/main.js's
+   formatMoveStat/renderStatsTable) - same jump-to-move idea as clicking a
+   move-list row or a time-management-chart bar. */
+.stat-jump-link {
+  color: #737373;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.stat-jump-link:hover {
+  color: #a3a3a3;
+  text-decoration: underline;
+}
+
+#time-management-chart-wrap {
+  height: 260px;
+}
+
+/* Mobile: js/main.js (syncBoardRowLayout, MOBILE_BREAKPOINT) switches board/
+   eval-bar/eval-graph/dashboard sizing to match. #review-panel's own grid
+   swaps to 2 columns (a narrow eval-bar column + a board column that takes
+   all remaining width) and rearranges everything else into single full-width
+   rows - the desktop vertical move list gives way to the horizontal move
+   strip above, and navigation moves from under the move list to under the
+   board, per the same #nav-wrap element (just repositioned, not duplicated). */
+@media (max-width: 700px) {
+  #filter-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  #game-picker,
+  #game-btn {
+    width: 100%;
+  }
+
+  #review-panel {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "movestrip  movestrip"
+      "eb         board"
+      "nav        nav"
+      "graph      graph"
+      "dashboard  dashboard";
+  }
+
+  #move-list-panel {
+    display: none;
+  }
+
+  #move-strip-wrap {
+    display: block;
+    grid-area: movestrip;
+  }
+
+  #eval-graph-wrap {
+    height: 50px;
+  }
+
+  .nav-btn {
+    font-size: 1.05rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  #nav-wrap {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: 1fr;
+  }
+
+  /* Not enough width left for avatar + username together - keep just the
+     avatar, centered above its column's numbers (the label column shrinks to
+     match, since it only ever holds short category names on mobile too). */
+  .table-label-col {
+    width: 90px;
+  }
+
+  .table-value-col {
+    width: calc((100% - 90px) / 2);
+  }
+
+  .username-text {
+    display: none;
+  }
+
+  /* Collapsed automatically once a game finishes analyzing (js/main.js), so
+     the board gets the screen instead of 5 rows of filter controls - can be
+     reopened again (e.g. to load a different game) via #loader-toggle-btn. */
+  #loader-panel.collapsed {
+    display: none;
+  }
+
+  /* #id beats .hidden's specificity otherwise (see #review-panel.hidden
+     above) - reasserted here so js/main.js can still toggle visibility with
+     the plain `hidden` class before analysis has produced anything to show. */
+  #loader-toggle-btn.hidden {
+    display: none;
+  }
+
+  #loader-toggle-btn {
+    display: flex;
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 25;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: #262626;
+    border: 1px solid #404040;
+    color: #e5e5e5;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Top bar layout protection: all transient feedback (errors, "N Partien
+   geladen", etc.) now lives in floating toasts (js/ui/toast.js) or the
+   fetch-games-btn spinner below instead of inline text, so #loader-panel has
+   no variable-height content left and can never grow a second row. This
+   nowrap is flex's own default anyway - stated explicitly as a guard against
+   a Tailwind utility class overriding it later. */
+#filter-row {
+  flex-wrap: nowrap;
+}
+
+/* #fetch-games-btn's left-to-right progress fill (js/main.js, driven by
+   fetchRecentGames' onProgress) - eased so each archive's jump in width
+   visibly animates instead of snapping. */
+#fetch-games-btn-fill {
+  transition: width 0.25s ease-out;
+}
+
+/* #analyze-toggle-btn's idle ("Analysieren") state - js/main.js's
+   setAnalyzing removes this class (swapping in plain Tailwind bg-red-600/
+   hover:bg-red-500 instead) once analysis starts, since "Abbrechen" stays a
+   flat color, not this gradient. */
+.analyze-btn-ready {
+  background: linear-gradient(to bottom, #9CC859, #5A8A43);
+}
+
+.analyze-btn-ready:hover {
+  filter: brightness(1.1);
+}
+
+.btn-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spinner-spin 0.6s linear infinite;
+}
+
+/* Same #id/.class specificity note as .player-clock.hidden elsewhere in this
+   file - a bare .hidden alone ties with .btn-spinner's own specificity. */
+.btn-spinner.hidden {
+  display: none;
+}
+
+@keyframes btn-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#toast-container {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #e5e5e5;
+  background: #262626;
+  border: 1px solid #404040;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  max-width: 320px;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-error {
+  border-color: #dc2626;
+  background: #3f1d1d;
+  color: #fca5a5;
+}
+
+.toast-success {
+  border-color: #16a34a;
+  background: #14251a;
+  color: #86efac;
+}
+
+/* Red outline for a required GUI element that's still empty when a button
+   needing its value was pressed (js/ui/toast.js's flashFieldError), shown
+   alongside a toast error explaining what's missing. Element+class selector
+   (0,1,1) beats a single Tailwind utility class like .border-neutral-700
+   (0,1,0) regardless of the CDN stylesheet's injection order - same
+   specificity note as the .hidden overrides elsewhere in this file. */
+input.field-error,
+select.field-error,
+button.field-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}

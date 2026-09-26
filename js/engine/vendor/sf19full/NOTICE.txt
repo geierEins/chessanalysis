@@ -1,0 +1,11 @@
+Stockfish 19 "full" (single-threaded, full-size NNUE net), by Chess.com, LLC / Nathan Rugg.
+Source: https://github.com/nmrugg/stockfish.js
+Package: https://www.npmjs.com/package/stockfish (v19.0.0), file bin/stockfish-19-single.js
+License: GPLv3
+
+~99 MB wasm binary (full-size net, not the "lite" one). Selectable in the UI
+but NOT the default, since that download size is a poor default experience
+for most users - see js/engine/stockfishEngine.js.
+
+Vendored here (rather than loaded from a CDN) because browsers refuse to
+construct a classic Web Worker from a cross-origin script URL.

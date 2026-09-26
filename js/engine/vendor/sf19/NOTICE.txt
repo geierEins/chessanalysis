@@ -1,0 +1,16 @@
+Stockfish 19 "lite" (single-threaded, small NNUE net), by Chess.com, LLC / Nathan Rugg.
+Source: https://github.com/nmrugg/stockfish.js
+Package: https://www.npmjs.com/package/stockfish (v19.0.0), file bin/stockfish-19-lite-single.js
+License: GPLv3
+
+The "lite" (small-net) build was used instead of the full build: the full
+single-threaded v19 net is ~99 MB, impractical to ship in a browser app.
+Lite is ~1.8 MB and still noticeably stronger/newer than Stockfish 16.
+
+The wasm file must keep the exact same basename as the .js file: this
+build's worker wrapper defaults to fetching "<own-script-path>.wasm" when
+no #hash override is given (unlike the v16 build, whose default wasm name
+is hardcoded inside the script itself, independent of its own filename).
+
+Vendored here (rather than loaded from a CDN) because browsers refuse to
+construct a classic Web Worker from a cross-origin script URL.

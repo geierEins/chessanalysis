@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Analysis</title>
+<meta name="description" content="Chess.com-style Game Review: Engine-Analyse, Genauigkeit (CAPS2) und Zugklassifizierung.">
+
+<!-- PWA: installable as a home-screen app -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#171717">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/app/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/app/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/app/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chess Analysis">
+
+<!-- Social share preview (e.g. WhatsApp/Telegram link previews) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Chess Analysis">
+<meta property="og:description" content="Chess.com-style Game Review: Engine-Analyse, Genauigkeit und Zugklassifizierung.">
+<meta property="og:image" content="icons/app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chess Analysis">
+<meta name="twitter:description" content="Chess.com-style Game Review: Engine-Analyse, Genauigkeit und Zugklassifizierung.">
+<meta name="twitter:image" content="icons/app/og-image.png">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-neutral-950 text-neutral-100 min-h-screen">
+
+<!-- Eigene, volle Bildschirmbreite (kein max-w) - nur der Inhalt darin wird auf
+     dieselbe Breite wie <main> begrenzt und zentriert, damit die Filter zur
+     restlichen Seite ausgerichtet bleiben. -->
+<section id="loader-panel" class="sticky top-0 z-20 bg-neutral-900 border-b border-neutral-800">
+  <div class="max-w-[1400px] mx-auto px-4 py-2">
+    <div id="filter-row" class="flex items-center gap-2">
+      <div id="username-picker" class="relative">
+        <!-- Overlaid on the input's own left edge (like the dropdown
+             triangle on its right edge below), not a separate element beside
+             it - kept in sync by js/main.js's updateUsernameAvatar(), hidden
+             (no src yet) until the first successful lookup. -->
+        <img id="username-avatar" alt="" class="rounded-full hidden">
+        <!-- No `list=` attribute on purpose - the browser's own native
+             datalist dropdown indicator would render right on top of the
+             custom triangle below (both sitting at the input's right edge),
+             which looked broken. #username-presets below is kept purely as
+             this input's own preset DATA (js/main.js reads its <option>
+             children to build the custom menu) - never wired up as an
+             actual native datalist. -->
+        <!-- autocomplete="off": the browser's own remembered-values
+             suggestion popup (plain text, no styling control) overlapped in
+             function with our own preset dropdown/avatar above. -->
+        <input id="username-input" type="text" placeholder="chess.com user" autocomplete="off"
+               style="width:108px"
+               class="bg-neutral-800 border border-neutral-700 rounded pr-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <!-- Overlaid on the input's own right edge, invisible until hovered/
+             focused (css/styles.css). Always shows every preset regardless
+             of the field's current content (js/main.js), and picking one
+             overwrites it. -->
+        <button id="username-presets-btn" type="button" title="Vorgemerkte Benutzernamen">▾</button>
+        <div id="username-presets-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
+      <datalist id="username-presets">
+        <option value="GeierUno">
+        <option value="PawnHubDE">
+        <option value="JoeyFinanzen">
+        <!-- Top 3 chess.com players (https://www.chess.com/players), appended
+             below the two above - a native <datalist> can't render a visual
+             divider between groups, so this is a flat continuation, not a
+             separated section. -->
+        <option value="magnuscarlsen">
+        <option value="hikaru">
+        <option value="fabianocaruana">
+      </datalist>
+      <!-- Zeitraum-Filter: eigenes Dropdown statt <select>, damit im
+           eingeklappten Zustand nur ein kompaktes Icon steht statt des
+           vollen Labels (siehe js/main.js's timeRangeSelect.setOptions). -->
+      <div id="time-range-picker" class="relative">
+        <button id="time-range-btn" type="button" title="Zeitraum"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
+          <span id="time-range-btn-label"></span>
+        </button>
+        <div id="time-range-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
+
+      <!-- Spielart-Filter: Mehrfachauswahl (Checkboxen), selbes Muster wie
+           #outcome-filter-picker/#color-filter-picker weiter unten - "Alle
+           Spielarten" entfällt dadurch (alle vier angehakt = alle Arten),
+           und der Button bleibt schmal (nur die ausgewählten Icons
+           überlappend, kein Textlabel mehr). -->
+      <div id="game-type-picker" class="relative">
+        <!-- Filled by js/main.js's updateGameTypeFilterButtonIcon(). -->
+        <button id="game-type-btn" type="button" title="Spielart"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left"></button>
+        <div id="game-type-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-game-type="bullet" checked> <span style="color:#f87171">🚀 Bullet</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-game-type="blitz" checked> <span style="color:#60a5fa">⚡ Blitz</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-game-type="rapid" checked> <span style="color:#4ade80">🕐 Rapid</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-game-type="daily" checked> <span style="color:#f2c94c">☀️ Daily</span>
+          </label>
+        </div>
+      </div>
+      <!-- Ergebnis-Filter: Mehrfachauswahl (Checkboxen), daher kein
+           CustomSelect (das ist Einfachauswahl) - eigenes kleines Dropdown.
+           Der Button zeigt immer alle 3 Bobbel leicht überlappend, unabhängig
+           vom aktuellen Auswahlstand (reines Icon fürs Dropdown selbst, wie
+           beim Farbschema-Button). -->
+      <div id="outcome-filter-picker" class="relative">
+        <!-- Filled by js/main.js's updateOutcomeFilterButtonIcon(), which
+             renders only the currently-selected outcomes' icons. -->
+        <button id="outcome-filter-btn" type="button" title="Ergebnis-Filter"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left"></button>
+        <div id="outcome-filter-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-outcome="win" checked> <span>🟢 Gewonnen</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-outcome="draw" checked> <span>⚪ Remis</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-outcome="loss" checked> <span>🔴 Verloren</span>
+          </label>
+        </div>
+      </div>
+      <!-- Farb-Filter (Weiß/Schwarz) - selbes Muster wie #outcome-filter-picker
+           oben: Mehrfachauswahl per Checkboxen, eigenes Dropdown statt
+           CustomSelect, Button zeigt nur die aktuell ausgewählten Bauern-Icons
+           überlappend. -->
+      <div id="color-filter-picker" class="relative">
+        <!-- Filled by js/main.js's updateColorFilterButtonIcon(). -->
+        <button id="color-filter-btn" type="button" title="Farb-Filter"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left"></button>
+        <div id="color-filter-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-color="w" checked>
+            <span><img src="https://chessboardjs.com/img/chesspieces/wikipedia/wP.png" alt="" class="color-filter-icon"> Weiß</span>
+          </label>
+          <label class="outcome-filter-option">
+            <input type="checkbox" data-color="b" checked>
+            <span><img src="https://chessboardjs.com/img/chesspieces/wikipedia/bP.png" alt="" class="color-filter-icon"> Schwarz</span>
+          </label>
+        </div>
+      </div>
+      <button id="fetch-games-btn"
+              class="relative overflow-hidden bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5">
+        <!-- Fills left-to-right as fetchRecentGames' onProgress reports real
+             archive-by-archive progress (js/main.js) - absolutely positioned
+             behind the label/spinner (z-0 vs. their z-10), not a second
+             element on top of the text. -->
+        <span id="fetch-games-btn-fill" class="absolute inset-y-0 left-0 z-0 bg-white/25" style="width:0%"></span>
+        <span id="fetch-games-btn-spinner" class="relative z-10 btn-spinner hidden"></span>
+        <span id="fetch-games-btn-label" class="relative z-10">Spiele laden</span>
+      </button>
+      <div id="game-picker" class="relative">
+        <button id="game-btn" type="button" disabled
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs max-w-96 text-left disabled:opacity-50 disabled:cursor-not-allowed truncate">
+          <span id="game-btn-label"></span>
+        </button>
+        <div id="game-menu" class="hidden z-30 max-h-80 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded shadow-lg"></div>
+      </div>
+      <div id="engine-picker" class="relative">
+        <button id="engine-btn" type="button" title="Engine"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
+          <span id="engine-btn-label"></span>
+        </button>
+        <div id="engine-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
+      <div id="depth-picker" class="relative">
+        <button id="depth-btn" type="button" title="Tiefe"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
+          <span id="depth-btn-label"></span>
+        </button>
+        <div id="depth-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
+
+      <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher
+           ein kleines eigenes Dropdown mit echten Farbfeldern. -->
+      <div id="board-theme-picker" class="relative">
+        <button id="board-theme-btn" type="button" title="Brettfarbe"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs flex items-center">
+          <span id="board-theme-btn-swatch" class="board-theme-swatch"></span>
+        </button>
+        <div id="board-theme-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+          <button type="button" class="board-theme-option" data-light="#EAE9D2" data-dark="#4B7399">
+            <span class="board-theme-swatch" style="background: conic-gradient(#EAE9D2 90deg, #4B7399 90deg 180deg, #EAE9D2 180deg 270deg, #4B7399 270deg)"></span>
+          </button>
+          <button type="button" class="board-theme-option" data-light="#EBEBD0" data-dark="#769452">
+            <span class="board-theme-swatch" style="background: conic-gradient(#EBEBD0 90deg, #769452 90deg 180deg, #EBEBD0 180deg 270deg, #769452 270deg)"></span>
+          </button>
+          <button type="button" class="board-theme-option" data-light="#EDDEBE" data-dark="#C18C57">
+            <span class="board-theme-swatch" style="background: conic-gradient(#EDDEBE 90deg, #C18C57 90deg 180deg, #EDDEBE 180deg 270deg, #C18C57 270deg)"></span>
+          </button>
+          <button type="button" class="board-theme-option" data-light="#F0F1F0" data-dark="#8478BA">
+            <span class="board-theme-swatch" style="background: conic-gradient(#F0F1F0 90deg, #8478BA 90deg 180deg, #F0F1F0 180deg 270deg, #8478BA 270deg)"></span>
+          </button>
+          <button type="button" class="board-theme-option" data-light="#D9D9D9" data-dark="#767676">
+            <span class="board-theme-swatch" style="background: conic-gradient(#D9D9D9 90deg, #767676 90deg 180deg, #D9D9D9 180deg 270deg, #767676 270deg)"></span>
+          </button>
+          <button type="button" class="board-theme-option" data-light="#687182" data-dark="#282E3B">
+            <span class="board-theme-swatch" style="background: conic-gradient(#687182 90deg, #282E3B 90deg 180deg, #687182 180deg 270deg, #282E3B 270deg)"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Figurenstil-Dropdown, gleich neben der Brettfarbe - Optionen und
+           Icon (ein Beispiel-Springer aus jedem Set) werden von
+           js/ui/pieceThemePicker.js befüllt. -->
+      <div id="piece-theme-picker" class="relative">
+        <button id="piece-theme-btn" type="button" title="Figurenstil"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs flex items-center">
+          <img id="piece-theme-btn-icon" alt="" class="piece-theme-btn-icon">
+        </button>
+        <div id="piece-theme-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
+
+      <!-- One button, two states (js/main.js's setAnalyzing) - a plain
+           magnifying-glass icon only (blue, idle) starts analysis, to save
+           horizontal space; while running, the exact same button turns into
+           the text "Abbrechen" (red) in place, rather than swapping in a
+           second element with its own gap in the layout. -->
+      <button id="analyze-toggle-btn" disabled title="Ausgewähltes Spiel analysieren"
+              class="analyze-btn-ready disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded px-4 py-1 text-xs font-medium gap-1.5">
+        <svg id="analyze-toggle-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10" cy="10" r="7"></circle>
+          <line x1="21" y1="21" x2="15.5" y2="15.5"></line>
+        </svg>
+        <span id="analyze-toggle-btn-label" class="hidden">Abbrechen</span>
+      </button>
+      <!-- Compact inline status ("Engine wird geladen…", "Analysiere Zug X
+           von Y") - part of the same centered row, not a separate block/bar
+           below it. -->
+      <span id="progress-text" class="hidden text-xs text-neutral-400"></span>
+    </div>
+  </div>
+</section>
+
+<!-- Mobile only (css/styles.css): floats over the board once the filter bar
+     is collapsed, so it can be reopened - e.g. to load a different game. -->
+<button id="loader-toggle-btn" type="button" title="Filter ein-/ausblenden" class="hidden">☰</button>
+
+<main class="max-w-[1400px] mx-auto px-4 pt-3 pb-6">
+
+  <!-- Alle Bereiche sind direkte Grid-Kinder von #review-panel (siehe
+       css/styles.css) - Desktop und Mobile weisen ihnen per grid-template-
+       areas nur unterschiedliche Positionen zu, statt getrennter Layout-Bäume.
+       Der Zugbereich existiert doppelt: #move-list-panel (Desktop, vertikale
+       Liste) und #move-strip-wrap (Mobile, ein horizontal scrollendes Band) -
+       js/ui/moveList.js befüllt und synchronisiert beide gemeinsam, CSS zeigt
+       je nach Breakpoint nur eine der beiden an. -->
+  <section id="review-panel" class="hidden">
+
+    <div id="eval-graph-wrap" class="bg-neutral-900 rounded-lg border border-neutral-800 overflow-hidden">
+      <canvas id="eval-graph"></canvas>
+    </div>
+
+    <!-- Nur auf Mobile sichtbar: einzeiliges, horizontal scrollendes
+         Zugband, das keinen unnötigen vertikalen Platz beansprucht. -->
+    <div id="move-strip-wrap" class="bg-neutral-900 rounded-lg border border-neutral-800 overflow-hidden">
+      <ol id="move-strip"></ol>
+    </div>
+
+    <div id="eval-bar-wrap" class="bg-neutral-900 rounded overflow-hidden relative border border-neutral-800">
+      <div id="eval-bar-black" class="absolute top-0 left-0 w-full bg-neutral-950" style="height:50%"></div>
+      <div id="eval-bar-white" class="absolute bottom-0 left-0 w-full bg-neutral-100" style="height:50%"></div>
+      <div id="eval-bar-center-line" class="absolute left-0 w-full" style="top:50%"></div>
+      <div id="eval-bar-label" class="absolute left-0 w-full text-center text-[9px] font-bold" style="bottom:4px">0.0</div>
+    </div>
+
+    <div id="board-column" class="flex flex-col items-center gap-1.5">
+      <div id="board-player-top" class="player-row flex items-center text-base rounded px-2">
+        <div class="player-row-left">
+          <div class="player-row-info">
+            <img id="board-avatar-top" alt="" class="w-6 h-6 rounded-full hidden">
+            <span id="board-username-top" class="player-username"></span>
+          </div>
+          <div id="board-material-top" class="material-display"></div>
+        </div>
+        <div id="board-clock-top" class="player-clock hidden">
+          <svg class="player-clock-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+            <circle cx="8" cy="8" r="6.5"></circle>
+            <path d="M8 4.5V8l2.5 1.5"></path>
+          </svg>
+          <span class="player-clock-time"></span>
+        </div>
+      </div>
+
+      <div id="board-wrap" class="relative">
+        <div id="board" class="w-full h-full"></div>
+        <svg id="board-arrow-layer" class="absolute inset-0 pointer-events-none">
+          <g id="board-arrow-paths"></g>
+          <g id="board-user-arrow-paths"></g>
+        </svg>
+      </div>
+
+      <div id="board-player-bottom" class="player-row flex items-center text-base rounded px-2">
+        <div class="player-row-left">
+          <div class="player-row-info">
+            <img id="board-avatar-bottom" alt="" class="w-6 h-6 rounded-full hidden">
+            <span id="board-username-bottom" class="player-username"></span>
+          </div>
+          <div id="board-material-bottom" class="material-display"></div>
+        </div>
+        <div id="board-clock-bottom" class="player-clock hidden">
+          <svg class="player-clock-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+            <circle cx="8" cy="8" r="6.5"></circle>
+            <path d="M8 4.5V8l2.5 1.5"></path>
+          </svg>
+          <span class="player-clock-time"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nur auf Desktop sichtbar (vgl. #move-strip-wrap oben). -->
+    <div id="move-list-panel" class="bg-neutral-900 rounded-lg border border-neutral-800 pl-1.5 pr-3 pt-1.5 pb-3">
+      <div class="grid grid-cols-[2.25rem_1fr_1fr] gap-2 mb-2 shrink-0">
+        <div></div>
+        <div class="player-row flex items-center justify-start rounded">
+          <img id="move-list-avatar-white" alt="" class="w-6 h-6 rounded-full hidden">
+        </div>
+        <div class="player-row flex items-center justify-start rounded">
+          <img id="move-list-avatar-black" alt="" class="w-6 h-6 rounded-full hidden">
+        </div>
+      </div>
+      <ol id="move-list" class="text-base leading-8 overflow-y-auto min-h-0 pr-1"></ol>
+      <!-- Only visible while viewing a variation (not the main line). Two
+           clearly separate actions: navigating back keeps the variation
+           around, deleting removes it from the tree entirely. -->
+      <div id="branch-controls" class="hidden gap-1.5 mt-2 shrink-0">
+        <button id="back-to-mainline-btn" class="flex-1 px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 transition-colors text-xs font-medium">
+          Zur Hauptpartie
+        </button>
+        <button id="remove-variation-btn" class="flex-1 px-2 py-1 rounded bg-neutral-800 border border-red-900 hover:bg-red-950 transition-colors text-xs font-medium text-red-400">
+          Alle Abzweigungen entfernen
+        </button>
+      </div>
+      <!-- Only shown once the current position matches a named opening
+           (js/analysis/openingBook.js's openingNameForLine) - #move-list's
+           own flex:1/min-height:0 (css/styles.css) automatically hands this
+           the space it needs by shrinking the move list itself, no separate
+           height bookkeeping needed. -->
+      <div id="opening-name-bar" class="hidden mt-2 pt-2 shrink-0 border-t border-neutral-800 text-xs text-neutral-400 truncate"></div>
+    </div>
+
+    <!-- Navigation: eigener Grid-Bereich (nicht in #move-list-panel
+         verschachtelt), damit Mobile sie frei unter dem Brett statt unter der
+         (dort versteckten) Zugliste platzieren kann. -->
+    <div id="nav-wrap">
+      <button id="btn-prev" class="nav-btn" title="Zug zurück">❮</button>
+      <button id="btn-next" class="nav-btn" title="Zug vor">❯</button>
+      <button id="btn-play" class="nav-btn" title="Automatisch abspielen">▶</button>
+      <button id="btn-first" class="nav-btn" title="Zum Anfang">⏮</button>
+      <button id="btn-last" class="nav-btn" title="Zum Ende">⏭</button>
+      <button id="btn-flip" class="nav-btn nav-btn-flip" title="Brett drehen">⇅</button>
+    </div>
+
+    <div id="dashboard-wrap" class="bg-neutral-900 rounded-lg border border-neutral-800 px-4 pb-4 pt-3">
+      <!-- Swaps #classification-table/#time-management-chart-wrap/#stats-
+           table-wrap's .hidden state (js/main.js's setDashboardView) - the
+           table stays the default view. The "Zeitmanagement" button itself
+           (not the whole row) is hidden when the loaded game has no PGN
+           clock data for a live time control (daily games, or a PGN with no
+           [%clk] at all) - a time chart isn't meaningful there, but the
+           other two views still are. -->
+      <div id="dashboard-view-toggle" class="hidden gap-1 mb-2">
+        <button type="button" id="dashboard-view-table-btn" class="dashboard-view-btn active">Zugauswertung</button>
+        <button type="button" id="dashboard-view-time-btn" class="dashboard-view-btn">Zeitmanagement</button>
+        <button type="button" id="dashboard-view-stats-btn" class="dashboard-view-btn">Statistik</button>
+      </div>
+      <table id="classification-table" class="text-base w-full" style="table-layout:fixed">
+        <colgroup>
+          <col class="table-label-col">
+          <col class="table-value-col">
+          <col class="table-value-col">
+        </colgroup>
+        <thead class="text-neutral-500">
+          <tr>
+            <th class="text-left font-normal py-2"></th>
+            <th class="font-normal py-2 px-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <img id="avatar-white" alt="" class="w-9 h-9 rounded-full hidden">
+                <span class="text-base text-neutral-200 username-text" id="username-white">Weiß</span>
+              </div>
+            </th>
+            <th class="font-normal py-2 px-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <img id="avatar-black" alt="" class="w-9 h-9 rounded-full hidden">
+                <span class="text-base text-neutral-200 username-text" id="username-black">Schwarz</span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr class="border-t-2 border-neutral-700 text-neutral-400">
+            <td class="py-2 font-medium">Genauigkeit</td>
+            <td class="text-center text-lg font-bold text-neutral-100" id="accuracy-white">–</td>
+            <td class="text-center text-lg font-bold text-neutral-100" id="accuracy-black">–</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div id="time-management-chart-wrap" class="hidden">
+        <canvas id="time-management-chart"></canvas>
+      </div>
+      <!-- Aggregated per-game/per-player facts (js/main.js's
+           computeAdvancedStats/renderStatsTable) - same 3-column table shape
+           as #classification-table above for a consistent look across all
+           three views. Rows whose value names a specific move are rendered
+           as a clickable jump-to-that-move link (.stat-jump-link). -->
+      <table id="stats-table" class="hidden text-base w-full" style="table-layout:fixed">
+        <colgroup>
+          <col class="table-label-col">
+          <col class="table-value-col">
+          <col class="table-value-col">
+        </colgroup>
+        <thead class="text-neutral-500">
+          <tr>
+            <th class="text-left font-normal py-2"></th>
+            <th class="font-normal py-2 px-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <img id="stats-avatar-white" alt="" class="w-9 h-9 rounded-full hidden">
+                <span class="text-base text-neutral-200 username-text" id="stats-username-white">Weiß</span>
+              </div>
+            </th>
+            <th class="font-normal py-2 px-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <img id="stats-avatar-black" alt="" class="w-9 h-9 rounded-full hidden">
+                <span class="text-base text-neutral-200 username-text" id="stats-username-black">Schwarz</span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </section>
+
+</main>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

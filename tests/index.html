@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chess Review - Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #e5e5e5; padding: 2rem; }
+    h1 { font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div id="results">Läuft...</div>
+  <script type="module">
+    import { render } from './test-runner.js';
+    import './winProbability.test.js';
+    import './accuracy.test.js';
+    import './pgnClock.test.js';
+    render(document.getElementById('results'));
+  </script>
+</body>
+</html>
