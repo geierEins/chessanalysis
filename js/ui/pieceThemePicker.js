@@ -18,6 +18,7 @@ export const PIECE_THEMES = {
   chessnut: { label: 'Chessnut', urlTemplate: 'https://lichess1.org/assets/piece/chessnut/{piece}.svg' },
   celtic: { label: 'Celtic', urlTemplate: 'https://lichess1.org/assets/piece/celtic/{piece}.svg' },
   california: { label: 'California', urlTemplate: 'https://lichess1.org/assets/piece/california/{piece}.svg' },
+  pixel: { label: 'Pixel', urlTemplate: 'https://lichess1.org/assets/piece/pixel/{piece}.svg' },
 };
 const DEFAULT_PIECE_THEME_KEY = 'wikipedia';
 
