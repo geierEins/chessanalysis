@@ -4,8 +4,8 @@ import { Chess } from '../chessLib.js';
 
 const BASE = 'https://api.chess.com/pub';
 
-async function fetchJson(url) {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+async function fetchJson(url, signal) {
+  const res = await fetch(url, { headers: { Accept: 'application/json' }, signal });
   if (!res.ok) {
     if (res.status === 404) throw new Error('Nicht gefunden (404): ' + url);
     throw new Error(`Chess.com API Fehler (${res.status}) bei ${url}`);
@@ -46,12 +46,12 @@ export async function fetchArchives(username) {
  *   partway.
  * @returns {Promise<object[]>} raw Chess.com game objects, newest first.
  */
-export async function fetchRecentGames(username, { monthsBack = 1, maxGames, onProgress } = {}) {
+export async function fetchRecentGames(username, { monthsBack = 1, maxGames, onProgress, signal } = {}) {
   const archives = await fetchArchives(username);
   const selected = archives.slice(-monthsBack).reverse(); // newest month first
   const games = [];
   for (let i = 0; i < selected.length; i++) {
-    const data = await fetchJson(selected[i]);
+    const data = await fetchJson(selected[i], signal);
     games.push(...(data.games ?? []).slice().reverse());
     if (maxGames != null && games.length >= maxGames) {
       onProgress?.(1);

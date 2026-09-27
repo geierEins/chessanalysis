@@ -822,9 +822,6 @@ function isSameCalendarDay(a, b) {
 
 // Protects against a prolific player's "Von Beginn an"/large custom range
 // hanging for a very long time (hundreds of monthly archives) or crashing
-// the game picker (one <button> per game) - fetchRecentGames stops fetching
-// further archives once this many games are already in hand.
-const MAX_GAMES = 1000;
 
 /** Whole months between two dates (>= 0), rounded up so the "from" date's own
  *  month is always included. Used to size monthsBack for the "custom" time
@@ -835,13 +832,21 @@ function monthsBetween(from, to) {
 
 /** Shows/hides the cancel icon inside #fetch-games-btn - loading state now lives
  *  entirely on the button itself so the top bar never grows a second row. */
+let fetchGamesAbortController = null;
+
 function setFetchGamesLoading(isLoading) {
-  fetchGamesBtn.disabled = !isLoading;
   fetchGamesBtnLabel.textContent = isLoading ? '✕' : 'Spiele laden';
-  fetchGamesBtnFill.style.width = '0%';
+  if (!isLoading) fetchGamesBtnFill.style.width = '0%';
 }
 
 fetchGamesBtn.addEventListener('click', async () => {
+  // If already loading, cancel it
+  if (fetchGamesAbortController) {
+    fetchGamesAbortController.abort();
+    setFetchGamesLoading(false);
+    fetchGamesAbortController = null;
+    return;
+  }
   const username = usernameInput.value.trim();
   if (!username) {
     showToast('Bitte einen Chess.com-Benutzernamen eingeben.', 'error');
@@ -856,6 +861,7 @@ fetchGamesBtn.addEventListener('click', async () => {
   analyzeToggleBtn.disabled = true;
 
   try {
+    fetchGamesAbortController = new AbortController();
     const monthsBackValue = timeRangeSelect.value;
     const isTodayFilter = monthsBackValue === 'today';
     const isCustomRange = monthsBackValue === 'custom';
@@ -877,12 +883,11 @@ fetchGamesBtn.addEventListener('click', async () => {
 
     const rawGames = await fetchRecentGames(username, {
       monthsBack,
-      maxGames: MAX_GAMES,
       onProgress: (fraction) => {
         fetchGamesBtnFill.style.width = `${Math.round(fraction * 100)}%`;
       },
+      signal: fetchGamesAbortController.signal,
     });
-    const wasCapped = rawGames.length >= MAX_GAMES;
     const today = new Date();
     games = rawGames
       .map(summarizeGame)
@@ -918,15 +923,14 @@ fetchGamesBtn.addEventListener('click', async () => {
     gameSelect.setOptions(gameOptions, gameOptions[0]?.value);
     gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
-    if (wasCapped) {
-      showToast(`Limit erreicht: nur die neuesten ${MAX_GAMES} Partien wurden geladen.`, 'success');
-    } else {
-      showToast(`${games.length} Partien erfolgreich geladen.`, 'success');
-    }
+    showToast(`${games.length} Partien erfolgreich geladen.`, 'success');
   } catch (err) {
-    showToast(err.message ?? 'Fehler beim Laden der Partien.', 'error');
+    if (err.name !== 'AbortError') {
+      showToast(err.message ?? 'Fehler beim Laden der Partien.', 'error');
+    }
   } finally {
     setFetchGamesLoading(false);
+    fetchGamesAbortController = null;
   }
 });
 
