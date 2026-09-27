@@ -20,8 +20,9 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 // properties on a board-theme change, with no redraw needed.
 const ARROW_SHAFT_HALF_WIDTH_FRACTION = 0.095; // of a square's size
 const ARROW_HEAD_HALF_WIDTH_FRACTION = 0.27;
-const ARROW_HEAD_LENGTH_FRACTION = 0.42;
-const ARROW_TIP_PULLBACK_FRACTION = 0.12; // gap before the destination square's center
+const ARROW_HEAD_LENGTH_FRACTION = 0.337; // 32/95 - triangle depth
+const ARROW_TIP_PULLBACK_FRACTION = 0; // tip points to destination square center
+const ARROW_START_PULLBACK_FRACTION = 0.15; // arrow starts at 85% of the distance (1 - 0.15)
 
 const DEFAULT_PIECE_THEME = 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png';
 
@@ -563,8 +564,11 @@ export class BoardView {
     const headHalfWidth = Math.max(4, size * ARROW_HEAD_HALF_WIDTH_FRACTION);
     const headLength = Math.max(6, size * ARROW_HEAD_LENGTH_FRACTION);
 
-    const bend = isKnightMove ? (rankDelta === 2 ? { x: a.x, y: b.y } : { x: b.x, y: a.y }) : null;
-    const finalLegStart = bend ?? a;
+    const arrowStart = isKnightMove
+      ? (rankDelta === 2 ? { x: a.x, y: a.y + size * 0.35 * (b.y > a.y ? 1 : -1) } : { x: a.x + size * 0.35 * (b.x > a.x ? 1 : -1), y: a.y })
+      : pullBackTowards(b, a, size * ARROW_START_PULLBACK_FRACTION);
+    const bend = isKnightMove ? (rankDelta === 2 ? { x: arrowStart.x, y: b.y } : { x: b.x, y: arrowStart.y }) : null;
+    const finalLegStart = bend ?? arrowStart;
     const tip = pullBackTowards(finalLegStart, b, size * ARROW_TIP_PULLBACK_FRACTION);
     const headBase = pullBackTowards(finalLegStart, tip, headLength);
     // The shaft reaches into the middle of the head (not just its base), so
@@ -579,12 +583,12 @@ export class BoardView {
       // corner square from both directions. Without this, the two rectangles
       // only share that square diagonally, leaving a notched "double corner"
       // on the inside of the bend instead of one clean square joint.
-      const leg1End = extendPast(a, bend, shaftHalfWidth);
+      const leg1End = extendPast(arrowStart, bend, shaftHalfWidth);
       const leg2Start = extendPast(shaftEnd, bend, shaftHalfWidth);
-      subpaths.push(rectPath(a, leg1End, shaftHalfWidth));
+      subpaths.push(rectPath(arrowStart, leg1End, shaftHalfWidth));
       subpaths.push(rectPath(leg2Start, shaftEnd, shaftHalfWidth));
     } else {
-      subpaths.push(rectPath(a, shaftEnd, shaftHalfWidth));
+      subpaths.push(rectPath(arrowStart, shaftEnd, shaftHalfWidth));
     }
     subpaths.push(trianglePath(headBase, tip, headHalfWidth));
 

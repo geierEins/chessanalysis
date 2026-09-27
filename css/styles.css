@@ -345,6 +345,10 @@ body {
   justify-content: center;
 }
 
+#analyze-toggle-btn-spinner {
+  display: none !important;
+}
+
 #filter-row::-webkit-scrollbar {
   height: 6px;
 }
@@ -559,8 +563,13 @@ body {
 #move-list {
   flex: 1 1 auto;
   min-height: 0;
-  scroll-snap-type: y mandatory;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
+}
+
+#move-list::after {
+  content: '';
+  display: block;
+  height: 32px;
 }
 
 #nav-wrap {
@@ -853,8 +862,6 @@ body {
   border-radius: 3px;
   display: inline-block;
   white-space: nowrap;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
 }
 
 .move-list-item:hover {
