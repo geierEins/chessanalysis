@@ -22,7 +22,7 @@ const ARROW_SHAFT_HALF_WIDTH_FRACTION = 0.095; // of a square's size
 const ARROW_HEAD_HALF_WIDTH_FRACTION = 0.27;
 const ARROW_HEAD_LENGTH_FRACTION = 0.337; // 32/95 - triangle depth
 const ARROW_TIP_PULLBACK_FRACTION = 0; // tip points to destination square center
-const ARROW_START_PULLBACK_FRACTION = 0.15; // arrow starts at 85% of the distance (1 - 0.15)
+const ARROW_START_PULLBACK_FRACTION = 0.35; // arrow starts at 75% of the distance (1 - 0.25)
 
 const DEFAULT_PIECE_THEME = 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png';
 
