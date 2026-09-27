@@ -337,6 +337,14 @@ body {
   flex-shrink: 0;
 }
 
+/* Analysieren/Abbrechen button stays same width regardless of label. */
+#analyze-toggle-btn {
+  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 #filter-row::-webkit-scrollbar {
   height: 6px;
 }
@@ -551,6 +559,8 @@ body {
 #move-list {
   flex: 1 1 auto;
   min-height: 0;
+  scroll-snap-type: y mandatory;
+  mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
 
 #nav-wrap {
@@ -666,6 +676,15 @@ body {
   justify-content: center;
 }
 
+/* Hand cursor when hovering over draggable pieces. */
+#board img {
+  cursor: grab;
+}
+
+#board img:active {
+  cursor: grabbing;
+}
+
 #board-arrow-layer {
   z-index: 5;
   overflow: visible;
@@ -691,12 +710,13 @@ body {
    needed - it's the square element's last child). */
 .move-badge {
   position: absolute;
-  top: 3%;
-  right: 3%;
-  width: 38%;
-  height: 38%;
+  top: -12.3%;
+  right: -12.3%;
+  width: 39%;
+  height: 39%;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
   pointer-events: none;
+  z-index: 10;
 }
 
 /* Legal-move indicators (js/ui/board.js's showMoveHighlights, on drag-start
@@ -833,6 +853,8 @@ body {
   border-radius: 3px;
   display: inline-block;
   white-space: nowrap;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .move-list-item:hover {
