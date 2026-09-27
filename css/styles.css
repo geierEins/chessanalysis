@@ -668,9 +668,9 @@ body {
 }
 
 #eval-bar-center-line {
-  height: 1px;
-  background-color: rgba(128, 128, 128, 0.6);
-  pointer-events: none;
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
 }
 
 /* chessboard.js always rounds its own internal board size down to a multiple
@@ -1245,6 +1245,26 @@ body {
 #fetch-games-btn-fill {
   transition: width 0.25s ease-out;
 }
+
+/* Keep button width consistent - both "Spiele laden" and "✕" states */
+#fetch-games-btn-label {
+  display: inline-block;
+  min-width: 56px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Make both top buttons 10% narrower */
+#fetch-games-btn {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+#analyze-toggle-btn {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
 
 /* #analyze-toggle-btn's idle ("Analysieren") state - js/main.js's
    setAnalyzing removes this class (swapping in plain Tailwind bg-red-600/

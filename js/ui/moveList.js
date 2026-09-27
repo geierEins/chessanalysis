@@ -208,7 +208,17 @@ export class MoveList {
     const active = node && this.#itemsByNodeId.get(node.id);
     if (active) {
       active.classList.add('active');
-      active.scrollIntoView({ block: 'nearest' });
+      // Scroll only within this container - use nearest edge but pad to avoid gradient fade zone
+      const itemRect = active.getBoundingClientRect();
+      const containerRect = this.#container.getBoundingClientRect();
+      const padding = this.#container.clientHeight * 0.1;
+      if (itemRect.bottom + padding > containerRect.bottom) {
+        // Item too low - scroll down just enough, not to top
+        this.#container.scrollTop += itemRect.bottom - containerRect.bottom + padding;
+      } else if (itemRect.top < containerRect.top + padding) {
+        // Item too high - scroll up
+        this.#container.scrollTop -= containerRect.top + padding - itemRect.top;
+      }
     }
 
     if (!this.#strip) return;

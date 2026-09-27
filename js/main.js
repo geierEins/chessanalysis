@@ -396,6 +396,9 @@ const MOBILE_BREAKPOINT = 700;
 function syncBoardRowLayout() {
   if (reviewPanel.classList.contains('hidden')) return;
 
+  // Scroll to top before measuring layout so board gets optimal size regardless of current scroll position
+  window.scrollTo(0, 0);
+
   const isMobile = window.innerWidth < MOBILE_BREAKPOINT;
 
   const maxByWidth = isMobile
@@ -830,13 +833,11 @@ function monthsBetween(from, to) {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1;
 }
 
-/** Shows/hides the spinner inside #fetch-games-btn in place of the old
- *  "Lade Partien…" inline text - loading state now lives entirely on the
- *  button itself so the top bar never grows a second row. */
+/** Shows/hides the cancel icon inside #fetch-games-btn - loading state now lives
+ *  entirely on the button itself so the top bar never grows a second row. */
 function setFetchGamesLoading(isLoading) {
-  fetchGamesBtn.disabled = isLoading;
-  fetchGamesBtnSpinner.classList.toggle('hidden', !isLoading);
-  fetchGamesBtnLabel.textContent = isLoading ? 'Lädt…' : 'Spiele laden';
+  fetchGamesBtn.disabled = !isLoading;
+  fetchGamesBtnLabel.textContent = isLoading ? '✕' : 'Spiele laden';
   fetchGamesBtnFill.style.width = '0%';
 }
 

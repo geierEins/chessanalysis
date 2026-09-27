@@ -174,6 +174,7 @@ export class EvalGraph {
   #moves = [];
   #evalScores = []; // White-perspective {cp|mate} per ply, index 0 = start position - see setData()
   #indicatorEl;
+  #hoverIndicatorEl;
   #tooltipEl;
 
   /**
@@ -250,6 +251,11 @@ export class EvalGraph {
     this.#indicatorEl.className = 'eval-graph-indicator hidden';
     canvasEl.parentElement.appendChild(this.#indicatorEl);
 
+    // Hover indicator - thin red vertical line at mouse position
+    this.#hoverIndicatorEl = document.createElement('div');
+    this.#hoverIndicatorEl.style.cssText = 'position: absolute; top: 0; width: 1.5px; height: 100%; background: #ff4444; pointer-events: none; display: none; z-index: 10;';
+    canvasEl.parentElement.appendChild(this.#hoverIndicatorEl);
+
     // Own DOM tooltip (see the plugins.tooltip.external option above) -
     // fixed above the graph instead of drawn at the hovered point.
     this.#tooltipEl = document.createElement('div');
@@ -276,6 +282,7 @@ export class EvalGraph {
     const { chart, tooltip: tooltipModel } = context;
     if (tooltipModel.opacity === 0) {
       this.#tooltipEl.classList.add('hidden');
+      this.#hoverIndicatorEl.style.display = 'none';
       return;
     }
     const lines = tooltipModel.body?.flatMap((b) => b.lines) ?? [];
@@ -287,6 +294,10 @@ export class EvalGraph {
     // + eval strings) rather than an exact measurement.
     const nearRightEdge = tooltipModel.caretX > chart.width - TOOLTIP_WIDTH_ESTIMATE_PX;
     this.#tooltipEl.classList.toggle('eval-graph-tooltip-left', nearRightEdge);
+
+    // Position hover indicator at the hovered x position
+    this.#hoverIndicatorEl.style.display = 'block';
+    this.#hoverIndicatorEl.style.left = `${tooltipModel.caretX}px`;
   }
 
   /** @param {number} ply - 0 for the start position, 1..N for move N */
