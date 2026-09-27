@@ -195,7 +195,7 @@ export class EvalGraph {
             borderColor: '#8e8e8e',
             borderWidth: 1,
             pointRadius: 0,
-            pointHoverRadius: 4,
+            pointHoverRadius: 0,
             pointHoverBackgroundColor: '#8e8e8e',
             pointHoverBorderWidth: 0,
             tension: 0.35,

@@ -668,9 +668,9 @@ body {
 }
 
 #eval-bar-center-line {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
+  height: 1px;
+  background-color: rgba(128, 128, 128, 0.6);
+  pointer-events: none;
 }
 
 /* chessboard.js always rounds its own internal board size down to a multiple
