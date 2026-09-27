@@ -763,13 +763,13 @@ body {
 }
 
 .avatar-ring-white {
-  box-shadow: 0 0 0 2px #f5f5f5;
+  box-shadow: none;
 }
 
 /* Darker than the panel/page backgrounds (#171717 / #0a0a0a) so it stays
    visible against them - equal to or lighter than those would blend in. */
 .avatar-ring-black {
-  box-shadow: 0 0 0 2px #000000;
+  box-shadow: none;
 }
 
 /* Marks the king that explains how the game ended (checkmate/timeout/
