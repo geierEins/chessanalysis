@@ -66,20 +66,33 @@ export async function fetchRecentGames(username, { monthsBack = 1, maxGames, onP
 }
 
 /**
- * Fetches a player's avatar. Never throws - falls back to no avatar if the
- * lookup fails, since that shouldn't break the rest of the game review.
+ * Fetches a player's avatar, country, title, account status and league.
+ * Never throws - falls back to none of them if the lookup fails, since that
+ * shouldn't break the rest of the game review.
  * Note: the API's own `username` field is always lowercase, so callers should
  * keep the originally-cased username from the game record instead (PGN/game
  * data preserves the casing the player actually signed up with).
  * @param {string} username
- * @returns {Promise<{avatar: string|null}>}
+ * @returns {Promise<{avatar: string|null, country: string|null, title: string|null,
+ *   status: string|null, league: string|null}>}
+ *   country is Chess.com's code, e.g. "DE" (or a pseudo-code like "XE" for
+ *   England). title e.g. "GM", status e.g. "premium"/"staff"/"mod"/"basic"/
+ *   "closed:fair_play_violations", league e.g. "Silver"/"Legend".
  */
 export async function fetchPlayerProfile(username) {
   try {
     const data = await fetchJson(`${BASE}/player/${encodeURIComponent(username)}`);
-    return { avatar: data.avatar ?? null };
+    // `country` is a URL like ".../pub/country/DE" - only the code is needed.
+    const country = data.country?.split('/').pop()?.toUpperCase() || null;
+    return {
+      avatar: data.avatar ?? null,
+      country,
+      title: data.title ?? null,
+      status: data.status ?? null,
+      league: data.league ?? null,
+    };
   } catch {
-    return { avatar: null };
+    return { avatar: null, country: null, title: null, status: null, league: null };
   }
 }
 

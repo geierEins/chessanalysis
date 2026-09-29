@@ -488,6 +488,40 @@ body {
   min-width: 0;
 }
 
+/* Country flag after "username (rating)" (js/ui/playerLabel.js). */
+.player-flag {
+  display: inline-block;
+  height: 0.8em;
+  width: auto;
+  vertical-align: baseline;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.15);
+}
+
+/* Chess title plaque ("GM", "IM", ...) in front of the username, like
+   Chess.com's own. */
+.player-title {
+  display: inline-block;
+  margin-right: 0.3em;
+  padding: 0 0.3em;
+  border-radius: 3px;
+  background: #7d1f1f;
+  color: #fff;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: 0.1em;
+}
+
+/* Account status and league icons after the flag (inline SVG). */
+.player-badge {
+  display: inline-block;
+  height: 0.95em;
+  width: 0.95em;
+  margin-left: 0.25em;
+  vertical-align: -0.1em;
+}
+
 /* Captured-pieces tray (js/main.js updateMaterialDisplay, values from
    js/analysis/material.js). */
 .material-display {

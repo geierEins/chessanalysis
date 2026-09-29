@@ -1045,8 +1045,8 @@ async function startAnalysis() {
     moveList.render(rootNode);
     const [whiteAvatar, blackAvatar] = await playersPromise;
     players = {
-      white: { username: game.white, rating: game.whiteRating, avatar: whiteAvatar.avatar },
-      black: { username: game.black, rating: game.blackRating, avatar: blackAvatar.avatar },
+      white: { ...whiteAvatar, username: game.white, rating: game.whiteRating },
+      black: { ...blackAvatar, username: game.black, rating: game.blackRating },
     };
     dashboard.setPlayers(players);
     for (const [color, info] of [['w', players.white], ['b', players.black]]) {
