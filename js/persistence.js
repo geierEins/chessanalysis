@@ -11,6 +11,8 @@ const DEPTH_KEY = 'chessreview.depth';
 const TIME_RANGE_KEY = 'chessreview.timeRange';
 const OUTCOME_FILTER_KEY = 'chessreview.outcomeFilter';
 const PIECE_THEME_KEY = 'chessreview.pieceTheme';
+const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
+const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
 
 /** Wrapped so a private-browsing/blocked-storage exception never breaks the
  *  app - these are conveniences, not required state. */
@@ -112,4 +114,25 @@ export function loadPieceTheme() {
 /** @param {string} key */
 export function savePieceTheme(key) {
   if (key) safeSet(PIECE_THEME_KEY, key);
+}
+
+/** @returns {boolean} board sounds on (the default, if never set) */
+export function loadSoundEnabled() {
+  return safeGet(SOUND_ENABLED_KEY) !== 'false';
+}
+
+/** @param {boolean} enabled */
+export function saveSoundEnabled(enabled) {
+  safeSet(SOUND_ENABLED_KEY, String(enabled));
+}
+
+/** @returns {'before'|'after'} when the best-move arrow is shown relative to
+ *  the move it belongs to - 'after' (the original behavior) by default. */
+export function loadBestMoveTiming() {
+  return safeGet(BEST_MOVE_TIMING_KEY) === 'before' ? 'before' : 'after';
+}
+
+/** @param {'before'|'after'} timing */
+export function saveBestMoveTiming(timing) {
+  safeSet(BEST_MOVE_TIMING_KEY, timing);
 }

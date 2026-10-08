@@ -260,6 +260,51 @@
         </svg>
         <span id="analyze-toggle-btn-spinner" class="relative z-10 btn-spinner hidden"></span>
       </button>
+
+      <!-- Kleine Optionen (js/ui/settingsPanel.js) - schwebendes Popover statt
+           eigener Top-Bar-Controls, damit künftige Kleinigkeiten hier Platz
+           finden, ohne die Leiste breiter zu machen. -->
+      <div id="settings-picker" class="relative">
+        <button id="settings-btn" type="button" title="Einstellungen" aria-label="Einstellungen"
+                aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu"
+                class="bg-neutral-800 border border-neutral-700 rounded px-1.5 py-1 text-xs flex items-center">
+          <svg class="settings-gear-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <div id="settings-menu" role="dialog" aria-label="Einstellungen"
+             class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
+          <div class="settings-heading">Einstellungen</div>
+          <div class="settings-row">
+            <span class="settings-label">Brettgeräusche</span>
+            <button id="settings-sound-toggle" type="button" class="settings-icon-toggle">
+              <svg class="settings-sound-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+              </svg>
+              <svg class="settings-sound-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
+                <path d="M22 9l-6 6"></path>
+                <path d="M16 9l6 6"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label" title="Wann der Pfeil mit dem besten Engine-Zug angezeigt wird">Bester Zug</span>
+            <div class="settings-segmented" role="radiogroup" aria-label="Bester Zug anzeigen">
+              <button type="button" role="radio" data-best-move-timing="before"
+                      title="Vorher: zeigt den besten Zug für die aktuelle Brettstellung - also schon bevor der nächste Zug gespielt wird">Vorher</button>
+              <button type="button" role="radio" data-best-move-timing="after"
+                      title="Nachher: zeigt nach einem Zug, welcher Zug stattdessen der beste gewesen wäre">Nachher</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>

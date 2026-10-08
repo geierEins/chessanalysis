@@ -204,6 +204,120 @@ html {
   background-color: #404040;
 }
 
+/* #settings-btn/#settings-menu (js/ui/settingsPanel.js) - the gear turns a
+   bit on hover and stays turned/highlighted while its popover is open. */
+#settings-btn {
+  color: #a3a3a3;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+#settings-btn:hover,
+#settings-btn.menu-open {
+  color: #e5e5e5;
+  background-color: #404040;
+}
+
+.settings-gear-icon {
+  transition: transform 0.3s ease;
+}
+
+#settings-btn:hover .settings-gear-icon,
+#settings-btn.menu-open .settings-gear-icon {
+  transform: rotate(60deg);
+}
+
+#settings-menu {
+  min-width: 220px;
+  padding: 6px 0;
+  animation: settings-menu-in 0.12s ease-out;
+}
+
+@keyframes settings-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.settings-heading {
+  padding: 2px 12px 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.settings-label {
+  color: #d4d4d4;
+}
+
+.settings-icon-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 24px;
+  border-radius: 0.25rem;
+  border: 1px solid #404040;
+  background: #262626;
+  color: #4ade80;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-icon-toggle:hover {
+  background: #404040;
+}
+
+.settings-icon-toggle.is-off {
+  color: #737373;
+}
+
+.settings-icon-toggle .settings-sound-off,
+.settings-icon-toggle.is-off .settings-sound-on {
+  display: none;
+}
+
+.settings-icon-toggle.is-off .settings-sound-off {
+  display: block;
+}
+
+/* Two-option segmented control - same active look as .dashboard-view-btn. */
+.settings-segmented {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 0.375rem;
+  border: 1px solid #404040;
+  background: #171717;
+}
+
+.settings-segmented > button {
+  padding: 2px 8px;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #a3a3a3;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-segmented > button:hover {
+  color: #e5e5e5;
+}
+
+.settings-segmented > button.active {
+  color: #e5e5e5;
+  background: #404040;
+}
+
 /* js/ui/customSelect.js - #game-type-menu/#game-menu/#time-range-menu's
    option items. Flex row (not plain block) so an option with an icon lines
    its text up in its own column, at a consistent gap from the icon, rather

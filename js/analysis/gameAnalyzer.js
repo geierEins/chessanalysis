@@ -74,6 +74,9 @@ export async function analyzeGame(pgn, engine, { depth = 14, onProgress, avgRati
   const moveRecords = [];
 
   let currentEval = await engine.evaluate(replay.fen(), { depth, multiPv: 2 });
+  // The best FIRST move - the root node's counterpart of each record's
+  // nextBestMoveSquares below (js/main.js's "show best move before" setting).
+  const startBestMoveSquares = squaresFromUci(currentEval.bestMoveUci);
   onProgress?.(0, verboseMoves.length);
 
   for (let i = 0; i < verboseMoves.length; i++) {
@@ -186,6 +189,9 @@ export async function analyzeGame(pgn, engine, { depth = 14, onProgress, avgRati
       category,
       bestMoveSan: isBestMove ? null : bestMoveSanFor(fenBefore, bestMoveUci),
       bestMoveSquares: isBestMove ? null : squaresFromUci(bestMoveUci),
+      // The engine's best move in fenAfter (i.e. the NEXT move's best move,
+      // even if that one then actually was played) - null at game end.
+      nextBestMoveSquares: squaresFromUci(currentEval.bestMoveUci),
     });
   }
 
@@ -199,6 +205,7 @@ export async function analyzeGame(pgn, engine, { depth = 14, onProgress, avgRati
   return {
     headers,
     positions,
+    startBestMoveSquares,
     moves: moveRecords,
     accuracy: computeGameAccuracy(allWinPercentsWhite, moveColors),
   };

@@ -25,7 +25,17 @@ const audioByKey = Object.fromEntries(
   })
 );
 
+// Toggled from the settings popover (js/ui/settingsPanel.js) - muting just
+// skips playback, the preloaded Audio objects above stay as they are.
+let soundEnabled = true;
+
+/** @param {boolean} enabled */
+export function setSoundEnabled(enabled) {
+  soundEnabled = enabled;
+}
+
 function play(key) {
+  if (!soundEnabled) return;
   const audio = audioByKey[key];
   // Restarts from the top even if still playing from a moment ago - matters
   // for illegal.mp3 especially, when several rejected attempts land in

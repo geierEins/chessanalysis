@@ -12,7 +12,7 @@ import { setAvatar } from './ui/avatar.js';
 import { formatPlayerLabelHtml } from './ui/playerLabel.js';
 import { CustomSelect } from './ui/customSelect.js';
 import { materialSummaryFromFen, isSacrifice } from './analysis/material.js';
-import { playMoveSound, playIllegalMoveSound } from './ui/sounds.js';
+import { playMoveSound, playIllegalMoveSound, setSoundEnabled } from './ui/sounds.js';
 import { Chess } from './chessLib.js';
 import {
   createRootNode,
@@ -42,11 +42,16 @@ import {
   saveTimeRange,
   loadOutcomeFilter,
   saveOutcomeFilter,
+  loadSoundEnabled,
+  saveSoundEnabled,
+  loadBestMoveTiming,
+  saveBestMoveTiming,
 } from './persistence.js';
 import { computeTerminationMarkers } from './analysis/termination.js';
 import { computeMoveTimesSpent } from './analysis/moveTimes.js';
 import { initBoardThemePicker } from './ui/boardThemePicker.js';
 import { initPieceThemePicker } from './ui/pieceThemePicker.js';
+import { initSettingsPanel } from './ui/settingsPanel.js';
 
 // Registers the (no-op/no-cache) service worker so the browser considers the
 // app installable as a home-screen "app" (Add to Home Screen / PWA install).
@@ -316,6 +321,11 @@ let loadedEngineId = null;
 let analysis = null; // gameAnalyzer.js's flat result - still the source of truth for the eval graph/dashboard accuracy table (main-line only, per the agreed scope)
 let rootNode = null; // the move tree's root (js/analysis/moveTree.js) - start position, ply 0
 let currentNode = null; // whichever MoveNode (main line or a variation) is currently shown
+// Settings popover (js/ui/settingsPanel.js): 'after' = the best-move arrow
+// shows what should have been played instead of the move just shown;
+// 'before' = it shows the best move for the position currently on the board.
+let bestMoveTiming = loadBestMoveTiming();
+setSoundEnabled(loadSoundEnabled());
 let autoPlayTimer = null;
 let players = null; // {white: {username, rating, avatar}, black: {...}}
 let pendingBadge = null; // {square, category} to show once the current move's piece animation ends
@@ -1026,6 +1036,7 @@ async function startAnalysis() {
     // game's own move list - the analyzed game itself is just the tree's
     // initial main-line spine.
     rootNode = createRootNode(analysis.positions[0]);
+    rootNode.nextBestMoveSquares = analysis.startBestMoveSquares;
     buildMainLineFromMoves(rootNode, analysis.moves);
     initialClockSeconds = parseInitialClockSeconds(analysis.headers.TimeControl);
     gameHasClockData = analysis.moves.some((m) => m.clockSeconds != null);
@@ -1353,6 +1364,18 @@ function evalForNode(node) {
   return evalWhiteForNode(node);
 }
 
+/** Draws the engine's best-move arrow for currentNode, per bestMoveTiming:
+ *  'after' only when the move just played wasn't already the best one,
+ *  'before' always (the best move in currentNode's resulting position). Main
+ *  line: known immediately; a branch move: once its own background
+ *  evaluation resolves (evaluateBranchNode calls this again). */
+function updateBestMoveArrow() {
+  if (!currentNode) return;
+  const squares = bestMoveTiming === 'before' ? currentNode.nextBestMoveSquares : currentNode.bestMoveSquares;
+  if (squares) board.showArrow(squares.from, squares.to);
+  else board.clearArrow();
+}
+
 /**
  * The shared rendering function for "the board now shows this node" -
  * used by every navigation path (nav buttons, keyboard, move list clicks,
@@ -1407,14 +1430,7 @@ function goToNode(node, { fromDrop = false } = {}) {
     board.clearLastMoveHighlight();
   }
 
-  // Suggests the engine's actual best move whenever the played move wasn't
-  // already it (main line: known immediately; a branch move: once its own
-  // background evaluation resolves - see evaluateBranchNode).
-  if (currentNode.bestMoveSquares) {
-    board.showArrow(currentNode.bestMoveSquares.from, currentNode.bestMoveSquares.to);
-  } else {
-    board.clearArrow();
-  }
+  updateBestMoveArrow();
 
   // The termination marker (checkmate/timeout/resignation/draw) only makes
   // sense at an actual end-of-game position: the real game's final move
@@ -1565,7 +1581,7 @@ async function evaluateBranchNode(node) {
 
   if (currentNode === node) {
     evalBar.update(evalForNode(node));
-    if (node.bestMoveSquares) board.showArrow(node.bestMoveSquares.from, node.bestMoveSquares.to);
+    updateBestMoveArrow();
     if (pendingBadge && pendingBadge.square === node.to) pendingBadge.category = node.category;
     if (node.category) board.showBadge(node.to, node.category);
   }
@@ -1641,6 +1657,7 @@ function applyBranchEvaluation(node, beforeResult, afterResult) {
     category,
     bestMoveSan: isBestMove ? null : bestMoveSanFor(node.fenBefore, bestMoveUci),
     bestMoveSquares: isBestMove ? null : squaresFromUci(bestMoveUci),
+    nextBestMoveSquares: afterResult ? squaresFromUci(afterResult.bestMoveUci) : null,
   });
 }
 
@@ -1737,3 +1754,16 @@ removeVariationBtn.addEventListener('click', () => {
 
 initBoardThemePicker();
 initPieceThemePicker(board);
+initSettingsPanel({
+  soundEnabled: loadSoundEnabled(),
+  bestMoveTiming,
+  onSoundChange: (enabled) => {
+    setSoundEnabled(enabled);
+    saveSoundEnabled(enabled);
+  },
+  onBestMoveTimingChange: (timing) => {
+    bestMoveTiming = timing;
+    saveBestMoveTiming(timing);
+    updateBestMoveArrow();
+  },
+});
