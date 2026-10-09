@@ -10,6 +10,8 @@ const ENGINE_KEY = 'chessreview.engine';
 const DEPTH_KEY = 'chessreview.depth';
 const TIME_RANGE_KEY = 'chessreview.timeRange';
 const OUTCOME_FILTER_KEY = 'chessreview.outcomeFilter';
+const GAME_TYPE_FILTER_KEY = 'chessreview.gameTypeFilter';
+const COLOR_FILTER_KEY = 'chessreview.colorFilter';
 const PIECE_THEME_KEY = 'chessreview.pieceTheme';
 const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
 const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
@@ -157,4 +159,35 @@ export function loadMetaTab() {
 /** @param {string} tab */
 export function saveMetaTab(tab) {
   if (tab) safeSet(META_TAB_KEY, tab);
+}
+
+function loadList(key) {
+  const raw = safeGet(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @returns {string[]|null} selected game types ("bullet", "blitz", ...) */
+export function loadGameTypeFilter() {
+  return loadList(GAME_TYPE_FILTER_KEY);
+}
+
+/** @param {string[]} values */
+export function saveGameTypeFilter(values) {
+  safeSet(GAME_TYPE_FILTER_KEY, JSON.stringify(values));
+}
+
+/** @returns {string[]|null} selected colors ("w", "b") */
+export function loadColorFilter() {
+  return loadList(COLOR_FILTER_KEY);
+}
+
+/** @param {string[]} values */
+export function saveColorFilter(values) {
+  safeSet(COLOR_FILTER_KEY, JSON.stringify(values));
 }

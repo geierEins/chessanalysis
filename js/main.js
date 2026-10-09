@@ -42,6 +42,10 @@ import {
   saveTimeRange,
   loadOutcomeFilter,
   saveOutcomeFilter,
+  loadGameTypeFilter,
+  saveGameTypeFilter,
+  loadColorFilter,
+  saveColorFilter,
   loadSoundEnabled,
   saveSoundEnabled,
   loadBestMoveTiming,
@@ -644,9 +648,14 @@ function updateColorFilterButtonIcon() {
 }
 
 // Color filter (Weiß/Schwarz): same checkbox multi-select pattern as the
-// outcome filter above - not persisted (not asked for), resets to both on
-// every reload.
-let selectedColors = new Set(COLOR_ORDER);
+// outcome filter above, persisted the same way.
+/** A saved multi-select restored against the known values - all of them if
+ *  nothing (valid) was saved, so the filter can never come back empty. */
+function restoredSelection(saved, order) {
+  const valid = (saved ?? []).filter((v) => order.includes(v));
+  return new Set(valid.length ? valid : order);
+}
+let selectedColors = restoredSelection(loadColorFilter(), COLOR_ORDER);
 for (const checkbox of colorFilterCheckboxes) {
   checkbox.checked = selectedColors.has(checkbox.dataset.color);
   checkbox.addEventListener('change', () => {
@@ -658,6 +667,7 @@ for (const checkbox of colorFilterCheckboxes) {
     }
     if (checkbox.checked) selectedColors.add(checkbox.dataset.color);
     else selectedColors.delete(checkbox.dataset.color);
+    saveColorFilter([...selectedColors]);
     updateColorFilterButtonIcon();
     meta?.refresh();
   });
@@ -695,9 +705,8 @@ function updateGameTypeFilterButtonIcon() {
 }
 
 // Game-type filter (Spielart): same checkbox multi-select pattern as the
-// outcome/color filters above - not persisted (not asked for), resets to
-// all four on every reload.
-let selectedGameTypes = new Set(GAME_TYPE_ORDER);
+// outcome/color filters above, persisted the same way.
+let selectedGameTypes = restoredSelection(loadGameTypeFilter(), GAME_TYPE_ORDER);
 for (const checkbox of gameTypeFilterCheckboxes) {
   checkbox.checked = selectedGameTypes.has(checkbox.dataset.gameType);
   checkbox.addEventListener('change', () => {
@@ -707,6 +716,7 @@ for (const checkbox of gameTypeFilterCheckboxes) {
     }
     if (checkbox.checked) selectedGameTypes.add(checkbox.dataset.gameType);
     else selectedGameTypes.delete(checkbox.dataset.gameType);
+    saveGameTypeFilter([...selectedGameTypes]);
     updateGameTypeFilterButtonIcon();
     meta?.refresh();
   });
@@ -1902,6 +1912,8 @@ meta = initMetaMode({
     selectedColors = new Set(COLOR_ORDER);
     selectedOutcomes = new Set(OUTCOME_ORDER);
     saveOutcomeFilter([...selectedOutcomes]);
+    saveGameTypeFilter([...selectedGameTypes]);
+    saveColorFilter([...selectedColors]);
     for (const cb of [...gameTypeFilterCheckboxes, ...colorFilterCheckboxes, ...outcomeFilterCheckboxes]) cb.checked = true;
     updateGameTypeFilterButtonIcon();
     updateColorFilterButtonIcon();
