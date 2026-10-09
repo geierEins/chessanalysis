@@ -175,6 +175,16 @@
         </button>
         <div id="game-menu" class="hidden z-30 max-h-80 overflow-y-auto bg-neutral-800 border border-neutral-700 rounded shadow-lg"></div>
       </div>
+      <!-- Meta-Analyse only (js/meta/metaController.js): takes the game
+           picker's slot - filters every statistic down to one opponent, or
+           "Alle Gegner". -->
+      <div id="opponent-picker" class="relative hidden">
+        <button id="opponent-btn" type="button" disabled title="Gegner"
+                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs max-w-96 text-left disabled:opacity-50 disabled:cursor-not-allowed truncate">
+          <span id="opponent-btn-label">Erst Spiele laden…</span>
+        </button>
+        <div id="opponent-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
+      </div>
       <div id="engine-picker" class="relative">
         <button id="engine-btn" type="button" title="Engine"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
@@ -278,6 +288,15 @@
              class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
           <div class="settings-heading">Einstellungen</div>
           <div class="settings-row">
+            <span class="settings-label" title="Spiel: eine Partie Zug für Zug analysieren. Meta: viele Partien gemeinsam auswerten.">Bereich</span>
+            <div class="settings-segmented" role="radiogroup" aria-label="Bereich">
+              <button type="button" role="radio" data-app-mode="game"
+                      title="Spiel-Analyse: eine Partie auf dem Brett durchgehen">Spiel</button>
+              <button type="button" role="radio" data-app-mode="meta"
+                      title="Meta-Analyse: Statistiken über viele Partien">Meta</button>
+            </div>
+          </div>
+          <div class="settings-row">
             <span class="settings-label">Brettgeräusche</span>
             <button id="settings-sound-toggle" type="button" class="settings-icon-toggle">
               <svg class="settings-sound-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -314,6 +333,11 @@
 <button id="loader-toggle-btn" type="button" title="Filter ein-/ausblenden" class="hidden">☰</button>
 
 <main class="max-w-[1400px] mx-auto px-4 pt-3 pb-6">
+
+  <!-- Only after opening a game from the Meta-Analyse's "Partien" tab. -->
+  <div id="back-to-meta-bar" class="hidden">
+    <button id="back-to-meta-btn" type="button">← Zurück zur Meta-Analyse</button>
+  </div>
 
   <!-- Alle Bereiche sind direkte Grid-Kinder von #review-panel (siehe
        css/styles.css) - Desktop und Mobile weisen ihnen per grid-template-
@@ -515,6 +539,66 @@
       </table>
     </div>
 
+  </section>
+
+  <!-- Meta-Analyse (js/meta/metaController.js renders into it). Shown instead
+       of #review-panel when the gear menu's "Bereich" is set to Meta. -->
+  <section id="meta-panel" class="hidden">
+
+    <div id="meta-empty" class="meta-empty">
+      <h2>Meta-Analyse</h2>
+      <p>Statistiken über viele Partien: Ergebnisse, Eröffnungen, Gegner und Länder, Spielqualität und Zeitverhalten.</p>
+      <p>Oben Benutzer, Zeitraum und Filter wählen und <b>Spiele laden</b> drücken. Oder eine früher gespeicherte Analyse importieren.</p>
+      <button id="meta-empty-import-btn" type="button" class="meta-btn">Analyse importieren</button>
+    </div>
+
+    <div id="meta-content" class="hidden">
+      <!-- Only while an analysis runs. -->
+      <section id="meta-progress" class="meta-progress hidden" aria-live="polite">
+        <div class="meta-progress-head">
+          <div>
+            <h2 id="meta-progress-title">Engine-Analyse läuft</h2>
+            <span id="meta-progress-line" class="meta-muted small"></span>
+          </div>
+          <div class="meta-progress-right">
+            <div id="meta-progress-pct" class="meta-progress-pct">0 %</div>
+            <div id="meta-progress-eta" class="meta-muted small"></div>
+          </div>
+        </div>
+        <div class="meta-bar"><i id="meta-progress-bar"></i></div>
+        <div class="meta-progress-foot">
+          <div class="meta-progress-game">
+            <span id="meta-progress-steps" class="meta-muted small"></span>
+            <div class="meta-bar thin"><i id="meta-progress-game-bar"></i></div>
+          </div>
+          <div class="meta-btns">
+            <button id="meta-pause-btn" type="button" class="meta-btn">Pausieren</button>
+            <button id="meta-cancel-btn" type="button" class="meta-btn danger">Analyse abbrechen …</button>
+          </div>
+        </div>
+        <div id="meta-cancel-confirm" class="meta-confirm hidden" role="alertdialog" aria-labelledby="meta-cancel-confirm-text">
+          <p id="meta-cancel-confirm-text"></p>
+          <div class="meta-btns">
+            <button id="meta-cancel-keep-btn" type="button" class="meta-btn">Weiter analysieren</button>
+            <button id="meta-cancel-stop-btn" type="button" class="meta-btn danger solid">Ja, abbrechen</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="meta-status">
+        <span id="meta-status-text"></span>
+        <span class="meta-btns">
+          <button id="meta-import-btn" type="button" class="meta-btn">Analyse importieren</button>
+          <button id="meta-export-btn" type="button" class="meta-btn hidden">Analyse exportieren</button>
+        </span>
+      </div>
+
+      <div id="meta-tabs" class="meta-tabs" role="tablist" aria-label="Meta-Analyse"></div>
+      <div id="meta-tabpanel" role="tabpanel"></div>
+    </div>
+
+    <input id="meta-import-input" type="file" accept=".json,application/json" class="hidden">
+    <div id="meta-tip" class="hidden"></div>
   </section>
 
 </main>

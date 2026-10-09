@@ -46,7 +46,10 @@ import {
   saveSoundEnabled,
   loadBestMoveTiming,
   saveBestMoveTiming,
+  loadAppMode,
+  saveAppMode,
 } from './persistence.js';
+import { initMetaMode } from './meta/metaController.js';
 import { computeTerminationMarkers } from './analysis/termination.js';
 import { computeMoveTimesSpent } from './analysis/moveTimes.js';
 import { initBoardThemePicker } from './ui/boardThemePicker.js';
@@ -62,6 +65,13 @@ if ('serviceWorker' in navigator) {
 }
 
 const el = (id) => document.getElementById(id);
+
+// 'game' = the single-game analysis, 'meta' = Meta-Analyse (js/meta/) - picked
+// in the gear menu. `meta` is the Meta-Analyse controller, created at the very
+// end once every top-bar control it reads from exists; every call site uses
+// `meta?.` since some filter callbacks can fire before that.
+let appMode = loadAppMode();
+let meta = null;
 
 const usernameInput = el('username-input');
 const usernameAvatarEl = el('username-avatar');
@@ -169,6 +179,7 @@ const timeRangeSelect = new CustomSelect({
   onChange: (value) => {
     saveTimeRange(value);
     updateCustomDateInputsVisibility(value);
+    meta?.refresh();
     // CustomSelect.select() always hides the menu after any option - but for
     // "custom" there's still a choice left to make (the two dates below),
     // so it's reopened right back up instead of requiring a second click on
@@ -206,6 +217,8 @@ customDateRow.innerHTML = `
 timeRangeMenu.appendChild(customDateRow);
 const customDateFromEl = el('custom-date-from');
 const customDateToEl = el('custom-date-to');
+customDateFromEl.addEventListener('change', () => meta?.refresh());
+customDateToEl.addEventListener('change', () => meta?.refresh());
 function updateCustomDateInputsVisibility(value) {
   customDateRow.classList.toggle('hidden', value !== 'custom');
   customDateRow.classList.toggle('flex', value === 'custom');
@@ -249,28 +262,33 @@ const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
 // those just get their bare number) - keeps the collapsed button from
 // growing to fit "Stockfish 19 Lite" etc. The open menu still shows the full
 // label.
+// fileSlug: how the engine appears in an exported Meta-Analyse's file name.
+const ENGINE_OPTIONS = [
+  { value: 'sf19', label: 'Stockfish 19 Lite', shortLabel: 'SF19L', fileSlug: 'sf19-lite' },
+  { value: 'sf19full', label: 'Stockfish 19 Full', shortLabel: 'SF19', fileSlug: 'sf19-full' },
+  { value: 'sf16', label: 'Stockfish 16', shortLabel: 'SF16', fileSlug: 'sf16' },
+  { value: 'sf11', label: 'Stockfish 11', shortLabel: 'SF11', fileSlug: 'sf11' },
+];
 const engineSelect = new CustomSelect({
   buttonId: 'engine-btn',
   labelId: 'engine-btn-label',
   menuId: 'engine-menu',
-  onChange: saveEngine,
+  onChange: (value) => {
+    saveEngine(value);
+    meta?.engineSettingsChanged();
+  },
 });
-engineSelect.setOptions(
-  [
-    { value: 'sf19', label: 'Stockfish 19 Lite', shortLabel: 'SF19L' },
-    { value: 'sf19full', label: 'Stockfish 19 Full', shortLabel: 'SF19' },
-    { value: 'sf16', label: 'Stockfish 16', shortLabel: 'SF16' },
-    { value: 'sf11', label: 'Stockfish 11', shortLabel: 'SF11' },
-  ],
-  loadEngine() ?? 'sf19'
-);
+engineSelect.setOptions(ENGINE_OPTIONS, loadEngine() ?? 'sf19');
 // shortLabel drops "Tiefe" once collapsed ("T14" instead of "Tiefe 14") -
 // the open menu still shows the full label.
 const depthSelect = new CustomSelect({
   buttonId: 'depth-btn',
   labelId: 'depth-btn-label',
   menuId: 'depth-menu',
-  onChange: saveDepth,
+  onChange: (value) => {
+    saveDepth(value);
+    meta?.engineSettingsChanged();
+  },
 });
 depthSelect.setOptions(
   [
@@ -587,6 +605,7 @@ for (const checkbox of outcomeFilterCheckboxes) {
     else selectedOutcomes.delete(checkbox.dataset.outcome);
     saveOutcomeFilter([...selectedOutcomes]);
     updateOutcomeFilterButtonIcon();
+    meta?.refresh();
   });
 }
 updateOutcomeFilterButtonIcon();
@@ -640,6 +659,7 @@ for (const checkbox of colorFilterCheckboxes) {
     if (checkbox.checked) selectedColors.add(checkbox.dataset.color);
     else selectedColors.delete(checkbox.dataset.color);
     updateColorFilterButtonIcon();
+    meta?.refresh();
   });
 }
 updateColorFilterButtonIcon();
@@ -688,6 +708,7 @@ for (const checkbox of gameTypeFilterCheckboxes) {
     if (checkbox.checked) selectedGameTypes.add(checkbox.dataset.gameType);
     else selectedGameTypes.delete(checkbox.dataset.gameType);
     updateGameTypeFilterButtonIcon();
+    meta?.refresh();
   });
 }
 updateGameTypeFilterButtonIcon();
@@ -867,7 +888,9 @@ fetchGamesBtn.addEventListener('click', async () => {
   saveLastUsername(username);
   updateUsernameAvatar(username);
   setFetchGamesLoading(true);
-  gameSelect.disabled = true;
+  // Meta mode leaves the single-game picker alone, so switching back still
+  // finds whatever game list was loaded there before.
+  if (appMode === 'game') gameSelect.disabled = true;
   analyzeToggleBtn.disabled = true;
 
   try {
@@ -898,6 +921,17 @@ fetchGamesBtn.addEventListener('click', async () => {
       },
       signal: fetchGamesAbortController.signal,
     });
+
+    // Meta-Analyse keeps every downloaded game and applies Spielart/Ergebnis/
+    // Farbe/Zeitraum live (js/meta/metaController.js), so changing a filter
+    // afterwards never needs another download.
+    if (appMode === 'meta') {
+      await meta.loadGames(rawGames, username, currentDateBounds().from);
+      showToast(`${rawGames.length} Partien geladen.`, 'success');
+      return;
+    }
+
+    hideBackToMeta();
     const today = new Date();
     games = rawGames
       .map(summarizeGame)
@@ -918,18 +952,7 @@ fetchGamesBtn.addEventListener('click', async () => {
       throw new Error('Keine Partien für diesen Filter gefunden.');
     }
 
-    const gameOptions = games.map((game, index) => {
-      const style = timeClassStyle(game.timeClass);
-      const outcome = ownOutcomeCircle(game, username);
-      return {
-        value: String(index),
-        label: `${style.emoji} ${game.label} ${outcome}`.trim(),
-        // Own name/elo dropped here (see opponentLabel) - just "vs Opponent
-        // (Elo) — Date" - the open menu above keeps the full label.
-        shortLabel: `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel} ${outcome}`.trim(),
-        color: style.color,
-      };
-    });
+    const gameOptions = buildGameOptions(games, username);
     gameSelect.setOptions(gameOptions, gameOptions[0]?.value);
     gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
@@ -941,8 +964,42 @@ fetchGamesBtn.addEventListener('click', async () => {
   } finally {
     setFetchGamesLoading(false);
     fetchGamesAbortController = null;
+    if (appMode === 'meta') updateAnalyzeButtonForMode();
   }
 });
+
+/** The game picker's entries for a list of summarizeGame() results. */
+function buildGameOptions(gameList, username) {
+  return gameList.map((game, index) => {
+    const style = timeClassStyle(game.timeClass);
+    const outcome = ownOutcomeCircle(game, username);
+    return {
+      value: String(index),
+      label: `${style.emoji} ${game.label} ${outcome}`.trim(),
+      // Own name/elo dropped here (see opponentLabel) - just "vs Opponent
+      // (Elo) — Date" - the open menu above keeps the full label.
+      shortLabel: `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel} ${outcome}`.trim(),
+      color: style.color,
+    };
+  });
+}
+
+/** The time filter as concrete bounds - the same months the archive download
+ *  covers ("Letzte 6 Monate" = the current month and the 5 before it). Used
+ *  by the Meta-Analyse to filter already-loaded games live. */
+function currentDateBounds() {
+  const value = timeRangeSelect.value;
+  const now = new Date();
+  if (value === 'all') return { from: null, to: null };
+  if (value === 'today') return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate()), to: null };
+  if (value === 'custom') {
+    const from = customDateFromEl.value ? new Date(customDateFromEl.value) : null;
+    const to = customDateToEl.value ? new Date(customDateToEl.value) : null;
+    to?.setHours(23, 59, 59, 999);
+    return { from, to };
+  }
+  return { from: new Date(now.getFullYear(), now.getMonth() - (Number(value) - 1), 1), to: null };
+}
 
 usernameInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') fetchGamesBtn.click();
@@ -967,6 +1024,10 @@ function setAnalyzing(analyzing) {
 }
 
 analyzeToggleBtn.addEventListener('click', () => {
+  if (appMode === 'meta') {
+    meta.toggleRun();
+    return;
+  }
   if (isAnalyzing) {
     cancelAnalysis();
   } else {
@@ -1752,9 +1813,122 @@ removeVariationBtn.addEventListener('click', () => {
   moveList.setActive(currentNode);
 });
 
+// ---------- Meta-Analyse and switching between the two areas ----------
+
+const gamePickerEl = el('game-picker');
+const backToMetaBar = el('back-to-meta-bar');
+let metaScrollY = 0; // restored when coming back from a game opened out of the Meta-Analyse
+
+function hideBackToMeta() {
+  backToMetaBar.classList.add('hidden');
+}
+
+/** The analyze button is shared: in game mode it analyzes the picked game,
+ *  in meta mode it starts the Meta-Analyse run (js/meta/metaController.js). */
+function updateAnalyzeButtonForMode() {
+  if (isAnalyzing) return;
+  if (appMode === 'meta') {
+    analyzeToggleBtn.disabled = !meta?.hasData;
+    analyzeToggleBtn.title = 'Meta-Analyse starten: alle gefilterten Partien ohne Engine-Werte analysieren';
+  } else {
+    analyzeToggleBtn.disabled = games.length === 0;
+    analyzeToggleBtn.title = 'Ausgewähltes Spiel analysieren';
+  }
+}
+
+function applyAppMode() {
+  const isMeta = appMode === 'meta';
+  gamePickerEl.classList.toggle('hidden', isMeta);
+  meta.setActive(isMeta);
+  if (isMeta) {
+    reviewPanel.classList.add('hidden');
+    hideBackToMeta();
+    // The mobile "filters collapsed" state only makes sense next to a board.
+    loaderPanel.classList.remove('collapsed');
+    loaderToggleBtn.classList.add('hidden');
+  } else if (analysis) {
+    reviewPanel.classList.remove('hidden');
+    syncBoardRowLayout();
+  }
+  updateAnalyzeButtonForMode();
+}
+
+/** @returns {boolean} false if refused (something is still running). */
+function switchAppMode(mode) {
+  if (mode === appMode) return true;
+  if (isAnalyzing || meta.isRunning || fetchGamesAbortController) {
+    showToast('Bitte erst die laufende Analyse bzw. das Laden abwarten oder abbrechen.', 'info');
+    return false;
+  }
+  if (appMode === 'meta') metaScrollY = window.scrollY;
+  appMode = mode;
+  saveAppMode(mode);
+  applyAppMode();
+  if (mode === 'meta') requestAnimationFrame(() => window.scrollTo(0, metaScrollY));
+  return true;
+}
+
+meta = initMetaMode({
+  getFilters: () => ({
+    ...currentDateBounds(),
+    timeClasses: selectedGameTypes,
+    outcomes: selectedOutcomes,
+    colors: selectedColors,
+  }),
+  getEngineSettings: () => {
+    const opt = ENGINE_OPTIONS.find((o) => o.value === engineSelect.value) ?? ENGINE_OPTIONS[0];
+    const depth = Number(depthSelect.value);
+    return { engineId: opt.value, depth, label: `${opt.label} · Tiefe ${depth}`, slug: opt.fileSlug };
+  },
+  setEngineSettings: (engineId, depth) => {
+    if (engineSelect.value !== engineId) engineSelect.select(engineId);
+    if (depthSelect.value !== String(depth)) depthSelect.select(String(depth));
+  },
+  setUsername: (username) => {
+    usernameInput.value = username;
+    saveLastUsername(username);
+    updateUsernameAvatar(username);
+  },
+  setBusy: (busy) => {
+    setAnalyzing(busy);
+    fetchGamesBtn.disabled = busy;
+    engineSelect.disabled = busy;
+    depthSelect.disabled = busy;
+    usernameInput.disabled = busy;
+    if (busy) analyzeToggleBtn.title = 'Meta-Analyse abbrechen';
+    else updateAnalyzeButtonForMode();
+  },
+  setRunProgress: (fraction) => {
+    analyzeToggleBtnFill.style.width = `${Math.round(fraction * 100)}%`;
+  },
+  // A row in the "Partien" tab: hand the filtered list to the game picker,
+  // switch areas and analyze it right away - the Meta-Analyse's own state
+  // stays in memory, so "Zurück" shows it again without recomputing.
+  onOpenGame: (summaries, index) => {
+    if (isAnalyzing || fetchGamesAbortController) return;
+    metaScrollY = window.scrollY;
+    games = summaries;
+    gameSelect.setOptions(buildGameOptions(games, usernameInput.value), String(index));
+    gameSelect.disabled = false;
+    appMode = 'game';
+    saveAppMode('game');
+    settingsPanel.setAppMode('game');
+    applyAppMode();
+    backToMetaBar.classList.remove('hidden');
+    window.scrollTo(0, 0);
+    startAnalysis();
+  },
+});
+
+el('back-to-meta-btn').addEventListener('click', () => {
+  if (switchAppMode('meta')) settingsPanel.setAppMode('meta');
+});
+
 initBoardThemePicker();
 initPieceThemePicker(board);
-initSettingsPanel({
+const settingsPanel = initSettingsPanel({
+  appMode,
+  onAppModeChange: (mode) => switchAppMode(mode),
   soundEnabled: loadSoundEnabled(),
   bestMoveTiming,
   onSoundChange: (enabled) => {
@@ -1767,3 +1941,6 @@ initSettingsPanel({
     updateBestMoveArrow();
   },
 });
+
+// Restores whichever area was open last (gear menu "Bereich").
+applyAppMode();

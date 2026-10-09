@@ -17,14 +17,18 @@ const SOUND_TITLE_OFF = 'Brettgeräusche aus - klicken zum Einschalten';
  *   bestMoveTiming: 'before'|'after',
  *   onSoundChange: (enabled: boolean) => void,
  *   onBestMoveTimingChange: (timing: 'before'|'after') => void,
- * }} options
+ *   appMode: 'game'|'meta',
+ *   onAppModeChange: (mode: 'game'|'meta') => boolean,
+ * }} options onAppModeChange returns false to refuse the switch (e.g. while an analysis runs)
+ * @returns {{setAppMode: (mode: 'game'|'meta') => void}} for switches made elsewhere (e.g. opening a game from the Meta-Analyse)
  */
-export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange, onBestMoveTimingChange }) {
+export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange, onBestMoveTimingChange, appMode, onAppModeChange }) {
   const picker = document.getElementById('settings-picker');
   const btn = document.getElementById('settings-btn');
   const menu = document.getElementById('settings-menu');
   const soundToggle = document.getElementById('settings-sound-toggle');
   const timingButtons = [...menu.querySelectorAll('[data-best-move-timing]')];
+  const modeButtons = [...menu.querySelectorAll('[data-app-mode]')];
 
   const isOpen = () => !menu.classList.contains('hidden');
 
@@ -106,6 +110,32 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
     });
   }
 
+  function renderMode() {
+    for (const b of modeButtons) {
+      const active = b.dataset.appMode === appMode;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', String(active));
+    }
+  }
+
+  for (const b of modeButtons) {
+    b.addEventListener('click', () => {
+      if (b.dataset.appMode === appMode) return;
+      if (onAppModeChange(b.dataset.appMode) === false) return;
+      appMode = b.dataset.appMode;
+      renderMode();
+      close();
+    });
+  }
+
   renderSound();
   renderTiming();
+  renderMode();
+
+  return {
+    setAppMode(mode) {
+      appMode = mode;
+      renderMode();
+    },
+  };
 }

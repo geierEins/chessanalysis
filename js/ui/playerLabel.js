@@ -13,7 +13,7 @@ const PSEUDO_COUNTRY_FLAGS = { XE: 'gb-eng', XS: 'gb-sct', XW: 'gb-wls', XC: 'es
 const PSEUDO_COUNTRY_NAMES = { XE: 'England', XS: 'Schottland', XW: 'Wales', XC: 'Katalonien', XG: 'Galicien', XB: 'Baskenland' };
 
 let regionNames;
-function countryName(code) {
+export function countryName(code) {
   if (PSEUDO_COUNTRY_NAMES[code]) return PSEUDO_COUNTRY_NAMES[code];
   try {
     regionNames ??= new Intl.DisplayNames(['de'], { type: 'region' });
@@ -25,7 +25,7 @@ function countryName(code) {
 
 // An image rather than a flag emoji - Windows doesn't render flag emoji (it
 // shows just the two letters instead).
-function flagHtml(code) {
+export function flagHtml(code) {
   if (!code) return '';
   const flag = PSEUDO_COUNTRY_FLAGS[code] ?? (/^[A-WYZ][A-Z]$/.test(code) ? code.toLowerCase() : null);
   if (!flag) return '';

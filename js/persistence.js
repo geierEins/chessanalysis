@@ -13,6 +13,8 @@ const OUTCOME_FILTER_KEY = 'chessreview.outcomeFilter';
 const PIECE_THEME_KEY = 'chessreview.pieceTheme';
 const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
 const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
+const APP_MODE_KEY = 'chessreview.appMode';
+const META_TAB_KEY = 'chessreview.metaTab';
 
 /** Wrapped so a private-browsing/blocked-storage exception never breaks the
  *  app - these are conveniences, not required state. */
@@ -135,4 +137,24 @@ export function loadBestMoveTiming() {
 /** @param {'before'|'after'} timing */
 export function saveBestMoveTiming(timing) {
   safeSet(BEST_MOVE_TIMING_KEY, timing);
+}
+
+/** @returns {'game'|'meta'} which area is shown: single-game analysis (the default) or Meta-Analyse */
+export function loadAppMode() {
+  return safeGet(APP_MODE_KEY) === 'meta' ? 'meta' : 'game';
+}
+
+/** @param {'game'|'meta'} mode */
+export function saveAppMode(mode) {
+  safeSet(APP_MODE_KEY, mode);
+}
+
+/** @returns {string|null} the Meta-Analyse tab last shown */
+export function loadMetaTab() {
+  return safeGet(META_TAB_KEY);
+}
+
+/** @param {string} tab */
+export function saveMetaTab(tab) {
+  if (tab) safeSet(META_TAB_KEY, tab);
 }
