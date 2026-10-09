@@ -13,6 +13,7 @@ import { flagHtml } from '../ui/playerLabel.js';
 import { buildFastRecord, buildEngineRecord } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, saveEngineRecords, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab } from './metaView.js';
+import { openingBoardHtml } from './openingBoard.js';
 import { loadMetaTab, saveMetaTab } from '../persistence.js';
 
 const FILE_FORMAT = 'chessanalysis-meta';
@@ -185,20 +186,34 @@ export function initMetaMode(host) {
     if (oppRow) setOpponent(oppRow.dataset.opp.toLowerCase());
   });
 
-  // Shared tooltip for every chart mark carrying data-tip.
+  // Shared tooltip for every chart mark carrying data-tip, and for opening
+  // names (data-opening), which get a small board of the defining position.
+  let tipSource = null;
   tabPanelEl.addEventListener('mousemove', (e) => {
-    const t = e.target.closest('[data-tip]');
+    const t = e.target.closest('[data-opening], [data-tip]');
     if (!t) {
       tipEl.classList.add('hidden');
+      tipSource = null;
       return;
     }
-    tipEl.textContent = t.getAttribute('data-tip');
+    if (t !== tipSource) {
+      tipSource = t;
+      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : null;
+      tipEl.classList.toggle('board', Boolean(board));
+      if (board) tipEl.innerHTML = board;
+      else tipEl.textContent = t.getAttribute('data-tip') ?? t.dataset.opening;
+    }
     tipEl.classList.remove('hidden');
     const x = Math.min(e.clientX + 12, window.innerWidth - tipEl.offsetWidth - 8);
+    const below = e.clientY + 14;
+    const y = below + tipEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, e.clientY - tipEl.offsetHeight - 10) : below;
     tipEl.style.left = `${x}px`;
-    tipEl.style.top = `${e.clientY + 14}px`;
+    tipEl.style.top = `${y}px`;
   });
-  tabPanelEl.addEventListener('mouseleave', () => tipEl.classList.add('hidden'));
+  tabPanelEl.addEventListener('mouseleave', () => {
+    tipEl.classList.add('hidden');
+    tipSource = null;
+  });
 
   // ---------- opponent picker (in the top bar, where single-game mode has its game picker) ----------
 
@@ -601,9 +616,20 @@ export function initMetaMode(host) {
     const countryEntries = Object.entries(data.countries ?? {});
     for (const [k, v] of countryEntries) countries.set(k.toLowerCase(), v);
     await saveCountries(countryEntries);
+    const rawGames = data.games.map((g) => g.game).filter(Boolean);
+    const times = rawGames.map((g) => g.end_time * 1000).filter(Number.isFinite);
+    if (!times.length) {
+      showToast('Die Datei enthält keine Partien.', 'error');
+      return;
+    }
     host.setUsername(data.username);
     host.setEngineSettings(engineId, depth);
-    await setRecordsFrom(data.games.map((g) => g.game).filter(Boolean), data.username, null);
+    host.showAllGames(Math.min(...times), Math.max(...times));
+    await setRecordsFrom(rawGames, data.username, null);
+    if (!records.length) {
+      showToast(`Keine Partien von ${data.username} in der Datei gefunden.`, 'error');
+      return;
+    }
     showToast(`${records.length} Partien importiert (${withEngine.length} mit Engine-Werten).`, 'success');
   }
 
@@ -614,7 +640,12 @@ export function initMetaMode(host) {
   importInput.addEventListener('change', () => {
     const file = importInput.files?.[0];
     importInput.value = '';
-    if (file) importAnalysis(file).catch((err) => showToast(`Import fehlgeschlagen: ${err.message ?? err}`, 'error'));
+    if (file) {
+      importAnalysis(file).catch((err) => {
+        console.error('Meta import failed', err);
+        showToast(`Import fehlgeschlagen: ${err.message ?? err}`, 'error');
+      });
+    }
   });
 
   renderTabs();

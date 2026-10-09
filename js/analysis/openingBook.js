@@ -71,3 +71,32 @@ export function openingNameForLine(sanMoves) {
   }
   return lastKnownName;
 }
+
+let linesByName = null;
+
+/**
+ * The move sequence that defines a named opening - the shortest ECO line
+ * carrying exactly that name (some names label several transpositions), or,
+ * for a family name with no entry of its own, the shortest of its variations.
+ * Used by the meta mode's opening-board tooltips.
+ * @param {string} name
+ * @returns {string[]|null} SAN moves, or null if the name is unknown
+ */
+export function openingLine(name) {
+  if (!name) return null;
+  if (!linesByName) {
+    linesByName = new Map();
+    for (const { moves, name: n } of ECO_LINES) {
+      const prev = linesByName.get(n);
+      if (!prev || moves.split(' ').length < prev.split(' ').length) linesByName.set(n, moves);
+    }
+  }
+  let moves = linesByName.get(name);
+  if (!moves) {
+    const prefix = `${name}:`;
+    for (const [n, m] of linesByName) {
+      if (n.startsWith(prefix) && (!moves || m.split(' ').length < moves.split(' ').length)) moves = m;
+    }
+  }
+  return moves ? moves.split(' ') : null;
+}

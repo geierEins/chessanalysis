@@ -1,5 +1,6 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
 import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily } from '../js/meta/metaRecords.js';
+import { openingLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -124,5 +125,20 @@ describe('metaRecords: buildEngineRecord', () => {
     expectEqual(e.maxCp, 400);
     expectEqual(e.minCp, -350);
     expectEqual(e.blunders.length, 0);
+  });
+});
+
+describe('openingBook: openingLine', () => {
+  test('a family name maps to its defining moves', () => {
+    expectEqual(openingLine('Italian Game').join(' '), 'e4 e5 Nf3 Nc6 Bc4');
+  });
+
+  test('a name with several lines takes the shortest', () => {
+    expectEqual(openingLine('Sicilian Defense').join(' '), 'e4 c5');
+  });
+
+  test('unknown names give null', () => {
+    expectEqual(openingLine('Not An Opening'), null);
+    expectEqual(openingLine(null), null);
   });
 });

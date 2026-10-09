@@ -7,6 +7,7 @@
 import { timeClassStyle } from '../timeClassStyle.js';
 import { flagHtml, countryName } from '../ui/playerLabel.js';
 import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE } from './metaRecords.js';
+import { pieceUrl } from './openingBoard.js';
 
 export const META_TABS = [
   { id: 'overview', label: 'Übersicht' },
@@ -78,9 +79,55 @@ function hbars(rows, { color = 'var(--meta-s1)', fmt = (v) => v, max } = {}) {
     .join('')}</div>`;
 }
 
+// Icon in front of each card title: a piece from the user's piece theme
+// (string starting with "piece:") or an emoji. Titles with a dynamic part
+// (opponent name, game count) match by prefix.
+const CARD_ICONS = {
+  'Noch keine Engine-Werte': '⚙️',
+  'Übersicht': '🧾',
+  'Sieg, Remis, Niederlage': '📊',
+  'Nach Farbe und Spielart': '🎨',
+  'Wertungsverlauf': '📈',
+  'Eröffnungen': '📖',
+  'Mit Weiß': 'piece:wP',
+  'Mit Schwarz': 'piece:bP',
+  'Erster Zug als Weiß': 'piece:wN',
+  'Als Schwarz gegen …': 'piece:bN',
+  'Stärkste und schwächste': '🏅',
+  'Gegner': '👥',
+  'Direktvergleich': '⚔️',
+  'Woher kommen deine Gegner?': '🌍',
+  'Quote nach Land': '🗺️',
+  'Häufigste Gegner': '🔁',
+  'Gegen Stärkere und Schwächere': '💪',
+  'Spielqualität': '🎯',
+  'Verteilung der Genauigkeit': '📶',
+  'Genauigkeit nach Phase': '🧭',
+  'Verwertung': '🏁',
+  'Wann passieren deine Patzer?': '💥',
+  'Zeit': '⏱️',
+  'Wie du gewinnst': '🏆',
+  'Wie du verlierst': '💔',
+  'Wie Remis entstehen': '🤝',
+  'Uhr': '⏰',
+  'Quote nach Partielänge': '📏',
+  'Wann du spielst': '📅',
+  'Quote nach Tageszeit': '🕒',
+  'Serien und Tilt': '🔥',
+  'Partien': '📋',
+};
+
+function cardIcon(title) {
+  const icon = CARD_ICONS[title] ?? Object.entries(CARD_ICONS).find(([k]) => title.startsWith(`${k} `))?.[1];
+  if (!icon) return '';
+  return icon.startsWith('piece:')
+    ? `<img class="meta-card-icon" src="${pieceUrl(icon.slice(6))}" alt="">`
+    : `<span class="meta-card-icon" aria-hidden="true">${icon}</span>`;
+}
+
 function card(title, src, body, { cls = 'w6', note = '' } = {}) {
   const badge = src ? `<span class="meta-src ${src}">${src === 'fast' ? 'ohne Engine' : 'Engine'}</span>` : '';
-  return `<section class="meta-card ${cls}"><div class="meta-card-head"><h2>${title}</h2>${badge}</div>${body}${
+  return `<section class="meta-card ${cls}"><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${badge}</div>${body}${
     note ? `<p class="meta-note">${note}</p>` : ''
   }</section>`;
 }
@@ -89,6 +136,14 @@ const EMPTY = '<p class="meta-muted">Keine Partien für diese Filter.</p>';
 
 function kpi(label, value, detail = '', cls = '') {
   return `<div class="meta-kpi"><span class="l">${label}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
+}
+
+/** bigStats labels as "<b>Title</b> / (detail)" - the part before " (" bold, the bracket on its own line. */
+function headedLabels(items) {
+  return items.map(([v, l]) => {
+    const i = l.indexOf(' (');
+    return [v, i < 0 ? `<strong>${l}</strong>` : `<strong>${l.slice(0, i)}</strong><br>${l.slice(i + 1)}`];
+  });
 }
 
 function bigStats(items) {
@@ -259,7 +314,11 @@ function openings(rs, ctx) {
       ${rows
         .map(([fam, l]) => {
           const variants = [...new Set(l.map((r) => r.opening).filter(Boolean))];
-          const tip = variants.length ? ` title="${esc(variants.slice(0, 8).join('\n'))}${variants.length > 8 ? '\n…' : ''}"` : '';
+          // Variations without the family prefix ("Scandinavian Defense: Panov Transfer" -> "Panov Transfer").
+          const others = variants.filter((v) => v !== fam).map((v) => v.slice(v.indexOf(':') + 1).trim());
+          const tip = l[0].family
+            ? ` data-opening="${esc(fam)}"${others.length ? ` data-variants="${esc(others.slice(0, 8).join(', '))}${others.length > 8 ? ', …' : ''}"` : ''}`
+            : '';
           const acc = avg(l, (r) => ctx.engineOf(r)?.accuracy);
           return `<tr><td${tip}>${esc(fam)}</td><td class="r">${l.length}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
         })
@@ -279,11 +338,11 @@ function openings(rs, ctx) {
     .sort((a, b) => b.s - a.s);
   const list = (arr) =>
     arr.length
-      ? `<div class="meta-rows">${arr.map((r) => `<div class="meta-card-head small"><span>${esc(r.fam)}</span><span class="meta-muted">${pc(r.s)} · ${r.n} P.</span></div>`).join('')}</div>`
+      ? `<div class="meta-rows">${arr.map((r) => `<div class="meta-card-head small"><span data-opening="${esc(r.fam)}">${esc(r.fam)}</span><span class="meta-muted">${pc(r.s)} · ${r.n} P.</span></div>`).join('')}</div>`
       : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
     ${card('Mit Weiß', 'fast', table(white), { cls: 'w12' })}
-    ${card('Mit Schwarz', 'fast', table(black), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), gruppiert nach Eröffnung. Varianten im Tooltip. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
+    ${card('Mit Schwarz', 'fast', table(black), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), gruppiert nach Eröffnung. Tooltip: Grundstellung der Eröffnung und gespielte Varianten. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
     ${card('Erster Zug als Weiß', 'fast', hbars(moveRows(white, '')), { cls: 'w4' })}
     ${card('Als Schwarz gegen …', 'fast', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
     ${card('Stärkste und schwächste', 'fast', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}
@@ -316,11 +375,16 @@ function opponents(rs, ctx) {
   const known = rs.filter((r) => countryOf(r));
   const countries = [...groupBy(known, countryOf)].sort(byCountDesc);
   const countryLabel = (code) => `${flag(code)} ${esc(countryName(code))}`;
-  const countryRows = countries.slice(0, 12).map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
+  // "Quote nach Land" lists every country - only past 45 does it drop the
+  // ones with fewer than 3 games. The list on the left is never shorter than
+  // that table, and at least 12 long.
+  const minGames = countries.length > 45 ? 3 : 1;
+  const rankedCountries = countries.filter(([, l]) => l.length >= minGames).length;
+  const countryRows = countries.slice(0, Math.max(12, rankedCountries)).map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
   const pendingNote = pending ? `Länder werden noch geladen (${ctx.countriesDone} von ${ctx.countriesTotal} Gegnern).` : 'Land aus dem Chess.com-Profil des Gegners.';
   const countryTable = `<div class="meta-tbl"><table><thead><tr><th>Land</th><th class="r">Partien</th><th class="wide">Ergebnis</th><th class="r">Quote</th></tr></thead><tbody>
     ${countries
-      .filter(([, l]) => l.length >= 3)
+      .filter(([, l]) => l.length >= minGames)
       .map(([code, l]) => ({ code, l, s: score(l) }))
       .sort((a, b) => b.s - a.s || b.l.length - a.l.length)
       .map((x) => `<tr><td>${countryLabel(x.code)}</td><td class="r">${x.l.length}</td><td>${wdlBar(x.l)}</td><td class="r">${pc(x.s)}</td></tr>`)
@@ -352,7 +416,7 @@ function opponents(rs, ctx) {
 
   return `<div class="meta-grid">${h2h}
     ${card('Woher kommen deine Gegner?', 'fast', countries.length ? hbars(countryRows) : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: pendingNote })}
-    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: 'Länder mit mindestens 3 Partien, beste zuerst.' })}
+    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: minGames > 1 ? 'Länder mit mindestens 3 Partien, beste zuerst.' : 'Beste zuerst.' })}
     ${card('Häufigste Gegner', 'fast', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
     ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis.' })}
   </div>`;
@@ -394,25 +458,35 @@ function quality(rs, ctx) {
     return { label, v: n, color: 'var(--meta-loss)', tip: `Zug ${label}: ${n} Patzer` };
   });
   const pieceRows = Object.entries(PIECE_LABEL)
-    .map(([p, label]) => ({ label, v: blunders.filter((x) => x.piece === p).length }))
+    .map(([p, label]) => ({
+      label,
+      labelHtml: `<img class="meta-piece-icon" src="${pieceUrl(`w${p.toUpperCase()}`)}" alt="">${label}`,
+      v: blunders.filter((x) => x.piece === p).length,
+    }))
     .sort((a, b) => b.v - a.v);
 
   const winning = es.filter((r) => E(r).maxCp >= 300);
   const converted = winning.filter((r) => r.result === 'W');
   const saved = es.filter((r) => E(r).minCp <= -300 && r.result !== 'L');
   const thrown = es.filter((r) => E(r).maxCp >= 300 && r.result === 'L');
+  const thrownBig = thrown.filter((r) => E(r).maxCp >= 900);
+  const turned = es.filter((r) => E(r).minCp <= -300 && r.result === 'W');
+  const turnedBig = turned.filter((r) => E(r).minCp <= -900);
   const clockBlunders = es.filter((r) => r.initialClock).flatMap((r) => E(r).blunders);
   const tt = clockBlunders.filter((x) => x.timeTrouble).length;
 
   return kpis + `<div class="meta-grid">
     ${card('Verteilung der Genauigkeit', 'eng', columns(bins), { cls: 'w8', note: note || 'Genauigkeit je Partie, nach derselben Formel wie in der Einzelanalyse.' })}
     ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
-    ${card('Verwertung', 'eng', bigStats([
+    ${card('Verwertung', 'eng', bigStats(headedLabels([
       [pc(winning.length ? converted.length / winning.length : null), `Gewinnstellungen verwertet (${converted.length} von ${winning.length})`],
-      [saved.length, 'Partien aus Verluststellung gerettet'],
       [thrown.length, 'Siege verschenkt (von +3 noch verloren)'],
+      [thrownBig.length, 'Must-Wins verschenkt (von +9 noch verloren)'],
+      [saved.length, 'Partien aus Verluststellung gerettet (Remis oder Sieg)'],
+      [turned.length, 'Niederlagen abgewiesen (von −3 noch gewonnen)'],
+      [turnedBig.length, 'Dem Tod von der Schippe gesprungen (von −9 noch gewonnen)'],
       [pc(clockBlunders.length ? tt / clockBlunders.length : null), 'der Patzer in Zeitnot (unter 10 % Restzeit)'],
-    ]), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3.' })}
+    ])), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Ein erzwungenes Matt zählt als mehr als ±9. Die ±9-Werte sind jeweils ein Teil der ±3-Werte.' })}
     ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
     ${card('Mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
   </div>`;
@@ -425,7 +499,8 @@ function timeTab(rs) {
     const rows = [...groupBy(l, (r) => r.termination)]
       .sort(byCountDesc)
       .map(([k, x]) => ({ label: TERMINATION_LABEL[k] ?? k, v: x.length, tip: `${TERMINATION_LABEL[k] ?? k}: ${x.length} (${pc(x.length / l.length)})` }));
-    return rows.length ? hbars(rows, { color }) : '<p class="meta-muted">Keine Partien.</p>';
+    if (!rows.length) return '<p class="meta-muted">Keine Partien.</p>';
+    return hbars(rows, { color }) + `<div class="meta-total"><span>Gesamt:</span><span>${l.length}</span></div>`;
   };
   const losses = rs.filter((r) => r.result === 'L');
   const timeLosses = losses.filter((r) => r.termination === 'timeout');
@@ -508,7 +583,7 @@ function gamesTab(rs, ctx) {
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.emoji} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${flag(ctx.countryOf(r.opponent))} ${esc(r.opponent)}</td><td class="r">${r.oppRating ?? '–'}</td><td title="${esc(r.opening ?? '')}">${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td></tr>`;
+          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.emoji} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${flag(ctx.countryOf(r.opponent))} ${esc(r.opponent)}</td><td class="r">${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td></tr>`;
         })
         .join('')}
       </tbody></table></div>`

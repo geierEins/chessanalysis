@@ -1839,6 +1839,9 @@ function updateAnalyzeButtonForMode() {
 function applyAppMode() {
   const isMeta = appMode === 'meta';
   gamePickerEl.classList.toggle('hidden', isMeta);
+  // Board color and piece style only matter next to a board.
+  el('board-theme-picker').classList.toggle('hidden', isMeta);
+  el('piece-theme-picker').classList.toggle('hidden', isMeta);
   meta.setActive(isMeta);
   if (isMeta) {
     reviewPanel.classList.add('hidden');
@@ -1883,6 +1886,26 @@ meta = initMetaMode({
   setEngineSettings: (engineId, depth) => {
     if (engineSelect.value !== engineId) engineSelect.select(engineId);
     if (depthSelect.value !== String(depth)) depthSelect.select(String(depth));
+  },
+  /** After an import: widen every top-bar filter so all imported games show -
+   *  time range set to exactly the file's span, every type/color/outcome on. */
+  showAllGames: (fromMs, toMs) => {
+    const isoDay = (ms) => {
+      const d = new Date(ms);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    customDateFromEl.value = isoDay(fromMs);
+    customDateToEl.value = isoDay(toMs);
+    if (timeRangeSelect.value !== 'custom') timeRangeSelect.select('custom');
+    timeRangeMenu.classList.add('hidden');
+    selectedGameTypes = new Set(GAME_TYPE_ORDER);
+    selectedColors = new Set(COLOR_ORDER);
+    selectedOutcomes = new Set(OUTCOME_ORDER);
+    saveOutcomeFilter([...selectedOutcomes]);
+    for (const cb of [...gameTypeFilterCheckboxes, ...colorFilterCheckboxes, ...outcomeFilterCheckboxes]) cb.checked = true;
+    updateGameTypeFilterButtonIcon();
+    updateColorFilterButtonIcon();
+    updateOutcomeFilterButtonIcon();
   },
   setUsername: (username) => {
     usernameInput.value = username;

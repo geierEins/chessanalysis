@@ -1698,8 +1698,10 @@ button.field-error {
   .meta-card, .meta-card.w4, .meta-card.w8 { grid-column: span 12; }
 }
 
-.meta-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meta-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .meta-card-head.small { font-size: 12px; }
+.meta-card-head h2 { display: flex; align-items: center; gap: 6px; }
+.meta-card-icon { flex: none; width: 18px; height: 18px; font-size: 15px; line-height: 18px; text-align: center; }
 
 .meta-src {
   font-size: 10px;
@@ -1742,6 +1744,7 @@ button.field-error {
 .meta-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 
 .meta-rows { display: grid; gap: 8px; }
+.meta-total { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--meta-line); font-weight: 600; }
 .meta-pair { display: grid; gap: 3px; }
 
 .meta-hrow {
@@ -1754,6 +1757,7 @@ button.field-error {
 
 .meta-hrow.narrow { grid-template-columns: 70px 1fr 44px; }
 .meta-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-piece-icon { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; display: inline-block; }
 .meta-val { text-align: right; color: var(--meta-muted); font-variant-numeric: tabular-nums; }
 .meta-hbar { height: 12px; background: var(--meta-panel-2); border-radius: 0 3px 3px 0; overflow: hidden; }
 .meta-hbar > i { display: block; height: 100%; border-radius: 0 3px 3px 0; }
@@ -1825,6 +1829,7 @@ button.field-error {
 .meta-big > div { display: grid; border-left: 2px solid var(--meta-line); padding-left: 10px; }
 .meta-big b { font-size: 20px; font-variant-numeric: tabular-nums; }
 .meta-big span { font-size: 12px; color: var(--meta-muted); }
+.meta-big strong { font-weight: 600; color: var(--meta-fg); }
 
 #meta-tip {
   position: fixed;
@@ -1839,6 +1844,26 @@ button.field-error {
   font-size: 12px;
   color: #e5e5e5;
 }
+
+/* Opening tooltip: board of the opening's defining position (js/meta/openingBoard.js). */
+#meta-tip.board { width: 194px; max-width: none; padding: 8px; white-space: normal; }
+.meta-ob-name { font-weight: 600; margin-bottom: 6px; }
+.meta-ob {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  grid-template-rows: repeat(8, 22px);
+  width: 176px;
+  height: 176px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.meta-ob > span { position: relative; width: 22px; height: 22px; overflow: hidden; }
+.meta-ob > .l { background-color: var(--board-light); background-image: var(--board-light-image); background-size: cover; }
+.meta-ob > .d { background-color: var(--board-dark); background-image: var(--board-dark-image); background-size: cover; }
+.meta-ob > .hl::before { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--lastmove-color) 70%, transparent); }
+.meta-ob img { position: relative; width: 22px; height: 22px; max-width: none; display: block; }
+.meta-ob-moves { margin-top: 6px; color: #d4d4d4; font-variant-numeric: tabular-nums; }
+.meta-ob-extra { margin-top: 6px; padding-top: 6px; border-top: 1px solid #404040; color: #a3a3a3; white-space: pre-line; }
 
 /* Opponent picker (top bar, meta mode) - its menu reuses .custom-select-option. */
 #opponent-menu { width: 320px; max-width: calc(100vw - 16px); }
