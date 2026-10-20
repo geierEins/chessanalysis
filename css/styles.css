@@ -1766,6 +1766,8 @@ button.field-error {
 .meta-tbl table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .meta-tbl th { text-align: left; font-weight: 600; color: var(--meta-muted); padding: 6px 8px; border-bottom: 1px solid var(--meta-line); white-space: nowrap; }
 .meta-tbl th.wide { min-width: 120px; }
+.meta-tbl th.sort { cursor: pointer; user-select: none; }
+.meta-tbl th.sort:hover, .meta-tbl th.sort.on { color: var(--meta-fg); }
 .meta-tbl td { padding: 6px 8px; border-bottom: 1px solid #262626; vertical-align: middle; font-variant-numeric: tabular-nums; }
 .meta-tbl .r { text-align: right; }
 .meta-tbl tr.click { cursor: pointer; }

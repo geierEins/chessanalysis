@@ -130,13 +130,14 @@ export function saveSoundEnabled(enabled) {
   safeSet(SOUND_ENABLED_KEY, String(enabled));
 }
 
-/** @returns {'before'|'after'} when the best-move arrow is shown relative to
- *  the move it belongs to - 'after' (the original behavior) by default. */
+/** @returns {'before'|'after'|'off'} when the best-move arrow is shown relative to
+ *  the move it belongs to ('off' = never) - 'after' (the original behavior) by default. */
 export function loadBestMoveTiming() {
-  return safeGet(BEST_MOVE_TIMING_KEY) === 'before' ? 'before' : 'after';
+  const v = safeGet(BEST_MOVE_TIMING_KEY);
+  return v === 'before' || v === 'off' ? v : 'after';
 }
 
-/** @param {'before'|'after'} timing */
+/** @param {'before'|'after'|'off'} timing */
 export function saveBestMoveTiming(timing) {
   safeSet(BEST_MOVE_TIMING_KEY, timing);
 }

@@ -345,7 +345,8 @@ let rootNode = null; // the move tree's root (js/analysis/moveTree.js) - start p
 let currentNode = null; // whichever MoveNode (main line or a variation) is currently shown
 // Settings popover (js/ui/settingsPanel.js): 'after' = the best-move arrow
 // shows what should have been played instead of the move just shown;
-// 'before' = it shows the best move for the position currently on the board.
+// 'before' = it shows the best move for the position currently on the board;
+// 'off' = no best-move arrow at all.
 let bestMoveTiming = loadBestMoveTiming();
 setSoundEnabled(loadSoundEnabled());
 let autoPlayTimer = null;
@@ -517,8 +518,7 @@ function ownColorFor(game, ownUsername) {
 
 /** "Opponent (Elo)" - the searched user's OWN name/elo is dropped, since
  *  it's already shown in the username field right next to this dropdown.
- *  Used for the collapsed game-picker button only (js/main.js's gameOptions)
- *  - the open menu still shows the full "White vs Black" label. */
+ *  Used for the game picker's entries (buildGameOptions), collapsed and open. */
 function opponentLabel(game, ownUsername) {
   const isOpponentWhite = ownColorFor(game, ownUsername) === 'b';
   const name = isOpponentWhite ? game.white : game.black;
@@ -983,12 +983,14 @@ function buildGameOptions(gameList, username) {
   return gameList.map((game, index) => {
     const style = timeClassStyle(game.timeClass);
     const outcome = ownOutcomeCircle(game, username);
+    const vs = `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
+    const moves = game.moveCount != null ? ` — ${game.moveCount} Zg.` : '';
     return {
       value: String(index),
-      label: `${style.emoji} ${game.label} ${outcome}`.trim(),
-      // Own name/elo dropped here (see opponentLabel) - just "vs Opponent
-      // (Elo) — Date" - the open menu above keeps the full label.
-      shortLabel: `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel} ${outcome}`.trim(),
+      // Own name/elo dropped everywhere (see opponentLabel) - just "vs
+      // Opponent (Elo) — Date"; the open menu adds the move count.
+      label: `${vs}${moves} ${outcome}`.trim(),
+      shortLabel: `${vs} ${outcome}`.trim(),
       color: style.color,
     };
   });
@@ -1437,12 +1439,13 @@ function evalForNode(node) {
 
 /** Draws the engine's best-move arrow for currentNode, per bestMoveTiming:
  *  'after' only when the move just played wasn't already the best one,
- *  'before' always (the best move in currentNode's resulting position). Main
+ *  'before' always (the best move in currentNode's resulting position), 'off' never. Main
  *  line: known immediately; a branch move: once its own background
  *  evaluation resolves (evaluateBranchNode calls this again). */
 function updateBestMoveArrow() {
   if (!currentNode) return;
-  const squares = bestMoveTiming === 'before' ? currentNode.nextBestMoveSquares : currentNode.bestMoveSquares;
+  const squares =
+    bestMoveTiming === 'off' ? null : bestMoveTiming === 'before' ? currentNode.nextBestMoveSquares : currentNode.bestMoveSquares;
   if (squares) board.showArrow(squares.from, squares.to);
   else board.clearArrow();
 }

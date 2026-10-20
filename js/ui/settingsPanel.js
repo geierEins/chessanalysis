@@ -14,9 +14,9 @@ const SOUND_TITLE_OFF = 'Brettgeräusche aus - klicken zum Einschalten';
 /**
  * @param {{
  *   soundEnabled: boolean,
- *   bestMoveTiming: 'before'|'after',
+ *   bestMoveTiming: 'before'|'after'|'off',
  *   onSoundChange: (enabled: boolean) => void,
- *   onBestMoveTimingChange: (timing: 'before'|'after') => void,
+ *   onBestMoveTimingChange: (timing: 'before'|'after'|'off') => void,
  *   appMode: 'game'|'meta',
  *   onAppModeChange: (mode: 'game'|'meta') => boolean,
  * }} options onAppModeChange returns false to refuse the switch (e.g. while an analysis runs)

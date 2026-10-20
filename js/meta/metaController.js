@@ -79,6 +79,7 @@ export function initMetaMode(host) {
   let countryJob = { generation: 0, done: 0, total: 0, running: false };
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
+  let openingSort = { key: 'games', dir: 'desc' }; // column of the Eröffnungen tables
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let run = null; // the running analysis, see startRun()
   let engine = null;
@@ -115,6 +116,7 @@ export function initMetaMode(host) {
         return code && code !== 'XX' ? code : null;
       },
       opponent,
+      openingSort,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -177,6 +179,14 @@ export function initMetaMode(host) {
   });
 
   tabPanelEl.addEventListener('click', (e) => {
+    // Sortable column head: first click sorts descending, a second one flips.
+    const sortTh = e.target.closest('th[data-sort]');
+    if (sortTh) {
+      const key = sortTh.dataset.sort;
+      openingSort = { key, dir: openingSort.key === key && openingSort.dir === 'desc' ? 'asc' : 'desc' };
+      render();
+      return;
+    }
     const gameRow = e.target.closest('tr[data-game]');
     if (gameRow) {
       openGame(gameRow.dataset.game);

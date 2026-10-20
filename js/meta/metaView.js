@@ -307,12 +307,30 @@ function overview(rs, ctx) {
 function openings(rs, ctx) {
   if (!rs.length) return card('Eröffnungen', '', EMPTY, { cls: 'w12' });
   const name = (r) => r.family ?? 'Ohne Eröffnungsnamen';
+  const { key: sortKey, dir: sortDir } = ctx.openingSort ?? { key: 'games', dir: 'desc' };
+  // "Ergebnis" sorts by share of wins, then of draws.
+  const sortValue = {
+    games: (l) => l.length,
+    result: (l) => {
+      const c = wdl(l);
+      return (c.W + c.D / 1000) / l.length;
+    },
+    score: (l) => score(l),
+    acc: (l) => avg(l, (r) => ctx.engineOf(r)?.accuracy),
+  }[sortKey] ?? ((l) => l.length);
+  const sortTh = (key, label, cls) => {
+    const on = key === sortKey;
+    return `<th class="sort${cls ? ` ${cls}` : ''}${on ? ' on' : ''}" data-sort="${key}" aria-sort="${on ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Sortieren">${label}${on ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>`;
+  };
   const table = (list) => {
-    const rows = [...groupBy(list, name)].sort(byCountDesc);
+    // Rows without a value (no engine accuracy yet) always go last; ties by game count.
+    const rows = [...groupBy(list, name)]
+      .map(([fam, l]) => ({ fam, l, v: sortValue(l) }))
+      .sort((a, b) => (a.v == null) - (b.v == null) || (sortDir === 'asc' ? a.v - b.v : b.v - a.v) || b.l.length - a.l.length);
     if (!rows.length) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
-    return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th><th class="r">Partien</th><th class="wide">Ergebnis</th><th class="r">Quote</th><th class="r">Ø Gen.</th><th class="r">Ø Theoriezüge</th></tr></thead><tbody>
+    return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r">Ø Theoriezüge</th></tr></thead><tbody>
       ${rows
-        .map(([fam, l]) => {
+        .map(({ fam, l }) => {
           const variants = [...new Set(l.map((r) => r.opening).filter(Boolean))];
           // Variations without the family prefix ("Scandinavian Defense: Panov Transfer" -> "Panov Transfer").
           const others = variants.filter((v) => v !== fam).map((v) => v.slice(v.indexOf(':') + 1).trim());
