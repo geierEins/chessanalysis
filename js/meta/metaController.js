@@ -18,6 +18,7 @@ import { loadMetaTab, saveMetaTab } from '../persistence.js';
 
 const FILE_FORMAT = 'chessanalysis-meta';
 const FILE_VERSION = 1;
+const AUTO_ANALYSIS_BASE = 'https://raw.githubusercontent.com/geierEins/chessanalysis/main/data';
 const COUNTRY_FETCH_CONCURRENCY = 3;
 const RERENDER_EVERY_MS = 2500;
 
@@ -328,11 +329,12 @@ export function initMetaMode(host) {
   /** Players analyzed by the hourly GitHub job (scripts/auto-analysis/) have a
    *  master file data/<user>.json in the export format - its engine records
    *  that aren't stored yet go into IndexedDB, as if imported. Silent when
-   *  there is none. */
+   *  there is none. Read straight from the GitHub repo (the job commits
+   *  there; the Netlify site is deployed separately and never has them). */
   async function syncServerAnalysis(user) {
     let data;
     try {
-      const res = await fetch(`data/${encodeURIComponent(user.toLowerCase())}.json`, { cache: 'no-cache' });
+      const res = await fetch(`${AUTO_ANALYSIS_BASE}/${encodeURIComponent(user.toLowerCase())}.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       data = await res.json();
     } catch {

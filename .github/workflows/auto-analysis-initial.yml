@@ -32,7 +32,7 @@ jobs:
           TIME_BUDGET_MINUTES: 320
       # Also after a crash - everything finished so far is kept.
       - if: ${{ !cancelled() }}
-        run: sh scripts/auto-analysis/commit-data.sh 'Erstanalyse: Partien analysiert'
+        run: "sh scripts/auto-analysis/commit-data.sh 'Erstanalyse: Partien analysiert'"
       - name: Continue in a new run
         if: steps.analyze.outputs.done != 'true'
         run: gh workflow run auto-analysis-initial.yml --ref "$GITHUB_REF_NAME"

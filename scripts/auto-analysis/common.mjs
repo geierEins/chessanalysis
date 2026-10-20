@@ -1,7 +1,8 @@
 // Shared bits of the scheduled auto-analysis (.github/workflows/auto-analysis.yml):
 // config, file locations and Chess.com requests.
 //
-// Files it maintains (served by Netlify like the rest of the repo):
+// Files it maintains (committed to the repo; the app reads the master files
+// from raw.githubusercontent.com - see syncServerAnalysis in metaController.js):
 //  - data/<username>.json: one master file per player, in exactly the format
 //    of the Meta-Analyse export (js/meta/metaController.js), so the app can
 //    import or auto-load it unchanged;

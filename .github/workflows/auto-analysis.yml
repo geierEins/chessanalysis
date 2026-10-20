@@ -2,8 +2,8 @@
 # for players whose initial analysis (auto-analysis-initial.yml) is done -
 # until then it does nothing. "check" is the cheap gate (sparse checkout,
 # two 304 requests per player); "analyze" only runs when it found new games,
-# analyzes them with the app's own code and commits data/ - Netlify then
-# deploys the updated master files.
+# analyzes them with the app's own code and commits data/ - the app reads the
+# master files from there (raw.githubusercontent.com), no deploy needed.
 name: Auto-Analyse
 
 on:
@@ -49,4 +49,4 @@ jobs:
         env:
           TIME_BUDGET_MINUTES: 50
       - if: ${{ !cancelled() }}
-        run: sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: neue Partien'
+        run: "sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: neue Partien'"
