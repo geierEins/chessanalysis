@@ -107,6 +107,7 @@ export class StockfishEngine {
         const msg = typeof e.data === 'string' ? e.data : '';
         if (msg.startsWith('bestmove')) {
           this.#worker.removeEventListener('message', onMessage);
+          this.#worker.removeEventListener('error', onError);
           this.#pendingReject = null;
           const bestMoveUci = msg.split(' ')[1];
           resolve({

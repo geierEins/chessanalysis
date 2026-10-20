@@ -1,0 +1,52 @@
+# Hourly auto-analysis of the players in scripts/auto-analysis/config.json,
+# for players whose initial analysis (auto-analysis-initial.yml) is done -
+# until then it does nothing. "check" is the cheap gate (sparse checkout,
+# two 304 requests per player); "analyze" only runs when it found new games,
+# analyzes them with the app's own code and commits data/ - Netlify then
+# deploys the updated master files.
+name: Auto-Analyse
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+# Never two runs at once - a long run makes the next hour wait.
+concurrency:
+  group: auto-analysis
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      todo: ${{ steps.check.outputs.todo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/auto-analysis
+            data/state.json
+          sparse-checkout-cone-mode: false
+      - id: check
+        run: node scripts/auto-analysis/check.mjs
+
+  analyze:
+    needs: check
+    if: needs.check.outputs.todo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/auto-analysis/analyze.mjs
+        env:
+          TIME_BUDGET_MINUTES: 50
+      - if: ${{ !cancelled() }}
+        run: sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: neue Partien'

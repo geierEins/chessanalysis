@@ -322,6 +322,39 @@ export function initMetaMode(host) {
     await reloadEngineCache();
     render();
     loadCountriesInBackground();
+    syncServerAnalysis(user);
+  }
+
+  /** Players analyzed by the hourly GitHub job (scripts/auto-analysis/) have a
+   *  master file data/<user>.json in the export format - its engine records
+   *  that aren't stored yet go into IndexedDB, as if imported. Silent when
+   *  there is none. */
+  async function syncServerAnalysis(user) {
+    let data;
+    try {
+      const res = await fetch(`data/${encodeURIComponent(user.toLowerCase())}.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      data = await res.json();
+    } catch {
+      return;
+    }
+    if (data?.format !== FILE_FORMAT || !Array.isArray(data.games) || !data.engine?.id) return;
+    const engineId = data.engine.id;
+    const depth = Number(data.engine.depth);
+    const entries = data.games.filter((g) => g.engine && g.game?.url).map((g) => [g.game.url, g.engine]);
+    const have = await loadEngineRecords(engineId, depth, entries.map(([url]) => url));
+    const fresh = entries.filter(([url]) => !have.has(url));
+    const newCountries = Object.entries(data.countries ?? {}).filter(([k]) => !countries.has(k.toLowerCase()));
+    for (const [k, v] of newCountries) countries.set(k.toLowerCase(), v);
+    await saveCountries(newCountries);
+    if (!fresh.length) return;
+    await saveEngineRecords(engineId, depth, fresh);
+    if (username !== user || run) return; // another player loaded meanwhile, or a run owns the cache
+    await reloadEngineCache();
+    render();
+    const current = host.getEngineSettings();
+    const hint = current.engineId === engineId && current.depth === depth ? '' : ` Zu sehen mit ${data.engine.label}.`;
+    showToast(`${fresh.length} Partien aus der automatischen Analyse übernommen.${hint}`, 'success');
   }
 
   async function reloadEngineCache() {

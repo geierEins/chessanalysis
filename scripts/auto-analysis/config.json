@@ -1,0 +1,6 @@
+{
+  "users": ["GeierUno", "PawnHubDE"],
+  "engine": "sf19full",
+  "engineLabel": "Stockfish 19 Full",
+  "depth": 16
+}

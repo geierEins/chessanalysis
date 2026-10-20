@@ -1,0 +1,40 @@
+# One-time initial analysis of every game of the players in
+# scripts/auto-analysis/config.json - started by hand (Actions -> "Run
+# workflow"). One engine per CPU core; if the backlog doesn't fit into one
+# run, the run commits what it has and starts itself again until every player
+# is done. Only then does the hourly workflow (auto-analysis.yml) take over.
+name: 'Auto-Analyse: Erstanalyse'
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: auto-analysis-initial
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: analyze
+        run: node scripts/auto-analysis/analyze.mjs
+        env:
+          INITIAL: 1
+          TIME_BUDGET_MINUTES: 320
+      # Also after a crash - everything finished so far is kept.
+      - if: ${{ !cancelled() }}
+        run: sh scripts/auto-analysis/commit-data.sh 'Erstanalyse: Partien analysiert'
+      - name: Continue in a new run
+        if: steps.analyze.outputs.done != 'true'
+        run: gh workflow run auto-analysis-initial.yml --ref "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
