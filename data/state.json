@@ -1,0 +1,16 @@
+{
+  "geieruno": {
+    "engine": "sf19full|16",
+    "initialized": false,
+    "complete": false,
+    "etags": {},
+    "skipped": []
+  },
+  "pawnhubde": {
+    "engine": "sf19full|16",
+    "initialized": false,
+    "complete": false,
+    "etags": {},
+    "skipped": []
+  }
+}
