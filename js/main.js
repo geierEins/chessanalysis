@@ -2,6 +2,10 @@ import { fetchRecentGames, fetchPlayerProfile, summarizeGame } from './api/chess
 import { timeClassStyle } from './timeClassStyle.js';
 import { StockfishEngine } from './engine/stockfishEngine.js';
 import { analyzeGame } from './analysis/gameAnalyzer.js';
+import { recordingEngine, replayEngine } from './analysis/evalLog.js';
+import { syncAutoAnalysis, autoAnalysisEngine } from './meta/autoAnalysis.js';
+import { loadEngineRecords, saveEngineRecord } from './meta/metaStore.js';
+import { buildEngineRecord } from './meta/metaRecords.js';
 import { BoardView } from './ui/board.js';
 import { EvalBar } from './ui/evalBar.js';
 import { EvalGraph } from './ui/evalGraph.js';
@@ -280,6 +284,7 @@ const engineSelect = new CustomSelect({
   onChange: (value) => {
     saveEngine(value);
     meta?.engineSettingsChanged();
+    refreshAnalyzedMarkers();
   },
 });
 engineSelect.setOptions(ENGINE_OPTIONS, loadEngine() ?? 'sf19');
@@ -292,6 +297,7 @@ const depthSelect = new CustomSelect({
   onChange: (value) => {
     saveDepth(value);
     meta?.engineSettingsChanged();
+    refreshAnalyzedMarkers();
   },
 });
 depthSelect.setOptions(
@@ -303,6 +309,13 @@ depthSelect.setOptions(
   ],
   loadDepth() ?? '14'
 );
+
+/** The selected engine + depth (also the Meta-Analyse's host.getEngineSettings). */
+function engineSettings() {
+  const opt = ENGINE_OPTIONS.find((o) => o.value === engineSelect.value) ?? ENGINE_OPTIONS[0];
+  const depth = Number(depthSelect.value);
+  return { engineId: opt.value, depth, label: `${opt.label} · Tiefe ${depth}`, slug: opt.fileSlug };
+}
 const loaderPanel = el('loader-panel');
 const loaderToggleBtn = el('loader-toggle-btn');
 const reviewPanel = el('review-panel');
@@ -338,8 +351,10 @@ const backToMainlineBtn = el('back-to-mainline-btn');
 const removeVariationBtn = el('remove-variation-btn');
 
 let games = [];
+let analyzedUrls = new Set(); // games in the picker with a stored analysis (findStoredAnalyses) - marked with ✓
 let engine = null;
 let loadedEngineId = null;
+let enginePromise = null; // resolves to `engine` once it's ready - see ensureEngine()
 let analysis = null; // gameAnalyzer.js's flat result - still the source of truth for the eval graph/dashboard accuracy table (main-line only, per the agreed scope)
 let rootNode = null; // the move tree's root (js/analysis/moveTree.js) - start position, ply 0
 let currentNode = null; // whichever MoveNode (main line or a variation) is currently shown
@@ -962,11 +977,16 @@ fetchGamesBtn.addEventListener('click', async () => {
       throw new Error('Keine Partien für diesen Filter gefunden.');
     }
 
+    analyzedUrls = new Set();
     const gameOptions = buildGameOptions(games, username);
     gameSelect.setOptions(gameOptions, gameOptions[0]?.value);
     gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
     showToast(`${games.length} Partien erfolgreich geladen.`, 'success');
+    // ✓ for what the browser already has, then again once the GitHub job's
+    // analyses of this player are merged in.
+    refreshAnalyzedMarkers();
+    syncAutoAnalysis(username).then(refreshAnalyzedMarkers);
   } catch (err) {
     if (err.name !== 'AbortError') {
       showToast(err.message ?? 'Fehler beim Laden der Partien.', 'error');
@@ -978,6 +998,68 @@ fetchGamesBtn.addEventListener('click', async () => {
   }
 });
 
+/**
+ * Stored analyses with an engine log (js/analysis/evalLog.js) for these games
+ * - under the selected engine + depth first, else under the one the GitHub
+ * job used for this player (js/meta/autoAnalysis.js), since that one is
+ * there for every game anyway.
+ * @returns {Promise<Map<string, {record: object, label: string}>>} by game URL
+ */
+async function findStoredAnalyses(urls) {
+  const sources = [engineSettings()];
+  const auto = autoAnalysisEngine(usernameInput.value);
+  if (auto && (auto.engineId !== sources[0].engineId || auto.depth !== sources[0].depth)) sources.push(auto);
+  const found = new Map();
+  for (const { engineId, depth, label } of sources) {
+    const records = await loadEngineRecords(engineId, depth, urls.filter((u) => !found.has(u)));
+    for (const [url, record] of records) if (record.evals) found.set(url, { record, label });
+  }
+  return found;
+}
+
+/** Re-marks the game picker's entries (✓) - after loading, an engine/depth change or a finished analysis. */
+async function refreshAnalyzedMarkers() {
+  const list = games;
+  if (!list.length) return;
+  const found = await findStoredAnalyses(list.map((g) => g.url));
+  if (list !== games) return; // other games loaded meanwhile
+  analyzedUrls = new Set(found.keys());
+  gameSelect.setOptions(buildGameOptions(games, usernameInput.value), gameSelect.value);
+}
+
+/** Stores a finished single-game analysis the way a Meta-Analyse run does -
+ *  so it counts in the Meta-Analyse for this engine + depth and opens without
+ *  re-analyzing next time. Skipped for games the searched user didn't play. */
+async function saveManualAnalysis(game, result, evals, { engineId, depth }) {
+  const color = ownColorFor(game, usernameInput.value);
+  if (!color) return;
+  const initialClock = game.timeClass === 'daily' ? null : parseInitialClockSeconds(result.headers.TimeControl);
+  await saveEngineRecord(engineId, depth, game.url, { ...buildEngineRecord(result, color, initialClock), evals });
+  meta?.engineSettingsChanged();
+  refreshAnalyzedMarkers();
+}
+
+/** The engine for the selected engine setting - started on first use and
+ *  again only after that setting changed or the engine was terminated
+ *  (cancelAnalysis). Shared by the analysis and branch-move evaluation. */
+function ensureEngine() {
+  const engineId = engineSelect.value;
+  if (!enginePromise || loadedEngineId !== engineId) {
+    engine?.terminate();
+    const fresh = new StockfishEngine();
+    engine = fresh;
+    loadedEngineId = engineId;
+    enginePromise = fresh.init(() => {}, engineId).then(
+      () => fresh,
+      (err) => {
+        if (engine === fresh) loadedEngineId = null;
+        throw err;
+      }
+    );
+  }
+  return enginePromise;
+}
+
 /** The game picker's entries for a list of summarizeGame() results. */
 function buildGameOptions(gameList, username) {
   return gameList.map((game, index) => {
@@ -985,12 +1067,14 @@ function buildGameOptions(gameList, username) {
     const outcome = ownOutcomeCircle(game, username);
     const vs = `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
     const moves = game.moveCount != null ? ` — ${game.moveCount} Zg.` : '';
+    const stored = analyzedUrls.has(game.url) ? '✓' : ''; // opens without re-analyzing
+    const join = (...parts) => parts.filter(Boolean).join(' ');
     return {
       value: String(index),
       // Own name/elo dropped everywhere (see opponentLabel) - just "vs
       // Opponent (Elo) — Date"; the open menu adds the move count.
-      label: `${vs}${moves} ${outcome}`.trim(),
-      shortLabel: `${vs} ${outcome}`.trim(),
+      label: join(vs + moves, outcome, stored),
+      shortLabel: join(vs, outcome, stored),
       color: style.color,
     };
   });
@@ -1062,29 +1146,39 @@ async function startAnalysis() {
       fetchPlayerProfile(game.black),
     ]);
 
-    const engineId = engineSelect.value;
-    if (!engine || loadedEngineId !== engineId) {
-      engine?.terminate();
-      engine = new StockfishEngine();
-      await engine.init(() => {}, engineId);
-      loadedEngineId = engineId;
-    }
-
     gameTermination = game.termination;
-    const depth = Number(depthSelect.value);
     // Adjusts the win% model that drives move classification only (see the
     // comment on evalToWinPercentForRating in winProbability.js) - falls
     // back to no adjustment if either side's rating is unknown. Also reused
     // by branch-move classification (evaluateBranchNode), so it's a module-
     // level variable, not local to this handler.
     avgRating = game.whiteRating && game.blackRating ? (game.whiteRating + game.blackRating) / 2 : null;
-    analysis = await analyzeGame(game.pgn, engine, {
-      depth,
-      avgRating,
-      onProgress: (done, total) => {
-        analyzeToggleBtnFill.style.width = `${Math.round((done / total) * 100)}%`;
-      },
-    });
+
+    // Analyzed before (here, in the Meta-Analyse or by the GitHub job):
+    // replaying the stored engine log gives the exact same result, instantly.
+    const stored = (await findStoredAnalyses([game.url])).get(game.url);
+    let result = null;
+    if (stored) {
+      try {
+        result = await analyzeGame(game.pgn, replayEngine(stored.record.evals), { avgRating });
+        showToast(`Gespeicherte Analyse geladen (${stored.label}).`, 'info');
+      } catch (err) {
+        console.warn('Gespeicherte Analyse unbrauchbar, analysiere neu:', err);
+      }
+    }
+    if (!result) {
+      const settings = engineSettings();
+      const recorder = recordingEngine(await ensureEngine());
+      result = await analyzeGame(game.pgn, recorder, {
+        depth: settings.depth,
+        avgRating,
+        onProgress: (done, total) => {
+          analyzeToggleBtnFill.style.width = `${Math.round((done / total) * 100)}%`;
+        },
+      });
+      saveManualAnalysis(game, result, String(recorder), settings);
+    }
+    analysis = result;
 
     reviewPanel.classList.remove('hidden');
     // On mobile, the filter bar eats 5 rows above the fold - collapse it out
@@ -1642,11 +1736,12 @@ function completeUserMove(source, target, promotion, { fromDrop }) {
  * - branch exploration is an occasional, not performance-critical, path.
  */
 async function evaluateBranchNode(node) {
-  if (!engine?.isReady) return;
   const depth = Number(depthSelect.value);
   try {
-    const beforeResult = await engine.evaluate(node.fenBefore, { depth, multiPv: 2 });
-    const afterResult = node.liveTermination ? null : await engine.evaluate(node.fenAfter, { depth, multiPv: 2 });
+    // Also starts the engine if the game came from a stored analysis without one.
+    const branchEngine = await ensureEngine();
+    const beforeResult = await branchEngine.evaluate(node.fenBefore, { depth, multiPv: 2 });
+    const afterResult = node.liveTermination ? null : await branchEngine.evaluate(node.fenAfter, { depth, multiPv: 2 });
     applyBranchEvaluation(node, beforeResult, afterResult);
   } catch (err) {
     if (err.name !== 'AbortError') console.error('Branch-Auswertung fehlgeschlagen:', err);
@@ -1891,11 +1986,7 @@ meta = initMetaMode({
     outcomes: selectedOutcomes,
     colors: selectedColors,
   }),
-  getEngineSettings: () => {
-    const opt = ENGINE_OPTIONS.find((o) => o.value === engineSelect.value) ?? ENGINE_OPTIONS[0];
-    const depth = Number(depthSelect.value);
-    return { engineId: opt.value, depth, label: `${opt.label} · Tiefe ${depth}`, slug: opt.fileSlug };
-  },
+  getEngineSettings: engineSettings,
   setEngineSettings: (engineId, depth) => {
     if (engineSelect.value !== engineId) engineSelect.select(engineId);
     if (depthSelect.value !== String(depth)) depthSelect.select(String(depth));
@@ -1947,6 +2038,7 @@ meta = initMetaMode({
     metaScrollY = window.scrollY;
     games = summaries;
     gameSelect.setOptions(buildGameOptions(games, usernameInput.value), String(index));
+    refreshAnalyzedMarkers();
     gameSelect.disabled = false;
     appMode = 'game';
     saveAppMode('game');

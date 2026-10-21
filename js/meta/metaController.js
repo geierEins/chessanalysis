@@ -14,11 +14,12 @@ import { buildFastRecord, buildEngineRecord } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, saveEngineRecords, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
+import { syncAutoAnalysis } from './autoAnalysis.js';
+import { recordingEngine } from '../analysis/evalLog.js';
 import { loadMetaTab, saveMetaTab } from '../persistence.js';
 
 const FILE_FORMAT = 'chessanalysis-meta';
 const FILE_VERSION = 1;
-const AUTO_ANALYSIS_BASE = 'https://raw.githubusercontent.com/geierEins/chessanalysis/main/data';
 const COUNTRY_FETCH_CONCURRENCY = 3;
 const RERENDER_EVERY_MS = 2500;
 
@@ -326,37 +327,21 @@ export function initMetaMode(host) {
     syncServerAnalysis(user);
   }
 
-  /** Players analyzed by the hourly GitHub job (scripts/auto-analysis/) have a
-   *  master file data/<user>.json in the export format - its engine records
-   *  that aren't stored yet go into IndexedDB, as if imported. Silent when
-   *  there is none. Read straight from the GitHub repo (the job commits
-   *  there; the Netlify site is deployed separately and never has them). */
+  /** Merges the player's analyses from the GitHub job (js/meta/autoAnalysis.js)
+   *  into IndexedDB and shows them. Silent when there are none. */
   async function syncServerAnalysis(user) {
-    let data;
-    try {
-      const res = await fetch(`${AUTO_ANALYSIS_BASE}/${encodeURIComponent(user.toLowerCase())}.json`, { cache: 'no-cache' });
-      if (!res.ok) return;
-      data = await res.json();
-    } catch {
-      return;
-    }
-    if (data?.format !== FILE_FORMAT || !Array.isArray(data.games) || !data.engine?.id) return;
-    const engineId = data.engine.id;
-    const depth = Number(data.engine.depth);
-    const entries = data.games.filter((g) => g.engine && g.game?.url).map((g) => [g.game.url, g.engine]);
-    const have = await loadEngineRecords(engineId, depth, entries.map(([url]) => url));
-    const fresh = entries.filter(([url]) => !have.has(url));
-    const newCountries = Object.entries(data.countries ?? {}).filter(([k]) => !countries.has(k.toLowerCase()));
+    const result = await syncAutoAnalysis(user);
+    if (!result) return;
+    const newCountries = result.countries.filter(([k]) => !countries.has(k.toLowerCase()));
     for (const [k, v] of newCountries) countries.set(k.toLowerCase(), v);
     await saveCountries(newCountries);
-    if (!fresh.length) return;
-    await saveEngineRecords(engineId, depth, fresh);
+    if (!result.added) return;
     if (username !== user || run) return; // another player loaded meanwhile, or a run owns the cache
     await reloadEngineCache();
     render();
     const current = host.getEngineSettings();
-    const hint = current.engineId === engineId && current.depth === depth ? '' : ` Zu sehen mit ${data.engine.label}.`;
-    showToast(`${fresh.length} Partien aus der automatischen Analyse übernommen.${hint}`, 'success');
+    const hint = current.engineId === result.engineId && current.depth === result.depth ? '' : ` Zu sehen mit ${result.label}.`;
+    showToast(`${result.added} Partien aus der automatischen Analyse übernommen.${hint}`, 'success');
   }
 
   async function reloadEngineCache() {
@@ -503,7 +488,8 @@ export function initMetaMode(host) {
         run.plyTotal = r.plies;
         updateProgress();
         const avgRating = r.ownRating && r.oppRating ? (r.ownRating + r.oppRating) / 2 : null;
-        const analysis = await analyzeGame(r.raw.pgn, engine, {
+        const recorder = recordingEngine(engine);
+        const analysis = await analyzeGame(r.raw.pgn, recorder, {
           depth,
           avgRating,
           onProgress: (done, total) => {
@@ -512,7 +498,8 @@ export function initMetaMode(host) {
             updateProgress();
           },
         });
-        const rec = buildEngineRecord(analysis, r.color, r.initialClock);
+        // With the engine log, the single-game mode can show it later without re-analyzing.
+        const rec = { ...buildEngineRecord(analysis, r.color, r.initialClock), evals: String(recorder) };
         // Saved right away, one game at a time - a cancel, a closed tab or a
         // crash never loses more than the game that was in progress.
         await saveEngineRecord(engineId, depth, r.url, rec);

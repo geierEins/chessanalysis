@@ -44,6 +44,7 @@ globalThis.Worker = NodeWorker;
 const { StockfishEngine } = await import('../../js/engine/stockfishEngine.js');
 const { analyzeGame } = await import('../../js/analysis/gameAnalyzer.js');
 const { buildFastRecord, buildEngineRecord } = await import('../../js/meta/metaRecords.js');
+const { recordingEngine } = await import('../../js/analysis/evalLog.js');
 const { fetchPlayerProfile } = await import('../../js/api/chesscom.js');
 
 const initial = Boolean(process.env.INITIAL);
@@ -89,7 +90,8 @@ async function preparePlayer(user, state) {
   const recent = recentArchiveUrls(user);
   const urls = [...new Set([...(s.complete ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
 
-  const done = new Set(master.games.map((g) => g.game.url));
+  // Records without the engine log (older runs) count as not done and get replaced.
+  const done = new Set(master.games.filter((g) => g.engine?.evals).map((g) => g.game.url));
   const skipped = new Set(s.skipped);
   const etags = {};
   const targets = [];
@@ -119,8 +121,11 @@ async function analyzeOne(engine, p, rec) {
   const started = Date.now();
   try {
     const avgRating = rec.ownRating && rec.oppRating ? (rec.ownRating + rec.oppRating) / 2 : null;
-    const analysis = await analyzeGame(rec.raw.pgn, engine, { depth: config.depth, avgRating });
-    p.master.games.push({ game: rec.raw, engine: buildEngineRecord(analysis, rec.color, rec.initialClock) });
+    const recorder = recordingEngine(engine);
+    const analysis = await analyzeGame(rec.raw.pgn, recorder, { depth: config.depth, avgRating });
+    const record = { ...buildEngineRecord(analysis, rec.color, rec.initialClock), evals: String(recorder) };
+    p.master.games = p.master.games.filter((g) => g.game.url !== rec.url);
+    p.master.games.push({ game: rec.raw, engine: record });
     const opp = rec.opponent.toLowerCase();
     if (!(opp in p.master.countries)) p.master.countries[opp] = (await fetchPlayerProfile(rec.opponent)).country ?? null;
     p.analyzed++;
