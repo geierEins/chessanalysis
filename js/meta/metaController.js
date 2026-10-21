@@ -12,7 +12,7 @@ import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
 import { buildFastRecord, buildEngineRecord } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, saveEngineRecords, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
@@ -50,6 +50,7 @@ export function initMetaMode(host) {
   const tabsEl = el('meta-tabs');
   const tabPanelEl = el('meta-tabpanel');
   const tipEl = el('meta-tip');
+  const gamesPopEl = el('meta-games-pop');
   const progress = {
     root: el('meta-progress'),
     title: el('meta-progress-title'),
@@ -145,6 +146,7 @@ export function initMetaMode(host) {
     if (!hasData) return;
     const rs = filtered();
     renderStatus(rs);
+    closeGamesPop(); // its count button is about to be replaced
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
   }
 
@@ -180,7 +182,50 @@ export function initMetaMode(host) {
     render();
   });
 
+  // ---------- game list behind a clickable count (metaView's gamesCount) ----------
+
+  function closeGamesPop() {
+    gamesPopEl.classList.add('hidden');
+  }
+
+  function openGamesPop(btn) {
+    const byUrl = new Map(records.map((r) => [r.url, r]));
+    const rs = btn.dataset.games.split(' ').map((u) => byUrl.get(u)).filter(Boolean);
+    gamesPopEl.innerHTML = gameListHtml(rs, Number(btn.dataset.total));
+    gamesPopEl.dataset.for = btn.dataset.games; // a second click on the same count closes it
+    gamesPopEl.classList.remove('hidden');
+    // Under the number, shifted left / flipped above where it wouldn't fit.
+    const rect = btn.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - gamesPopEl.offsetWidth - 8));
+    const below = rect.bottom + 4;
+    const top = below + gamesPopEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, rect.top - gamesPopEl.offsetHeight - 4) : below;
+    gamesPopEl.style.left = `${left}px`;
+    gamesPopEl.style.top = `${top}px`;
+  }
+
+  gamesPopEl.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-game]');
+    if (!item) return;
+    closeGamesPop();
+    openGame(item.dataset.game);
+  });
+  document.addEventListener('click', (e) => {
+    if (!gamesPopEl.contains(e.target) && !e.target.closest('.meta-count')) closeGamesPop();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeGamesPop();
+  });
+  window.addEventListener('scroll', closeGamesPop, { passive: true });
+  window.addEventListener('resize', closeGamesPop);
+
   tabPanelEl.addEventListener('click', (e) => {
+    const countBtn = e.target.closest('.meta-count');
+    if (countBtn) {
+      const isOpenHere = !gamesPopEl.classList.contains('hidden') && gamesPopEl.dataset.for === countBtn.dataset.games;
+      if (isOpenHere) closeGamesPop();
+      else openGamesPop(countBtn);
+      return;
+    }
     // Sortable column head: first click sorts descending, a second one flips.
     const sortTh = e.target.closest('th[data-sort]');
     if (sortTh) {

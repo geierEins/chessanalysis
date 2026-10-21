@@ -146,6 +146,27 @@ function headedLabels(items) {
   });
 }
 
+const MAX_LISTED_GAMES = 10;
+
+/** A count that opens the list of its games on click (metaController's
+ *  #meta-games-pop) - the newest MAX_LISTED_GAMES of them. */
+function gamesCount(list) {
+  if (!list.length) return '0';
+  const urls = list.slice(0, MAX_LISTED_GAMES).map((r) => r.url).join(' ');
+  return `<button type="button" class="meta-count" data-games="${esc(urls)}" data-total="${list.length}" title="Partien anzeigen">${list.length}</button>`;
+}
+
+/** The floating game list behind gamesCount() - styled like the game picker. */
+export function gameListHtml(rs, total) {
+  const items = rs.map((r) => {
+    const style = timeClassStyle(r.timeClass);
+    const elo = r.oppRating ? ` (${r.oppRating})` : '';
+    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.emoji} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg.</button>`;
+  });
+  const more = total > rs.length ? `<p class="meta-pop-more">… und ${total - rs.length} weitere</p>` : '';
+  return items.join('') + more;
+}
+
 function bigStats(items) {
   return `<div class="meta-big">${items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
 }
@@ -498,11 +519,11 @@ function quality(rs, ctx) {
     ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
     ${card('Verwertung', 'eng', bigStats(headedLabels([
       [pc(winning.length ? converted.length / winning.length : null), `Gewinnstellungen verwertet (${converted.length} von ${winning.length})`],
-      [thrown.length, 'Siege verschenkt (von +3 noch verloren)'],
-      [thrownBig.length, 'Must-Wins verschenkt (von +9 noch verloren)'],
-      [saved.length, 'Partien aus Verluststellung gerettet (Remis oder Sieg)'],
-      [turned.length, 'Niederlagen abgewiesen (von −3 noch gewonnen)'],
-      [turnedBig.length, 'Dem Tod von der Schippe gesprungen (von −9 noch gewonnen)'],
+      [gamesCount(thrown), 'Siege verschenkt (von +3 noch verloren)'],
+      [gamesCount(thrownBig), 'Must-Wins verschenkt (von +9 noch verloren)'],
+      [gamesCount(saved), 'Partien aus Verluststellung gerettet (Remis oder Sieg)'],
+      [gamesCount(turned), 'Niederlagen abgewiesen (von −3 noch gewonnen)'],
+      [gamesCount(turnedBig), 'Dem Tod von der Schippe gesprungen (von −9 noch gewonnen)'],
       [pc(clockBlunders.length ? tt / clockBlunders.length : null), 'der Patzer in Zeitnot (unter 10 % Restzeit)'],
     ])), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Ein erzwungenes Matt zählt als mehr als ±9. Die ±9-Werte sind jeweils ein Teil der ±3-Werte.' })}
     ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}

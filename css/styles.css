@@ -1833,6 +1833,26 @@ button.field-error {
 .meta-big span { font-size: 12px; color: var(--meta-muted); }
 .meta-big strong { font-weight: 600; color: var(--meta-fg); }
 
+/* A count that lists its games on click (js/meta/metaView.js's gamesCount). */
+.meta-count {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted #737373;
+  text-underline-offset: 4px;
+}
+.meta-count:hover { color: var(--meta-accent); }
+
+/* Its floating list - items reuse the game picker's .custom-select-option. */
+#meta-games-pop {
+  position: fixed;
+  z-index: 60;
+  max-width: calc(100vw - 16px);
+  padding: 4px 0;
+}
+.meta-pop-more { padding: 4px 10px 2px; font-size: 0.7rem; color: #a3a3a3; }
+
 #meta-tip {
   position: fixed;
   z-index: 60;
