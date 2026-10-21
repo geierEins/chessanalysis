@@ -32,7 +32,6 @@ const yieldToUi = () => new Promise((r) => setTimeout(r, 0));
  * @param {{
  *   getFilters: () => {from: Date|null, to: Date|null, timeClasses: Set<string>, outcomes: Set<string>, colors: Set<string>},
  *   getEngineSettings: () => {engineId: string, depth: number, label: string, slug: string},
- *   setEngineSettings: (engineId: string, depth: number) => void,
  *   setUsername: (username: string) => void,
  *   setBusy: (busy: boolean) => void,
  *   setRunProgress: (fraction: number) => void,
@@ -700,14 +699,20 @@ export function initMetaMode(host) {
       return;
     }
     host.setUsername(data.username);
-    host.setEngineSettings(engineId, depth);
     host.showAllGames(Math.min(...times), Math.max(...times));
     await setRecordsFrom(rawGames, data.username, null);
     if (!records.length) {
       showToast(`Keine Partien von ${data.username} in der Datei gefunden.`, 'error');
       return;
     }
-    showToast(`${records.length} Partien importiert (${withEngine.length} mit Engine-Werten).`, 'success');
+    // The app only shows its one engine setting - values from another one stay stored but hidden.
+    const current = host.getEngineSettings();
+    const hidden = current.engineId !== engineId || current.depth !== depth;
+    showToast(
+      `${records.length} Partien importiert (${withEngine.length} mit Engine-Werten${hidden ? `, aber von ${data.engine.label ?? engineId} – angezeigt werden nur Werte von ${current.label}` : ''}).`,
+      hidden ? 'info' : 'success',
+      hidden ? 6000 : undefined
+    );
   }
 
   exportBtn.addEventListener('click', () => {

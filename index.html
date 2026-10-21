@@ -185,20 +185,9 @@
         </button>
         <div id="opponent-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
       </div>
-      <div id="engine-picker" class="relative">
-        <button id="engine-btn" type="button" title="Engine"
-                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
-          <span id="engine-btn-label"></span>
-        </button>
-        <div id="engine-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
-      </div>
-      <div id="depth-picker" class="relative">
-        <button id="depth-btn" type="button" title="Tiefe"
-                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
-          <span id="depth-btn-label"></span>
-        </button>
-        <div id="depth-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
-      </div>
+      <!-- Fixed engine (js/main.js's ENGINE), the same the GitHub job uses. -->
+      <span id="engine-label" class="border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-400 cursor-default select-none"
+            title="Analyse mit Stockfish 19 Full (volles NNUE-Netz), Suchtiefe 16 Halbzüge – dieselbe Einstellung wie die automatische Analyse auf GitHub">SF19·T16</span>
 
       <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher
            ein kleines eigenes Dropdown mit echten Farbfeldern. -->
@@ -550,7 +539,7 @@
     <div id="meta-empty" class="meta-empty">
       <h2>Meta-Analyse</h2>
       <p>Statistiken über viele Partien: Ergebnisse, Eröffnungen, Gegner und Länder, Spielqualität und Zeitverhalten.</p>
-      <p>Oben Benutzer, Zeitraum und Filter wählen und <b>Spiele laden</b> drücken. Oder eine früher gespeicherte Analyse importieren.</p>
+      <p>Ist oben ein Benutzer eingetragen, werden dessen Partien automatisch geladen. Für einen anderen Benutzer den Namen eingeben und <b>Spiele laden</b> drücken. Oder eine früher gespeicherte Analyse importieren.</p>
       <button id="meta-empty-import-btn" type="button" class="meta-btn">Analyse importieren</button>
     </div>
 

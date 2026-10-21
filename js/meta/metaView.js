@@ -149,12 +149,22 @@ function headedLabels(items) {
 const MAX_LISTED_GAMES = 10;
 
 /** A count that opens the list of its games on click (metaController's
- *  #meta-games-pop) - the newest MAX_LISTED_GAMES of them. */
-function gamesCount(list) {
-  if (!list.length) return '0';
+ *  #meta-games-pop) - the newest MAX_LISTED_GAMES of them. `text` replaces
+ *  the count as the shown value (e.g. "+9" for a record game). */
+function gamesCount(list, text = list.length) {
+  if (!list.length) return text === list.length ? '0' : '–';
   const urls = list.slice(0, MAX_LISTED_GAMES).map((r) => r.url).join(' ');
-  return `<button type="button" class="meta-count" data-games="${esc(urls)}" data-total="${list.length}" title="Partien anzeigen">${list.length}</button>`;
+  return `<button type="button" class="meta-count" data-games="${esc(urls)}" data-total="${list.length}" title="Partien anzeigen">${text}</button>`;
 }
+
+/** The games with the most extreme value of `key` (all of them on a tie), e.g. the biggest lead that was still lost. */
+function recordGames(list, key, pickMax) {
+  if (!list.length) return { games: [], value: null };
+  const value = pickMax ? Math.max(...list.map((r) => r[key])) : Math.min(...list.map((r) => r[key]));
+  return { games: list.filter((r) => r[key] === value), value };
+}
+
+const signed = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
 
 /** The floating game list behind gamesCount() - styled like the game picker. */
 export function gameListHtml(rs, total) {
@@ -511,6 +521,9 @@ function quality(rs, ctx) {
   const thrownBig = thrown.filter((r) => E(r).maxCp >= 900);
   const turned = es.filter((r) => E(r).minCp <= -300 && r.result === 'W');
   const turnedBig = turned.filter((r) => E(r).minCp <= -900);
+  // From the moves alone (no engine), so over all games, not just analyzed ones.
+  const blownLead = recordGames(rs.filter((r) => r.result === 'L' && r.maxMaterial > 0), 'maxMaterial', true);
+  const comeback = recordGames(rs.filter((r) => r.result === 'W' && r.minMaterial < 0), 'minMaterial', false);
   const clockBlunders = es.filter((r) => r.initialClock).flatMap((r) => E(r).blunders);
   const tt = clockBlunders.filter((x) => x.timeTrouble).length;
 
@@ -524,8 +537,10 @@ function quality(rs, ctx) {
       [gamesCount(saved), 'Partien aus Verluststellung gerettet (Remis oder Sieg)'],
       [gamesCount(turned), 'Niederlagen abgewiesen (von −3 noch gewonnen)'],
       [gamesCount(turnedBig), 'Dem Tod von der Schippe gesprungen (von −9 noch gewonnen)'],
+      [gamesCount(blownLead.games, signed(blownLead.value)), 'Größter verspielter Vorsprung (Material, und doch verloren)'],
+      [gamesCount(comeback.games, signed(comeback.value)), 'Größte Aufholjagd (Material, und doch gewonnen)'],
       [pc(clockBlunders.length ? tt / clockBlunders.length : null), 'der Patzer in Zeitnot (unter 10 % Restzeit)'],
-    ])), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Ein erzwungenes Matt zählt als mehr als ±9. Die ±9-Werte sind jeweils ein Teil der ±3-Werte.' })}
+    ])), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Ein erzwungenes Matt zählt als mehr als ±9. Die ±9-Werte sind jeweils ein Teil der ±3-Werte. Vorsprung und Aufholjagd: Materialbilanz in Bauerneinheiten (Bauer 1, Springer/Läufer 3, Turm 5, Dame 9), die mindestens einen Gegenzug lang bestand – aus allen Partien, auch ohne Engine.' })}
     ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
     ${card('Mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
   </div>`;

@@ -6,8 +6,6 @@
 
 const USERNAME_KEY = 'chessreview.lastUsername';
 const THEME_KEY = 'chessreview.boardTheme';
-const ENGINE_KEY = 'chessreview.engine';
-const DEPTH_KEY = 'chessreview.depth';
 const TIME_RANGE_KEY = 'chessreview.timeRange';
 const OUTCOME_FILTER_KEY = 'chessreview.outcomeFilter';
 const GAME_TYPE_FILTER_KEY = 'chessreview.gameTypeFilter';
@@ -61,26 +59,6 @@ export function loadBoardTheme() {
 /** @param {string} light @param {string} dark @param {boolean} [isWood] */
 export function saveBoardTheme(light, dark, isWood = false) {
   safeSet(THEME_KEY, JSON.stringify({ light, dark, isWood }));
-}
-
-/** @returns {string|null} */
-export function loadEngine() {
-  return safeGet(ENGINE_KEY);
-}
-
-/** @param {string} value */
-export function saveEngine(value) {
-  if (value) safeSet(ENGINE_KEY, value);
-}
-
-/** @returns {string|null} */
-export function loadDepth() {
-  return safeGet(DEPTH_KEY);
-}
-
-/** @param {string} value */
-export function saveDepth(value) {
-  if (value) safeSet(DEPTH_KEY, value);
 }
 
 /** @returns {string|null} */

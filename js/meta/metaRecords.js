@@ -62,6 +62,43 @@ export function openingFamily(name) {
   return name ? name.split(':')[0].trim() : null;
 }
 
+const MATERIAL_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
+function fenMaterialBalance(fen) {
+  let balance = 0;
+  for (const ch of fen.split(' ')[0]) {
+    const v = MATERIAL_VALUE[ch.toLowerCase()];
+    if (v) balance += ch === ch.toUpperCase() ? v : -v;
+  }
+  return balance;
+}
+
+/**
+ * Biggest material lead and deficit (pawn units, the user's point of view)
+ * during the game, from its captures and promotions. A lead only counts if it
+ * survived the opponent's next move, so the middle of an exchange (capture,
+ * then recapture) isn't mistaken for one.
+ * @returns {{max: number, min: number}}
+ */
+function materialSwing(verboseMoves, color, startFen) {
+  let balance = startFen ? fenMaterialBalance(startFen) : 0; // White's point of view
+  const after = [];
+  for (const m of verboseMoves) {
+    const sign = m.color === 'w' ? 1 : -1;
+    if (m.captured) balance += sign * MATERIAL_VALUE[m.captured];
+    if (m.promotion) balance += sign * (MATERIAL_VALUE[m.promotion] - 1);
+    after.push(color === 'w' ? balance : -balance);
+  }
+  let max = 0;
+  let min = 0;
+  for (let i = 0; i < after.length; i++) {
+    const next = after[i + 1] ?? after[i];
+    max = Math.max(max, Math.min(after[i], next));
+    min = Math.min(min, Math.max(after[i], next));
+  }
+  return { max, min };
+}
+
 /**
  * @param {object} raw a Chess.com game object (or slimRawGame() of one)
  * @param {string} username the searched user
@@ -74,7 +111,9 @@ export function buildFastRecord(raw, username) {
 
   const parser = new Chess();
   if (!parser.load_pgn(raw.pgn, { sloppy: true })) return null;
-  const sans = parser.history();
+  const verbose = parser.history({ verbose: true });
+  const sans = verbose.map((m) => m.san);
+  const material = materialSwing(verbose, color, parser.header().FEN);
 
   const ownSide = color === 'w' ? raw.white : raw.black;
   const oppSide = color === 'w' ? raw.black : raw.white;
@@ -119,6 +158,8 @@ export function buildFastRecord(raw, username) {
     bookPlies,
     initialClock,
     ownClockEnd: initialClock ? ownClockEnd : null,
+    maxMaterial: material.max,
+    minMaterial: material.min,
     raw: slimRawGame(raw),
     summary: summarizeGame(raw),
   };

@@ -38,10 +38,6 @@ import { showToast, flashFieldError } from './ui/toast.js';
 import {
   loadLastUsername,
   saveLastUsername,
-  loadEngine,
-  saveEngine,
-  loadDepth,
-  saveDepth,
   loadTimeRange,
   saveTimeRange,
   loadOutcomeFilter,
@@ -265,56 +261,15 @@ const analyzeToggleBtnIcon = el('analyze-toggle-btn-icon');
 const analyzeToggleBtnCancelIcon = el('analyze-toggle-btn-cancel-icon');
 const analyzeToggleBtnSpinner = el('analyze-toggle-btn-spinner');
 const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
-// shortLabel: "SF" plus the version number ("SF19L" for the one Lite build,
-// since it's the odd one out - every other build is implicitly "full", so
-// those just get their bare number) - keeps the collapsed button from
-// growing to fit "Stockfish 19 Lite" etc. The open menu still shows the full
-// label.
-// fileSlug: how the engine appears in an exported Meta-Analyse's file name.
-const ENGINE_OPTIONS = [
-  { value: 'sf19', label: 'Stockfish 19 Lite', shortLabel: 'SF19L', fileSlug: 'sf19-lite' },
-  { value: 'sf19full', label: 'Stockfish 19 Full', shortLabel: 'SF19', fileSlug: 'sf19-full' },
-  { value: 'sf16', label: 'Stockfish 16', shortLabel: 'SF16', fileSlug: 'sf16' },
-  { value: 'sf11', label: 'Stockfish 11', shortLabel: 'SF11', fileSlug: 'sf11' },
-];
-const engineSelect = new CustomSelect({
-  buttonId: 'engine-btn',
-  labelId: 'engine-btn-label',
-  menuId: 'engine-menu',
-  onChange: (value) => {
-    saveEngine(value);
-    meta?.engineSettingsChanged();
-    refreshAnalyzedMarkers();
-  },
-});
-engineSelect.setOptions(ENGINE_OPTIONS, loadEngine() ?? 'sf19');
-// shortLabel drops "Tiefe" once collapsed ("T14" instead of "Tiefe 14") -
-// the open menu still shows the full label.
-const depthSelect = new CustomSelect({
-  buttonId: 'depth-btn',
-  labelId: 'depth-btn-label',
-  menuId: 'depth-menu',
-  onChange: (value) => {
-    saveDepth(value);
-    meta?.engineSettingsChanged();
-    refreshAnalyzedMarkers();
-  },
-});
-depthSelect.setOptions(
-  [
-    { value: '12', label: 'Tiefe 12', shortLabel: 'T12' },
-    { value: '14', label: 'Tiefe 14', shortLabel: 'T14' },
-    { value: '16', label: 'Tiefe 16', shortLabel: 'T16' },
-    { value: '18', label: 'Tiefe 18', shortLabel: 'T18' },
-  ],
-  loadDepth() ?? '14'
-);
+// The one engine setting the app analyzes with - the same as the GitHub job
+// (scripts/auto-analysis/config.json), so every stored analysis matches it.
+// Shown as the fixed #engine-label in the top bar. slug: how the engine
+// appears in an exported Meta-Analyse's file name.
+const ENGINE = { engineId: 'sf19full', depth: 16, label: 'Stockfish 19 Full · Tiefe 16', slug: 'sf19-full' };
 
-/** The selected engine + depth (also the Meta-Analyse's host.getEngineSettings). */
+/** The engine + depth (also the Meta-Analyse's host.getEngineSettings). */
 function engineSettings() {
-  const opt = ENGINE_OPTIONS.find((o) => o.value === engineSelect.value) ?? ENGINE_OPTIONS[0];
-  const depth = Number(depthSelect.value);
-  return { engineId: opt.value, depth, label: `${opt.label} · Tiefe ${depth}`, slug: opt.fileSlug };
+  return { ...ENGINE };
 }
 const loaderPanel = el('loader-panel');
 const loaderToggleBtn = el('loader-toggle-btn');
@@ -1000,7 +955,7 @@ fetchGamesBtn.addEventListener('click', async () => {
 
 /**
  * Stored analyses with an engine log (js/analysis/evalLog.js) for these games
- * - under the selected engine + depth first, else under the one the GitHub
+ * - under ENGINE first, else under the one the GitHub
  * job used for this player (js/meta/autoAnalysis.js), since that one is
  * there for every game anyway.
  * @returns {Promise<Map<string, {record: object, label: string}>>} by game URL
@@ -1017,7 +972,7 @@ async function findStoredAnalyses(urls) {
   return found;
 }
 
-/** Re-marks the game picker's entries (✓) - after loading, an engine/depth change or a finished analysis. */
+/** Re-marks the game picker's entries (✓) - after loading or a finished analysis. */
 async function refreshAnalyzedMarkers() {
   const list = games;
   if (!list.length) return;
@@ -1039,11 +994,10 @@ async function saveManualAnalysis(game, result, evals, { engineId, depth }) {
   refreshAnalyzedMarkers();
 }
 
-/** The engine for the selected engine setting - started on first use and
- *  again only after that setting changed or the engine was terminated
- *  (cancelAnalysis). Shared by the analysis and branch-move evaluation. */
+/** The engine (ENGINE) - started on first use and again only after it was
+ *  terminated (cancelAnalysis). Shared by the analysis and branch-move evaluation. */
 function ensureEngine() {
-  const engineId = engineSelect.value;
+  const { engineId } = ENGINE;
   if (!enginePromise || loadedEngineId !== engineId) {
     engine?.terminate();
     const fresh = new StockfishEngine();
@@ -1736,7 +1690,7 @@ function completeUserMove(source, target, promotion, { fromDrop }) {
  * - branch exploration is an occasional, not performance-critical, path.
  */
 async function evaluateBranchNode(node) {
-  const depth = Number(depthSelect.value);
+  const { depth } = ENGINE;
   try {
     // Also starts the engine if the game came from a stored analysis without one.
     const branchEngine = await ensureEngine();
@@ -1962,6 +1916,9 @@ function applyAppMode() {
     syncBoardRowLayout();
   }
   updateAnalyzeButtonForMode();
+  // No empty landing page: the last user's games (and with them the stored
+  // analyses) load right away, under the current filters.
+  if (isMeta && !meta.hasData && usernameInput.value.trim() && !fetchGamesAbortController) fetchGamesBtn.click();
 }
 
 /** @returns {boolean} false if refused (something is still running). */
@@ -1987,10 +1944,6 @@ meta = initMetaMode({
     colors: selectedColors,
   }),
   getEngineSettings: engineSettings,
-  setEngineSettings: (engineId, depth) => {
-    if (engineSelect.value !== engineId) engineSelect.select(engineId);
-    if (depthSelect.value !== String(depth)) depthSelect.select(String(depth));
-  },
   /** After an import: widen every top-bar filter so all imported games show -
    *  time range set to exactly the file's span, every type/color/outcome on. */
   showAllGames: (fromMs, toMs) => {
@@ -2021,8 +1974,6 @@ meta = initMetaMode({
   setBusy: (busy) => {
     setAnalyzing(busy);
     fetchGamesBtn.disabled = busy;
-    engineSelect.disabled = busy;
-    depthSelect.disabled = busy;
     usernameInput.disabled = busy;
     if (busy) analyzeToggleBtn.title = 'Meta-Analyse abbrechen';
     else updateAnalyzeButtonForMode();
