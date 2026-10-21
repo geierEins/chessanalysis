@@ -369,7 +369,7 @@ function openings(rs, ctx) {
             ? ` data-opening="${esc(fam)}"${others.length ? ` data-variants="${esc(others.slice(0, 8).join(', '))}${others.length > 8 ? ', …' : ''}"` : ''}`
             : '';
           const acc = avg(l, (r) => ctx.engineOf(r)?.accuracy);
-          return `<tr><td${tip}>${esc(fam)}</td><td class="r">${l.length}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
+          return `<tr><td${tip}>${esc(fam)}</td><td class="r">${gamesCount(l)}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
         })
         .join('')}
     </tbody></table></div>`;
