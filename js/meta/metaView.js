@@ -21,7 +21,8 @@ export const META_TABS = [
 const TC_ORDER = ['bullet', 'blitz', 'rapid', 'daily'];
 const TC_LABEL = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', daily: 'Daily' };
 const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
-const RES_WORD = { W: 'Sieg', D: 'Remis', L: 'Niederlage' };
+const RES_CIRCLE = { W: '🟢', D: '⚪', L: '🔴' }; // same as the game picker's (js/main.js's OUTCOME_CIRCLE)
+const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 // "Wann du spielst" sub-tabs - result: only games with that result (null = all).
 const HEAT_VIEWS = [
@@ -178,7 +179,7 @@ export function gameListHtml(rs, total) {
   const items = rs.map((r) => {
     const style = timeClassStyle(r.timeClass);
     const elo = r.oppRating ? ` (${r.oppRating})` : '';
-    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.emoji} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg.</button>`;
+    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.emoji} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. ${RES_CIRCLE[r.result]}</button>`;
   });
   const more = total > rs.length ? `<p class="meta-pop-more">… und ${total - rs.length} weitere</p>` : '';
   return items.join('') + more;
@@ -342,10 +343,22 @@ function overview(rs, ctx) {
   </div>`;
 }
 
+/** A sortable column head of `table` - metaController flips ctx.sorts[table] on click. */
+function sortHead(table, sort, key, label, cls) {
+  const on = key === sort.key;
+  const aria = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  return `<th class="sort${cls ? ` ${cls}` : ''}${on ? ' on' : ''}" data-sort-table="${table}" data-sort="${key}" aria-sort="${aria}" title="Sortieren">${label}${on ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</th>`;
+}
+
+/** Rows {v, l} by v - rows without a value (e.g. no engine accuracy yet) always last, ties by game count. */
+function sortRows(rows, dir) {
+  return rows.sort((a, b) => (a.v == null) - (b.v == null) || (dir === 'asc' ? a.v - b.v : b.v - a.v) || b.l.length - a.l.length);
+}
+
 function openings(rs, ctx) {
   if (!rs.length) return card('Eröffnungen', '', EMPTY, { cls: 'w12' });
   const name = (r) => r.family ?? 'Ohne Eröffnungsnamen';
-  const { key: sortKey, dir: sortDir } = ctx.openingSort ?? { key: 'games', dir: 'desc' };
+  const sort = ctx.sorts.openings;
   // "Ergebnis" sorts by share of wins, then of draws.
   const sortValue = {
     games: (l) => l.length,
@@ -355,16 +368,10 @@ function openings(rs, ctx) {
     },
     score: (l) => score(l),
     acc: (l) => avg(l, (r) => ctx.engineOf(r)?.accuracy),
-  }[sortKey] ?? ((l) => l.length);
-  const sortTh = (key, label, cls) => {
-    const on = key === sortKey;
-    return `<th class="sort${cls ? ` ${cls}` : ''}${on ? ' on' : ''}" data-sort="${key}" aria-sort="${on ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Sortieren">${label}${on ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>`;
-  };
+  }[sort.key] ?? ((l) => l.length);
+  const sortTh = (key, label, cls) => sortHead('openings', sort, key, label, cls);
   const table = (list) => {
-    // Rows without a value (no engine accuracy yet) always go last; ties by game count.
-    const rows = [...groupBy(list, name)]
-      .map(([fam, l]) => ({ fam, l, v: sortValue(l) }))
-      .sort((a, b) => (a.v == null) - (b.v == null) || (sortDir === 'asc' ? a.v - b.v : b.v - a.v) || b.l.length - a.l.length);
+    const rows = sortRows([...groupBy(list, name)].map(([fam, l]) => ({ fam, l, v: sortValue(l) })), sort.dir);
     if (!rows.length) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
     return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r">Ø Theoriezüge</th></tr></thead><tbody>
       ${rows
@@ -438,12 +445,15 @@ function opponents(rs, ctx) {
   const rankedCountries = countries.filter(([, l]) => l.length >= minGames).length;
   const countryRows = countries.slice(0, Math.max(12, rankedCountries)).map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
   const pendingNote = pending ? `Länder werden noch geladen (${ctx.countriesDone} von ${ctx.countriesTotal} Gegnern).` : 'Land aus dem Chess.com-Profil des Gegners.';
-  const countryTable = `<div class="meta-tbl"><table><thead><tr><th>Land</th><th class="r">Partien</th><th class="wide">Ergebnis</th><th class="r">Quote</th></tr></thead><tbody>
-    ${countries
-      .filter(([, l]) => l.length >= minGames)
-      .map(([code, l]) => ({ code, l, s: score(l) }))
-      .sort((a, b) => b.s - a.s || b.l.length - a.l.length)
-      .map((x) => `<tr><td>${countryLabel(x.code)}</td><td class="r">${gamesCount(x.l)}</td><td>${wdlBar(x.l)}</td><td class="r">${pc(x.s)}</td></tr>`)
+  const cSort = ctx.sorts.countries;
+  const countryTable = `<div class="meta-tbl"><table><thead><tr><th>Land</th>${sortHead('countries', cSort, 'games', 'Partien', 'r')}<th class="wide">Ergebnis</th>${sortHead('countries', cSort, 'score', 'Quote', 'r')}</tr></thead><tbody>
+    ${sortRows(
+      countries
+        .filter(([, l]) => l.length >= minGames)
+        .map(([code, l]) => ({ code, l, v: cSort.key === 'games' ? l.length : score(l) })),
+      cSort.dir
+    )
+      .map((x) => `<tr><td>${countryLabel(x.code)}</td><td class="r">${gamesCount(x.l)}</td><td>${wdlBar(x.l)}</td><td class="r">${pc(score(x.l))}</td></tr>`)
       .join('')}
     </tbody></table></div>`;
 
@@ -472,7 +482,7 @@ function opponents(rs, ctx) {
 
   return `<div class="meta-grid">${h2h}
     ${card('Woher kommen deine Gegner?', 'fast', countries.length ? hbars(countryRows) : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: pendingNote })}
-    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: minGames > 1 ? 'Länder mit mindestens 3 Partien, beste zuerst.' : 'Beste zuerst.' })}
+    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: minGames > 1 ? 'Länder mit mindestens 3 Partien.' : '' })}
     ${card('Häufigste Gegner', 'fast', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
     ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis.' })}
   </div>`;
