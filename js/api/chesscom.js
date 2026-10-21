@@ -66,6 +66,21 @@ export async function fetchRecentGames(username, { monthsBack = 1, maxGames, onP
 }
 
 /**
+ * One game by its URL, looked up in the monthly archive its end time falls
+ * in (UTC, like Chess.com's archives).
+ * @param {string} username
+ * @param {string} url the game's Chess.com URL
+ * @param {number} endTimeSeconds the game's end_time
+ * @returns {Promise<object|null>} the raw game object, null if it isn't there
+ */
+export async function fetchGame(username, url, endTimeSeconds) {
+  const d = new Date(endTimeSeconds * 1000);
+  const month = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const data = await fetchJson(`${BASE}/player/${encodeURIComponent(username)}/games/${month}`);
+  return (data.games ?? []).find((g) => g.url === url) ?? null;
+}
+
+/**
  * Fetches a player's avatar, country, title, account status and league.
  * Never throws - falls back to none of them if the lookup fails, since that
  * shouldn't break the rest of the game review.

@@ -1,4 +1,4 @@
-import { fetchRecentGames, fetchPlayerProfile, summarizeGame } from './api/chesscom.js';
+import { fetchRecentGames, fetchPlayerProfile, fetchGame, summarizeGame } from './api/chesscom.js';
 import { timeClassStyle } from './timeClassStyle.js';
 import { StockfishEngine } from './engine/stockfishEngine.js';
 import { analyzeGame } from './analysis/gameAnalyzer.js';
@@ -74,12 +74,21 @@ const el = (id) => document.getElementById(id);
 // in the gear menu. `meta` is the Meta-Analyse controller, created at the very
 // end once every top-bar control it reads from exists; every call site uses
 // `meta?.` since some filter callbacks can fire before that.
-let appMode = loadAppMode();
+// A game the Meta-Analyse opened in its own tab (metaController's openGame):
+// ?user=…&game=<Chess.com URL>&end=<end_time> - opens straight into the
+// single-game mode, without changing the saved area for other tabs.
+const deepLink = (() => {
+  const params = new URLSearchParams(location.search);
+  const game = params.get('game');
+  const user = params.get('user');
+  return game && user ? { game, user, end: Number(params.get('end')) } : null;
+})();
+let appMode = deepLink ? 'game' : loadAppMode();
 let meta = null;
 
 const usernameInput = el('username-input');
 const usernameAvatarEl = el('username-avatar');
-usernameInput.value = loadLastUsername() ?? '';
+usernameInput.value = deepLink?.user ?? loadLastUsername() ?? '';
 
 // Caches avatarUrl (possibly null - no picture set) per lowercased username,
 // so re-selecting a preset (or reloading the last-used name) never re-fetches
@@ -911,7 +920,6 @@ fetchGamesBtn.addEventListener('click', async () => {
       return;
     }
 
-    hideBackToMeta();
     const today = new Date();
     games = rawGames
       .map(summarizeGame)
@@ -1878,20 +1886,18 @@ removeVariationBtn.addEventListener('click', () => {
 // ---------- Meta-Analyse and switching between the two areas ----------
 
 const gamePickerEl = el('game-picker');
-const backToMetaBar = el('back-to-meta-bar');
-let metaScrollY = 0; // restored when coming back from a game opened out of the Meta-Analyse
-
-function hideBackToMeta() {
-  backToMetaBar.classList.add('hidden');
-}
+let metaScrollY = 0; // restored when switching back to the Meta-Analyse
 
 /** The analyze button is shared: in game mode it analyzes the picked game,
  *  in meta mode it starts the Meta-Analyse run (js/meta/metaController.js). */
 function updateAnalyzeButtonForMode() {
   if (isAnalyzing) return;
   if (appMode === 'meta') {
-    analyzeToggleBtn.disabled = !meta?.hasData;
-    analyzeToggleBtn.title = 'Meta-Analyse starten: alle gefilterten Partien ohne Engine-Werte analysieren';
+    const allDone = Boolean(meta?.hasData && meta.allAnalyzed);
+    analyzeToggleBtn.disabled = !meta?.hasData || allDone;
+    analyzeToggleBtn.title = allDone
+      ? 'Alle gefilterten Partien sind schon analysiert'
+      : 'Meta-Analyse starten: alle gefilterten Partien ohne Engine-Werte analysieren';
   } else {
     analyzeToggleBtn.disabled = games.length === 0;
     analyzeToggleBtn.title = 'Ausgewähltes Spiel analysieren';
@@ -1907,7 +1913,6 @@ function applyAppMode() {
   meta.setActive(isMeta);
   if (isMeta) {
     reviewPanel.classList.add('hidden');
-    hideBackToMeta();
     // The mobile "filters collapsed" state only makes sense next to a board.
     loaderPanel.classList.remove('collapsed');
     loaderToggleBtn.classList.add('hidden');
@@ -1981,28 +1986,7 @@ meta = initMetaMode({
   setRunProgress: (fraction) => {
     analyzeToggleBtnFill.style.width = `${Math.round(fraction * 100)}%`;
   },
-  // A row in the "Partien" tab: hand the filtered list to the game picker,
-  // switch areas and analyze it right away - the Meta-Analyse's own state
-  // stays in memory, so "Zurück" shows it again without recomputing.
-  onOpenGame: (summaries, index) => {
-    if (isAnalyzing || fetchGamesAbortController) return;
-    metaScrollY = window.scrollY;
-    games = summaries;
-    gameSelect.setOptions(buildGameOptions(games, usernameInput.value), String(index));
-    refreshAnalyzedMarkers();
-    gameSelect.disabled = false;
-    appMode = 'game';
-    saveAppMode('game');
-    settingsPanel.setAppMode('game');
-    applyAppMode();
-    backToMetaBar.classList.remove('hidden');
-    window.scrollTo(0, 0);
-    startAnalysis();
-  },
-});
-
-el('back-to-meta-btn').addEventListener('click', () => {
-  if (switchAppMode('meta')) settingsPanel.setAppMode('meta');
+  onCoverageChange: () => updateAnalyzeButtonForMode(),
 });
 
 initBoardThemePicker();
@@ -2025,3 +2009,20 @@ const settingsPanel = initSettingsPanel({
 
 // Restores whichever area was open last (gear menu "Bereich").
 applyAppMode();
+if (deepLink) openDeepLinkedGame(deepLink);
+
+/** Loads just the linked game into the picker and analyzes it - from the stored analysis if there is one. */
+async function openDeepLinkedGame({ user, game, end }) {
+  try {
+    const [raw] = await Promise.all([fetchGame(user, game, end), syncAutoAnalysis(user)]);
+    if (!raw) throw new Error('Die Partie wurde bei Chess.com nicht gefunden.');
+    games = [summarizeGame(raw)];
+    gameSelect.setOptions(buildGameOptions(games, user), '0');
+    gameSelect.disabled = false;
+    analyzeToggleBtn.disabled = false;
+    refreshAnalyzedMarkers();
+    startAnalysis();
+  } catch (err) {
+    showToast(err.message ?? 'Die Partie konnte nicht geladen werden.', 'error');
+  }
+}

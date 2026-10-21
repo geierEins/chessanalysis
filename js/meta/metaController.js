@@ -35,7 +35,7 @@ const yieldToUi = () => new Promise((r) => setTimeout(r, 0));
  *   setUsername: (username: string) => void,
  *   setBusy: (busy: boolean) => void,
  *   setRunProgress: (fraction: number) => void,
- *   onOpenGame: (summaries: object[], index: number) => void,
+ *   onCoverageChange: () => void,
  * }} host
  */
 export function initMetaMode(host) {
@@ -82,6 +82,7 @@ export function initMetaMode(host) {
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
   let openingSort = { key: 'games', dir: 'desc' }; // column of the Eröffnungen tables
+  let heatView = 'all'; // "Wann du spielst" sub-tab, see metaView's HEAT_VIEWS
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let run = null; // the running analysis, see startRun()
   let engine = null;
@@ -119,6 +120,7 @@ export function initMetaMode(host) {
       },
       opponent,
       openingSort,
+      heatView,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -147,6 +149,7 @@ export function initMetaMode(host) {
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
+    host.onCoverageChange(); // the analyze button greys out once nothing is left to analyze
   }
 
   /** Coalesces the many small updates during a run (countries arriving,
@@ -223,6 +226,12 @@ export function initMetaMode(host) {
       const isOpenHere = !gamesPopEl.classList.contains('hidden') && gamesPopEl.dataset.for === countBtn.dataset.games;
       if (isOpenHere) closeGamesPop();
       else openGamesPop(countBtn);
+      return;
+    }
+    const heatTab = e.target.closest('[data-heat]');
+    if (heatTab) {
+      heatView = heatTab.dataset.heat;
+      render();
       return;
     }
     // Sortable column head: first click sorts descending, a second one flips.
@@ -601,15 +610,12 @@ export function initMetaMode(host) {
 
   // ---------- jumping into a single game ----------
 
+  /** Opens the game in a new tab, in the single-game mode (js/main.js's deep link) - this tab keeps the Meta-Analyse. */
   function openGame(url) {
-    if (run) {
-      showToast('Während die Meta-Analyse läuft, kann keine einzelne Partie geöffnet werden.', 'info');
-      return;
-    }
-    const list = filtered();
-    const index = list.findIndex((r) => r.url === url);
-    if (index < 0) return;
-    host.onOpenGame(list.map((r) => r.summary), index);
+    const r = records.find((x) => x.url === url);
+    if (!r) return;
+    const params = new URLSearchParams({ user: username, game: url, end: String(Math.round(r.endTime / 1000)) });
+    window.open(`${location.pathname}?${params}`, '_blank', 'noopener');
   }
 
   // ---------- export / import ----------
@@ -739,6 +745,10 @@ export function initMetaMode(host) {
     },
     get hasData() {
       return records.length > 0;
+    },
+    /** Every game under the current filters already has engine values - nothing for a run to do. */
+    get allAnalyzed() {
+      return filtered().every((r) => engineCache.has(r.url));
     },
     setActive(isActive) {
       active = isActive;

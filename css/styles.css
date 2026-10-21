@@ -1535,8 +1535,7 @@ button.field-error {
    .hidden overrides in this file, since the rules below set display. */
 #meta-panel .hidden,
 #meta-panel.hidden,
-#opponent-menu .hidden,
-#back-to-meta-bar.hidden {
+#opponent-menu .hidden {
   display: none !important;
 }
 
@@ -1833,6 +1832,22 @@ button.field-error {
 .meta-big span { font-size: 12px; color: var(--meta-muted); }
 .meta-big strong { font-weight: 600; color: var(--meta-fg); }
 
+/* Sub-tabs inside a card ("Wann du spielst"); --tab-color tints the active one. */
+.meta-subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.meta-subtabs button {
+  padding: 3px 8px;
+  border: 1px solid var(--meta-line);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--meta-muted);
+}
+.meta-subtabs button:hover { color: var(--meta-fg); }
+.meta-subtabs button[aria-selected='true'] {
+  color: var(--meta-fg);
+  border-color: var(--tab-color, var(--meta-accent));
+  background: color-mix(in srgb, var(--tab-color, var(--meta-accent)) 20%, transparent);
+}
+
 /* A count that lists its games on click (js/meta/metaView.js's gamesCount). */
 .meta-count {
   font: inherit;
@@ -1906,20 +1921,6 @@ button.field-error {
 .meta-opp-option { justify-content: space-between; }
 .meta-opp-name { overflow: hidden; text-overflow: ellipsis; }
 .meta-opp-count { color: #a3a3a3; font-variant-numeric: tabular-nums; }
-
-#back-to-meta-bar { margin-bottom: 10px; }
-
-#back-to-meta-btn {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 4px;
-  border: 1px solid #404040;
-  background: #262626;
-  font-size: 12px;
-  color: #e5e5e5;
-}
-
-#back-to-meta-btn:hover { background: #404040; }
 
 @media (max-width: 700px) {
   #opponent-picker,
