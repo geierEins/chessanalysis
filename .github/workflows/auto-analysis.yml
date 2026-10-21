@@ -1,4 +1,4 @@
-# Hourly auto-analysis of the players in scripts/auto-analysis/config.json,
+# Auto-analysis four times a day of the players in scripts/auto-analysis/config.json,
 # for players whose initial analysis (auto-analysis-initial.yml) is done -
 # until then it does nothing. "check" is the cheap gate (sparse checkout,
 # two 304 requests per player); "analyze" only runs when it found new games,
@@ -8,10 +8,12 @@ name: Auto-Analyse
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    # Cron runs in UTC: 02:00, 08:00, 14:00 and 20:00 German winter time
+    # (CET) - an hour later during summer time (CEST).
+    - cron: '0 1,7,13,19 * * *'
   workflow_dispatch:
 
-# Never two runs at once - a long run makes the next hour wait.
+# Never two runs at once - a long run makes the next one wait.
 concurrency:
   group: auto-analysis
   cancel-in-progress: false

@@ -1,4 +1,4 @@
-// The hourly gate of the auto-analysis: decides whether analyze.mjs has
+// The scheduled gate of the auto-analysis: decides whether analyze.mjs has
 // anything to do, without the engine, the app code or the master files. Per
 // player it sends two conditional requests for the newest monthly archives;
 // Chess.com answers 304 (no body) while nothing changed. Players whose

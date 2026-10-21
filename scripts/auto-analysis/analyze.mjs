@@ -6,9 +6,9 @@
 // Two modes:
 //  - INITIAL=1 (.github/workflows/auto-analysis-initial.yml, started by hand):
 //    the one-time backlog of every configured player. A player counts as
-//    "initialized" once all their games are done - only then does the hourly
-//    check look at him at all;
-//  - otherwise (hourly, .github/workflows/auto-analysis.yml): only the
+//    "initialized" once all their games are done - only then does the scheduled
+//    check look at them at all;
+//  - otherwise (four times a day, .github/workflows/auto-analysis.yml): only the
 //    initialized players, i.e. just their new games.
 //
 // Newest games first, across all players, on one engine process per CPU
@@ -148,7 +148,7 @@ for (const user of users) players.push(await preparePlayer(user, state));
 const byUser = new Map(players.map((p) => [p.user, p]));
 const queue = players.flatMap((p) => p.targets).sort((a, b) => b.rec.endTime - a.rec.endTime);
 const engineCount = Math.max(1, Math.min(Number(process.env.ENGINES ?? availableParallelism()), queue.length, maxGames));
-console.log(`${initial ? 'Erstanalyse' : 'Stündlich'}: ${queue.length} Partien (${players.map((p) => `${p.user}: ${p.targets.length}`).join(', ') || 'keine Spieler'}), ${engineCount} Engines.`);
+console.log(`${initial ? 'Erstanalyse' : 'Planmäßig'}: ${queue.length} Partien (${players.map((p) => `${p.user}: ${p.targets.length}`).join(', ') || 'keine Spieler'}), ${engineCount} Engines.`);
 
 let next = 0;
 async function engineWorker() {

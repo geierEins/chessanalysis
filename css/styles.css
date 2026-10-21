@@ -1832,22 +1832,6 @@ button.field-error {
 .meta-big span { font-size: 12px; color: var(--meta-muted); }
 .meta-big strong { font-weight: 600; color: var(--meta-fg); }
 
-/* Sub-tabs inside a card ("Wann du spielst"); --tab-color tints the active one. */
-.meta-subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
-.meta-subtabs button {
-  padding: 3px 8px;
-  border: 1px solid var(--meta-line);
-  border-radius: 4px;
-  font-size: 12px;
-  color: var(--meta-muted);
-}
-.meta-subtabs button:hover { color: var(--meta-fg); }
-.meta-subtabs button[aria-selected='true'] {
-  color: var(--meta-fg);
-  border-color: var(--tab-color, var(--meta-accent));
-  background: color-mix(in srgb, var(--tab-color, var(--meta-accent)) 20%, transparent);
-}
-
 /* A count that lists its games on click (js/meta/metaView.js's gamesCount). */
 .meta-count {
   font: inherit;

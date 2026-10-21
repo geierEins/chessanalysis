@@ -2,7 +2,7 @@
 # scripts/auto-analysis/config.json - started by hand (Actions -> "Run
 # workflow"). One engine per CPU core; if the backlog doesn't fit into one
 # run, the run commits what it has and starts itself again until every player
-# is done. Only then does the hourly workflow (auto-analysis.yml) take over.
+# is done. Only then does the scheduled workflow (auto-analysis.yml) take over.
 name: 'Auto-Analyse: Erstanalyse'
 
 on:

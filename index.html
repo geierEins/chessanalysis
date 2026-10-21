@@ -186,7 +186,8 @@
         <div id="opponent-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
       </div>
       <!-- Fixed engine (js/main.js's ENGINE), the same the GitHub job uses. -->
-      <span id="engine-label" class="border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-400 cursor-default select-none"
+      <!-- self-stretch: as tall as the row's buttons, whose emoji/icons make them taller than plain text. -->
+      <span id="engine-label" class="self-stretch flex items-center border border-neutral-700 rounded px-2 text-xs text-neutral-400 cursor-default select-none"
             title="Analyse mit Stockfish 19 Full (volles NNUE-Netz), Suchtiefe 16 Halbzüge – dieselbe Einstellung wie die automatische Analyse auf GitHub">SF19·T16</span>
 
       <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher

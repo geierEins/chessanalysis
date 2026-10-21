@@ -82,9 +82,7 @@ export function initMetaMode(host) {
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
   // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land.
-  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' } };
-  let heatView = 'all'; // "Wann du spielst" sub-tab, see metaView's HEAT_VIEWS
-  if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
+  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' } };  if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let run = null; // the running analysis, see startRun()
   let engine = null;
   let engineLoadedId = null;
@@ -121,7 +119,6 @@ export function initMetaMode(host) {
       },
       opponent,
       sorts,
-      heatView,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -227,12 +224,6 @@ export function initMetaMode(host) {
       const isOpenHere = !gamesPopEl.classList.contains('hidden') && gamesPopEl.dataset.for === countBtn.dataset.games;
       if (isOpenHere) closeGamesPop();
       else openGamesPop(countBtn);
-      return;
-    }
-    const heatTab = e.target.closest('[data-heat]');
-    if (heatTab) {
-      heatView = heatTab.dataset.heat;
-      render();
       return;
     }
     // Sortable column head: first click sorts descending, a second one flips.

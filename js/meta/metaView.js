@@ -24,13 +24,6 @@ const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
 const RES_CIRCLE = { W: '🟢', D: '⚪', L: '🔴' }; // same as the game picker's (js/main.js's OUTCOME_CIRCLE)
 const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-// "Wann du spielst" sub-tabs - result: only games with that result (null = all).
-const HEAT_VIEWS = [
-  { id: 'all', label: 'Wann du spielst', result: null, color: null },
-  { id: 'W', label: 'Wann du gewinnst', result: 'W', color: 'var(--meta-win)', one: 'Sieg', many: 'Siege' },
-  { id: 'L', label: 'Wann du verlierst', result: 'L', color: 'var(--meta-loss)', one: 'Niederlage', many: 'Niederlagen' },
-  { id: 'D', label: 'Wann Remis entsteht', result: 'D', color: 'var(--meta-draw)', one: 'Remis', many: 'Remis' },
-];
 const HEAT_RAMP = ['#1d2a3d', '#184f95', '#1c5cab', '#256abf', '#2a78d6', '#3987e5', '#5598e7', '#86b6ef'];
 
 // ---------- small helpers ----------
@@ -563,7 +556,7 @@ function quality(rs, ctx) {
   </div>`;
 }
 
-function timeTab(rs, ctx) {
+function timeTab(rs) {
   if (!rs.length) return card('Zeit', '', EMPTY, { cls: 'w12' });
   const how = (result, color) => {
     const l = rs.filter((r) => r.result === result);
@@ -590,16 +583,12 @@ function timeTab(rs, ctx) {
     })
     .filter(Boolean);
 
-  // Sub-tabs (ctx.heatView, switched by metaController): all games, or only wins / losses / draws.
-  const view = HEAT_VIEWS.find((v) => v.id === ctx.heatView) ?? HEAT_VIEWS[0];
-  const counts = Array.from({ length: 7 }, () => Array(24).fill(0)); // games of this view
-  const totals = Array.from({ length: 7 }, () => Array(24).fill(0)); // all games
+  const counts = Array.from({ length: 7 }, () => Array(24).fill(0));
   const points = Array.from({ length: 7 }, () => Array(24).fill(0));
   for (const r of rs) {
     const d = new Date(r.endTime);
-    totals[d.getDay()][d.getHours()]++;
+    counts[d.getDay()][d.getHours()]++;
     points[d.getDay()][d.getHours()] += pts(r);
-    if (!view.result || r.result === view.result) counts[d.getDay()][d.getHours()]++;
   }
   const mx = Math.max(1, ...counts.flat());
   let heat = '<span></span>' + Array.from({ length: 24 }, (_, h) => `<span class="h">${h % 3 === 0 ? h : ''}</span>`).join('');
@@ -607,18 +596,10 @@ function timeTab(rs, ctx) {
     heat += `<span>${WEEKDAYS[day]}</span>`;
     for (let h = 0; h < 24; h++) {
       const n = counts[day][h];
-      const all = totals[day][h];
-      const step = Math.min(7, Math.ceil((n / mx) * 7));
-      const bg = !n ? 'var(--meta-empty)' : view.result ? `color-mix(in srgb, ${view.color} ${30 + step * 10}%, var(--meta-empty))` : HEAT_RAMP[step];
-      const tip = view.result
-        ? `${n} ${n === 1 ? view.one : view.many}${all ? ` von ${all} Partien` : ''}`
-        : `${n} Partien${n ? `, Quote ${pc(points[day][h] / n)}` : ''}`;
-      heat += `<span class="c" style="background:${bg}" data-tip="${WEEKDAYS[day]} ${h}–${h + 1} Uhr: ${tip}"></span>`;
+      const bg = n ? HEAT_RAMP[Math.min(7, Math.ceil((n / mx) * 7))] : 'var(--meta-empty)';
+      heat += `<span class="c" style="background:${bg}" data-tip="${WEEKDAYS[day]} ${h}–${h + 1} Uhr: ${n} Partien${n ? `, Quote ${pc(points[day][h] / n)}` : ''}"></span>`;
     }
   }
-  const heatTabs = `<div class="meta-subtabs" role="tablist">${HEAT_VIEWS.map(
-    (v) => `<button type="button" role="tab" data-heat="${v.id}" aria-selected="${v === view}"${v.color ? ` style="--tab-color:${v.color}"` : ''}>${v.label}</button>`
-  ).join('')}</div>`;
   const slots = [['Morgens (6–12)', 6, 12], ['Nachmittags (12–18)', 12, 18], ['Abends (18–23)', 18, 23], ['Nachts (23–6)', 23, 30]]
     .map(([label, a, b]) => {
       const l = rs.filter((r) => {
@@ -645,7 +626,7 @@ function timeTab(rs, ctx) {
     ${card('Uhr', 'fast', bigStats([[pc(losses.length ? timeLosses.length / losses.length : null), 'der Niederlagen auf Zeit'], [f0(avg(rs, (r) => r.moves)), 'Ø Züge pro Partie']])
       + '<h3>Ø Restzeit am Ende (ohne Niederlagen)</h3>' + hbars(clockRows, { fmt: pctFmt, max: 100 }), { note: 'Restzeit aus den Uhrzeiten im PGN, in Prozent der Startzeit. Daily-Partien zählen hier nicht.' })}
     ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
-    ${card('Wann du spielst', 'fast', `${heatTabs}<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: view.result ? `Farbe = Anzahl ${view.many} (Ende der Partie, Ortszeit). Tooltip: Anteil an allen Partien dieser Stunde.` : 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}
+    ${card('Wann du spielst', 'fast', `<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}
     ${card('Quote nach Tageszeit', 'fast', hbars(slots, { fmt: pctFmt, max: 100 }), { cls: 'w4' })}
     ${card('Serien und Tilt', 'fast', bigStats([
       [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
