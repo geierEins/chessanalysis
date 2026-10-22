@@ -1,22 +1,21 @@
 {
   "geieruno": {
-    "engine": "sf19full|16",
-    "initialized": true,
-    "complete": true,
-    "etags": {
-      "https://api.chess.com/pub/player/geieruno/games/2026/09": "W/\"07cecc944ac92802aa6ac664bf4096df\"",
-      "https://api.chess.com/pub/player/geieruno/games/2026/10": "W/\"6f29dbd07206371c98a9f0881decca48\""
-    },
-    "skipped": []
+    "engine": "sf19full|16|evals",
+    "initialized": false,
+    "complete": false,
+    "etags": {},
+    "skipped": [
+      "https://www.chess.com/game/live/185589943236"
+    ]
   },
   "pawnhubde": {
-    "engine": "sf19full|16",
-    "initialized": true,
-    "complete": true,
-    "etags": {
-      "https://api.chess.com/pub/player/pawnhubde/games/2026/09": "W/\"c40d731fec9ce1c8703caf1d6c47fdd7\"",
-      "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"38138a5519f71d5b556b5c49f4fda97e\""
-    },
-    "skipped": []
+    "engine": "sf19full|16|evals",
+    "initialized": false,
+    "complete": false,
+    "etags": {},
+    "skipped": [
+      "https://www.chess.com/game/live/185016493922",
+      "https://www.chess.com/game/live/174550664944"
+    ]
   }
 }
