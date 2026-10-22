@@ -25,12 +25,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Budget 320 min; the script itself stops 15 min after it at the latest
+      # (analyze.mjs's GRACE_MS). The step limit is the last resort - unlike
+      # the job limit, it still lets the commit below run.
       - id: analyze
         run: node scripts/auto-analysis/analyze.mjs
+        timeout-minutes: 340
         env:
           INITIAL: 1
           TIME_BUDGET_MINUTES: 320
-      # Also after a crash - everything finished so far is kept.
+      # Also after a crash or the step timeout - everything finished so far is kept.
       - if: ${{ !cancelled() }}
         run: "sh scripts/auto-analysis/commit-data.sh 'Erstanalyse: Partien analysiert'"
       - name: Continue in a new run

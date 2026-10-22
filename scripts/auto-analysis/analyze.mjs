@@ -18,6 +18,7 @@
 //
 // Local run: INITIAL=1 node scripts/auto-analysis/analyze.mjs   (Node 22+)
 // Env: TIME_BUDGET_MINUTES (default 50), ENGINES (default: CPU cores),
+//      GAME_TIMEOUT_MINUTES (default 20), GRACE_MINUTES (default 15),
 //      MAX_GAMES (stop after n games, for testing).
 
 import { register } from 'node:module';
@@ -117,8 +118,23 @@ function saveMaster(p) {
   return p.saving;
 }
 
+// Safety nets - a run must always end in time to commit what it has (the
+// workflow's job timeout cancels everything after it, commit included):
+//  - a game taking longer than GAME_TIMEOUT_MS kills its engine (the pending
+//    evaluate() rejects, the game counts as skipped, the worker starts a fresh engine);
+//  - GRACE_MS after the time budget, whatever still runs is abandoned and the
+//    run finishes regularly with what is done.
+const GAME_TIMEOUT_MS = Number(process.env.GAME_TIMEOUT_MINUTES ?? 20) * 60_000;
+const GRACE_MS = Number(process.env.GRACE_MINUTES ?? 15) * 60_000;
+const engines = new Set(); // every live engine, for the GRACE_MS cut-off
+let cuttingOff = false;
+
 async function analyzeOne(engine, p, rec) {
   const started = Date.now();
+  const timer = setTimeout(() => {
+    console.warn(`  Zeitüberschreitung nach ${GAME_TIMEOUT_MS / 60_000} Min.: ${rec.url} - Engine wird neu gestartet`);
+    engine.terminate();
+  }, GAME_TIMEOUT_MS);
   try {
     const avgRating = rec.ownRating && rec.oppRating ? (rec.ownRating + rec.oppRating) / 2 : null;
     const recorder = recordingEngine(engine);
@@ -131,11 +147,14 @@ async function analyzeOne(engine, p, rec) {
     p.analyzed++;
     await saveMaster(p);
   } catch (err) {
+    if (cuttingOff) return; // abandoned at the cut-off, not the game's fault - the next run tries again
     // E.g. an aborted game without a single move - skipped for good
     // instead of failing every run.
     p.failed++;
     p.s.skipped.push(rec.url);
     console.warn(`  übersprungen: ${rec.url} (${err.message ?? err})`);
+  } finally {
+    clearTimeout(timer);
   }
   p.open--;
   console.log(`[${p.user}] vs ${rec.opponent}, ${new Date(rec.endTime).toISOString().slice(0, 10)}, ${rec.moves} Züge: ${Math.round((Date.now() - started) / 1000)} s · noch ${p.open} offen`);
@@ -156,8 +175,9 @@ async function engineWorker() {
   try {
     while (next < queue.length && next < maxGames && Date.now() < deadline) {
       const { user, rec } = queue[next++];
-      if (!engine) {
+      if (!engine?.isReady) {
         engine = new StockfishEngine();
+        engines.add(engine);
         await engine.init(undefined, config.engine);
       }
       await analyzeOne(engine, byUser.get(user), rec);
@@ -166,24 +186,42 @@ async function engineWorker() {
     engine?.terminate();
   }
 }
+
+let finished = false;
+/** Writes state, summary and step output - once, from the regular end or the GRACE_MS cut-off. */
+async function finish() {
+  if (finished) return;
+  finished = true;
+  for (const p of players) {
+    p.s.complete = p.open === 0;
+    if (p.s.complete) p.s.initialized = true;
+    // Only a finished player gets the ETags - check.mjs then sees 304 until a new game appears.
+    p.s.etags = p.s.complete ? p.etags : {};
+  }
+  await writeJson(STATE_FILE, state, { pretty: true });
+  await Promise.all(players.map((p) => p.saving));
+
+  const allDone = players.every((p) => p.s.complete);
+  const table = [
+    '| Spieler | neu analysiert | übersprungen | noch offen | gesamt |',
+    '|---|---|---|---|---|',
+    ...players.map((p) => `| ${p.user} | ${p.analyzed} | ${p.failed} | ${p.open} | ${p.master.games.length} |`),
+  ].join('\n');
+  console.log(table);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, `## ${initial ? 'Erstanalyse' : 'Auto-Analyse'} (${config.engineLabel}, Tiefe ${config.depth})\n\n${table}\n`);
+  }
+  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `done=${allDone}\n`);
+}
+
+const cutOff = setTimeout(async () => {
+  console.warn(`Zeitbudget um ${GRACE_MS / 60_000} Min. überschritten - laufende Partien werden abgebrochen, der Rest folgt im nächsten Lauf.`);
+  cuttingOff = true;
+  for (const engine of engines) engine.terminate();
+  await finish();
+  process.exit(0);
+}, Math.max(0, deadline - Date.now()) + GRACE_MS);
+cutOff.unref();
+
 await Promise.all(Array.from({ length: engineCount }, engineWorker));
-
-for (const p of players) {
-  p.s.complete = p.open === 0;
-  if (p.s.complete) p.s.initialized = true;
-  // Only a finished player gets the ETags - check.mjs then sees 304 until a new game appears.
-  p.s.etags = p.s.complete ? p.etags : {};
-}
-await writeJson(STATE_FILE, state, { pretty: true });
-
-const allDone = players.every((p) => p.s.complete);
-const table = [
-  '| Spieler | neu analysiert | übersprungen | noch offen | gesamt |',
-  '|---|---|---|---|---|',
-  ...players.map((p) => `| ${p.user} | ${p.analyzed} | ${p.failed} | ${p.open} | ${p.master.games.length} |`),
-].join('\n');
-console.log(table);
-if (process.env.GITHUB_STEP_SUMMARY) {
-  await appendFile(process.env.GITHUB_STEP_SUMMARY, `## ${initial ? 'Erstanalyse' : 'Auto-Analyse'} (${config.engineLabel}, Tiefe ${config.depth})\n\n${table}\n`);
-}
-if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `done=${allDone}\n`);
+await finish();

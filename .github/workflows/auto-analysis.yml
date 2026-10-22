@@ -47,7 +47,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # See auto-analysis-initial.yml: budget + 15 min grace, then the step limit.
       - run: node scripts/auto-analysis/analyze.mjs
+        timeout-minutes: 68
         env:
           TIME_BUDGET_MINUTES: 50
       - if: ${{ !cancelled() }}
