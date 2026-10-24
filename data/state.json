@@ -4,7 +4,7 @@
     "initialized": true,
     "complete": true,
     "etags": {
-      "https://api.chess.com/pub/player/geieruno/games/2026/10": "W/\"a9122a6819052dd28fe2ba37ada039d0\"",
+      "https://api.chess.com/pub/player/geieruno/games/2026/10": "W/\"c15d124c21b2e2336bb11bd76a00d818\"",
       "https://api.chess.com/pub/player/geieruno/games/2026/09": "W/\"07cecc944ac92802aa6ac664bf4096df\""
     },
     "skipped": [
@@ -16,7 +16,7 @@
     "initialized": true,
     "complete": true,
     "etags": {
-      "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"f5f655bf0f056ab6f433e6ef9bf0bf3e\"",
+      "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"1d62796902b807d2c982852afd9c8185\"",
       "https://api.chess.com/pub/player/pawnhubde/games/2026/09": "W/\"c40d731fec9ce1c8703caf1d6c47fdd7\""
     },
     "skipped": [
