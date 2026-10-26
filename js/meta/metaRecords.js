@@ -32,6 +32,10 @@ export const TERMINATION_LABEL = {
 
 export const PIECE_LABEL = { p: 'Bauer', n: 'Springer', b: 'Läufer', r: 'Turm', q: 'Dame', k: 'König' };
 
+/** Games against Chess.com's coach bots (Coach-Dante, Coach-Nadia, ...) - left
+ *  out of the meta mode entirely: no stats, no engine analysis. */
+export const isCoachGame = (r) => /^coach-/i.test(r.opponent);
+
 /** Only the parts of a Chess.com game object the meta mode needs - also what
  *  an exported analysis file stores, so an import runs through the exact same
  *  buildFastRecord() path as a fresh download. */

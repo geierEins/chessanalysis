@@ -44,7 +44,7 @@ globalThis.Worker = NodeWorker;
 
 const { StockfishEngine } = await import('../../js/engine/stockfishEngine.js');
 const { analyzeGame } = await import('../../js/analysis/gameAnalyzer.js');
-const { buildFastRecord, buildEngineRecord } = await import('../../js/meta/metaRecords.js');
+const { buildFastRecord, buildEngineRecord, isCoachGame } = await import('../../js/meta/metaRecords.js');
 const { recordingEngine } = await import('../../js/analysis/evalLog.js');
 const { fetchPlayerProfile } = await import('../../js/api/chesscom.js');
 
@@ -102,7 +102,7 @@ async function preparePlayer(user, state) {
     for (const raw of month.games ?? []) {
       if (done.has(raw.url) || skipped.has(raw.url)) continue;
       const rec = buildFastRecord(raw, user);
-      if (rec) targets.push({ user, rec });
+      if (rec && !isCoachGame(rec)) targets.push({ user, rec });
     }
   }
   return { user, master, s, etags, open: targets.length, targets, analyzed: 0, failed: 0, saving: Promise.resolve() };

@@ -10,7 +10,7 @@ import { StockfishEngine } from '../engine/stockfishEngine.js';
 import { analyzeGame } from '../analysis/gameAnalyzer.js';
 import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
-import { buildFastRecord, buildEngineRecord } from './metaRecords.js';
+import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, saveEngineRecords, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
@@ -81,8 +81,8 @@ export function initMetaMode(host) {
   let countryJob = { generation: 0, done: 0, total: 0, running: false };
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
-  // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land.
-  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' } };
+  // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land, Partien.
+  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' }, games: { key: 'date', dir: 'desc' } };
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   let run = null; // the running analysis, see startRun()
@@ -372,7 +372,7 @@ export function initMetaMode(host) {
     const built = [];
     for (let i = 0; i < rawGames.length; i++) {
       const rec = buildFastRecord(rawGames[i], user);
-      if (rec) built.push(rec);
+      if (rec && !isCoachGame(rec)) built.push(rec);
       if (i % 40 === 39) await yieldToUi(); // PGN parsing - keep the page responsive for big loads
     }
     built.sort((a, b) => b.endTime - a.endTime);
