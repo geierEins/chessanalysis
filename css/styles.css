@@ -463,6 +463,15 @@ body {
   display: none !important;
 }
 
+/* Progress while analyzing ("…" while the engine loads, then "37%") - fits
+   next to the X within the min-width above, so the row never shifts. */
+#analyze-toggle-btn-pct {
+  margin-left: 4px;
+  min-width: 26px;
+  font-size: 10px;
+  text-align: left;
+}
+
 #filter-row::-webkit-scrollbar {
   height: 6px;
 }
@@ -1718,16 +1727,89 @@ button.field-error {
 
 .meta-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 
+.meta-kpis.wide { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.meta-kpis.quality { grid-template-columns: minmax(150px, 1fr) minmax(0, 4fr); }
+
+@media (max-width: 900px) {
+  .meta-kpis.quality { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Stat tile: a colored top edge fading into a soft glow (--kpi-accent, set per tile). */
 .meta-kpi {
+  --kpi-accent: var(--meta-line);
+  position: relative;
   display: grid;
   gap: 2px;
-  background: var(--meta-panel);
+  align-content: start;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--kpi-accent) 16%, transparent), transparent 65%),
+    var(--meta-panel);
   border: 1px solid var(--meta-line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 14px;
+  overflow: hidden;
+}
+
+.meta-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--kpi-accent), color-mix(in srgb, var(--kpi-accent) 15%, transparent));
 }
 
 .meta-kpi .l { font-size: 12px; color: var(--meta-muted); }
+.meta-kpi .v { color: color-mix(in srgb, var(--kpi-accent) 30%, var(--meta-fg)); }
+.meta-faint { color: var(--meta-faint); }
+
+.meta-wdl-nums { display: flex; gap: 10px; margin-bottom: 5px; font-size: 12px; }
+.meta-wdl-nums .w { color: var(--meta-win); }
+.meta-wdl-nums .d { color: #c9c8c4; }
+.meta-wdl-nums .l { color: var(--meta-loss); }
+.meta-kpi .meta-wdl { height: 6px; border-radius: 3px; }
+
+/* "Längste Partien" / "Kürzeste Matt-Partien" tiles */
+.meta-kpi.list { gap: 6px; }
+.meta-top td { padding: 4px 6px; white-space: nowrap; }
+.meta-top tr:last-child td { border-bottom: none; }
+.meta-top .meta-rank { width: 18px; color: var(--meta-faint); font-weight: 700; }
+.meta-top .meta-top-opp { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Zugqualität: stacked bars (you vs. opponents) and one chip per category */
+.meta-kpi.mix { gap: 8px; }
+.meta-mix-rows { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 12px; }
+.meta-mix-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--meta-panel-2); }
+.meta-mix-bar > i { display: block; height: 100%; }
+.meta-mix-bar > i + i { box-shadow: inset 1px 0 0 #0006; }
+.meta-mix-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 1100px) {
+  .meta-mix-chips { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+}
+.meta-mix-chip {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c) 10%, var(--meta-panel-2));
+  border-left: 3px solid var(--c);
+}
+.meta-mix-chip img { grid-row: span 2; width: 18px; height: 18px; }
+.meta-mix-chip .k { font-size: 11px; color: var(--meta-muted); grid-column: 2 / 4; }
+.meta-mix-chip b { font-size: 15px; font-variant-numeric: tabular-nums; color: var(--c); }
+.meta-mix-chip em { font-style: normal; font-size: 10px; color: var(--meta-faint); }
+.meta-mix-chip em.good { color: var(--meta-win); }
+.meta-mix-chip em.bad { color: var(--meta-loss); }
+
+/* Segmented "Top 10 · 25 · 50 · Alle" switch in a card head */
+.meta-card-tools { display: inline-flex; align-items: center; gap: 8px; }
+.meta-seg { display: inline-flex; align-items: center; gap: 1px; padding: 2px; border-radius: 999px; background: var(--meta-panel-2); font-size: 11px; }
+.meta-seg-l { padding: 0 4px 0 6px; color: var(--meta-faint); }
+.meta-seg button { padding: 1px 8px; border-radius: 999px; color: var(--meta-muted); font-variant-numeric: tabular-nums; }
+.meta-seg button:hover { color: var(--meta-fg); }
+.meta-seg button.on { background: var(--meta-accent); color: #fff; }
 .meta-kpi .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .meta-kpi .v.up { color: var(--meta-win); }
 .meta-kpi .v.down, .meta-kpi .v.bad { color: #ef6b5e; }

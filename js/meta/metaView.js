@@ -6,7 +6,8 @@
 
 import { timeClassStyle } from '../timeClassStyle.js';
 import { flagHtml, countryName } from '../ui/playerLabel.js';
-import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE } from './metaRecords.js';
+import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne } from './metaRecords.js';
+import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { pieceUrl } from './openingBoard.js';
 
 export const META_TABS = [
@@ -40,7 +41,6 @@ const avg = (rs, f) => {
   const v = rs.map(f).filter((x) => x != null && Number.isFinite(x));
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 };
-const sum = (rs, f) => rs.reduce((a, r) => a + (f(r) ?? 0), 0);
 const pc = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 const f1 = (x) => (x == null ? '–' : x.toFixed(1).replace('.', ','));
 const f0 = (x) => (x == null ? '–' : String(Math.round(x)));
@@ -126,17 +126,21 @@ function cardIcon(title) {
     : `<span class="meta-card-icon" aria-hidden="true">${icon}</span>`;
 }
 
-function card(title, src, body, { cls = 'w6', note = '' } = {}) {
+/** head: extra controls right of the title, before the badge (e.g. limitPicker). */
+function card(title, src, body, { cls = 'w6', note = '', head = '' } = {}) {
   const badge = src ? `<span class="meta-src ${src}">${src === 'fast' ? 'ohne Engine' : 'Engine'}</span>` : '';
-  return `<section class="meta-card ${cls}"><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${badge}</div>${body}${
+  const right = head ? `<span class="meta-card-tools">${head}${badge}</span>` : badge;
+  return `<section class="meta-card ${cls}"><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${right}</div>${body}${
     note ? `<p class="meta-note">${note}</p>` : ''
   }</section>`;
 }
 
 const EMPTY = '<p class="meta-muted">Keine Partien für diese Filter.</p>';
 
-function kpi(label, value, detail = '', cls = '') {
-  return `<div class="meta-kpi"><span class="l">${label}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
+/** A stat tile. accent: its color (top edge and a soft glow), any CSS color. */
+function kpi(label, value, detail = '', cls = '', accent = '') {
+  const style = accent ? ` style="--kpi-accent:${accent}"` : '';
+  return `<div class="meta-kpi"${style}><span class="l">${label}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
 }
 
 /** bigStats labels as "<b>Title</b> / (detail)" - the part before " (" bold, the bracket on its own line. */
@@ -232,8 +236,15 @@ function columns(bins, { color = 'var(--meta-s1)', H = 170 } = {}) {
   return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
 }
 
+/** Rating of a game that actually counted for it - unrated games (e.g. against
+ *  Chess.com's coach bots) carry placeholder ratings that would distort every
+ *  rating-based stat. Coach games (Coach-Dante, Coach-Nadia, ...) are also
+ *  dropped by name, in case one ever comes without rated: false. */
+const isCoachGame = (r) => /^coach-/i.test(r.opponent);
+const hasRealRating = (r) => r.rated && !isCoachGame(r) && r.ownRating != null;
+
 function ratingChart(rs) {
-  const series = TC_ORDER.map((tc) => [tc, rs.filter((r) => r.timeClass === tc && r.ownRating != null)]).filter(([, l]) => l.length >= 2);
+  const series = TC_ORDER.map((tc) => [tc, rs.filter((r) => r.timeClass === tc && hasRealRating(r))]).filter(([, l]) => l.length >= 2);
   if (!series.length) return '<p class="meta-muted">Zu wenige Partien mit Wertung.</p>';
   const all = series.flatMap(([, l]) => l);
   const W = 640;
@@ -290,6 +301,16 @@ function longestStreak(rs, result) {
   return best;
 }
 
+/** A tile with the first 5 games of an already-sorted list - a row opens the game. */
+function topGamesTile(label, sorted, accent, detail = '') {
+  const rows = sorted.slice(0, 5).map((r, i) => {
+    const style = timeClassStyle(r.timeClass);
+    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r"><b>${r.moves}</b> Zg.</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.emoji} ${esc(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+  });
+  const body = rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
+  return `<div class="meta-kpi list" style="--kpi-accent:${accent}"><span class="l">${label}${detail ? ` <span class="meta-faint">· ${detail}</span>` : ''}</span>${body}</div>`;
+}
+
 /** "Basis: 180 von 220 Partien" under engine cards when not every game is analyzed yet. */
 function coverageNote(ctx, withEngine, total) {
   if (withEngine === total) return '';
@@ -309,18 +330,23 @@ function overview(rs, ctx) {
   const c = wdl(rs);
   const chrono = [...rs].sort((a, b) => a.endTime - b.endTime);
   const withEngine = rs.filter((r) => ctx.engineOf(r));
-  const [mainTc, mainList] = [...groupBy(chrono.filter((r) => r.ownRating != null), (r) => r.timeClass)].sort(byCountDesc)[0] ?? [];
-  let ratingKpi = kpi('Wertung', '–');
+  const [mainTc, mainList] = [...groupBy(chrono.filter(hasRealRating), (r) => r.timeClass)].sort(byCountDesc)[0] ?? [];
+  let ratingKpi = kpi('📈 Wertung', '–', '', '', 'var(--meta-s1)');
   if (mainList?.length) {
     const delta = mainList[mainList.length - 1].ownRating - mainList[0].ownRating;
-    ratingKpi = kpi(`Wertung ${TC_LABEL[mainTc] ?? mainTc}`, `${delta >= 0 ? '+' : ''}${delta}`, `${mainList[0].ownRating} → ${mainList[mainList.length - 1].ownRating}`, delta >= 0 ? 'up' : 'down');
+    ratingKpi = kpi(`📈 Wertung ${TC_LABEL[mainTc] ?? mainTc}`, `${delta >= 0 ? '+' : ''}${delta}`, `${mainList[0].ownRating} → ${mainList[mainList.length - 1].ownRating}`, delta >= 0 ? 'up' : 'down', delta >= 0 ? 'var(--meta-win)' : 'var(--meta-loss)');
   }
+  const wdlDetail = `<span class="meta-wdl-nums"><b class="w">${c.W} S</b><b class="d">${c.D} R</b><b class="l">${c.L} N</b></span>${wdlBar(rs)}`;
   const kpis = `<div class="meta-kpis">
-    ${kpi('Partien', rs.length, `${c.W} S · ${c.D} R · ${c.L} N`)}
-    ${kpi('Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½')}
-    ${kpi('Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte')}
+    ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
+    ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
+    ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${ratingKpi}
-    ${kpi('Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge')}
+    ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
+  </div>
+  <div class="meta-kpis wide">
+    ${topGamesTile('📏 Längste Partien', [...rs].sort((a, b) => b.moves - a.moves || b.endTime - a.endTime), 'var(--meta-s1)')}
+    ${topGamesTile('⚡ Kürzeste Matt-Partien', rs.filter((r) => r.termination === 'checkmate').sort((a, b) => a.moves - b.moves || b.endTime - a.endTime), '#e66767', 'nur Schachmatt, keine Aufgabe oder Zeit')}
   </div>`;
   const row = (label, list) =>
     list.length
@@ -332,7 +358,7 @@ function overview(rs, ctx) {
   return kpis + `<div class="meta-grid">
     ${card('Sieg, Remis, Niederlage', 'fast', donut(rs), { cls: 'w4' })}
     ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`, { cls: 'w8' })}
-    ${card('Wertungsverlauf', 'fast', ratingChart(rs), { cls: 'w12', note: 'Jeder Punkt ist eine Partie, Wertung laut Chess.com nach der Partie.' })}
+    ${card('Wertungsverlauf', 'fast', ratingChart(rs), { cls: 'w12', note: 'Jeder Punkt ist eine Partie, Wertung laut Chess.com nach der Partie. Ungewertete Partien (z. B. gegen Bots) zählen nicht.' })}
   </div>`;
 }
 
@@ -405,6 +431,17 @@ function openings(rs, ctx) {
   </div>`;
 }
 
+const COUNTRY_LIMITS = [10, 25, 50, 0];
+
+/** Segmented "Top 10 · 25 · 50 · Alle" switch for the country cards - metaController handles data-country-limit. */
+function limitPicker(current) {
+  const btns = COUNTRY_LIMITS.map((n) => {
+    const on = n === current;
+    return `<button type="button" class="${on ? 'on' : ''}" data-country-limit="${n}" aria-pressed="${on}" title="${n ? `Top ${n} Länder zeigen` : 'Alle Länder zeigen'}">${n || 'Alle'}</button>`;
+  });
+  return `<span class="meta-seg" role="group" aria-label="Anzahl Länder"><span class="meta-seg-l">Top</span>${btns.join('')}</span>`;
+}
+
 function opponents(rs, ctx) {
   if (!rs.length) return card('Gegner', '', EMPTY, { cls: 'w12' });
   let h2h = '';
@@ -431,19 +468,16 @@ function opponents(rs, ctx) {
   const known = rs.filter((r) => countryOf(r));
   const countries = [...groupBy(known, countryOf)].sort(byCountDesc);
   const countryLabel = (code) => `${flag(code)} ${esc(countryName(code))}`;
-  // "Quote nach Land" lists every country - only past 45 does it drop the
-  // ones with fewer than 3 games. The list on the left is never shorter than
-  // that table, and at least 12 long.
-  const minGames = countries.length > 45 ? 3 : 1;
-  const rankedCountries = countries.filter(([, l]) => l.length >= minGames).length;
-  const countryRows = countries.slice(0, Math.max(12, rankedCountries)).map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
+  // Both country cards show the top ctx.countryLimit countries by game count
+  // (0 = all) - the table then sorts just those.
+  const topCountries = ctx.countryLimit ? countries.slice(0, ctx.countryLimit) : countries;
+  const countryRows = topCountries.map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
+  const limitNote = countries.length > topCountries.length ? `Top ${topCountries.length} von ${countries.length} Ländern nach Anzahl Partien.` : `Alle ${countries.length} Länder.`;
   const pendingNote = pending ? `Länder werden noch geladen (${ctx.countriesDone} von ${ctx.countriesTotal} Gegnern).` : 'Land aus dem Chess.com-Profil des Gegners.';
   const cSort = ctx.sorts.countries;
   const countryTable = `<div class="meta-tbl"><table><thead><tr><th>Land</th>${sortHead('countries', cSort, 'games', 'Partien', 'r')}<th class="wide">Ergebnis</th>${sortHead('countries', cSort, 'score', 'Quote', 'r')}</tr></thead><tbody>
     ${sortRows(
-      countries
-        .filter(([, l]) => l.length >= minGames)
-        .map(([code, l]) => ({ code, l, v: cSort.key === 'games' ? l.length : score(l) })),
+      topCountries.map(([code, l]) => ({ code, l, v: cSort.key === 'games' ? l.length : score(l) })),
       cSort.dir
     )
       .map((x) => `<tr><td>${countryLabel(x.code)}</td><td class="r">${gamesCount(x.l)}</td><td>${wdlBar(x.l)}</td><td class="r">${pc(score(x.l))}</td></tr>`)
@@ -461,7 +495,7 @@ function opponents(rs, ctx) {
     </tbody></table></div>`;
 
   const buckets = [['≥ 150 schwächer', -Infinity, -150], ['50–150 schwächer', -150, -50], ['etwa gleich (±50)', -50, 50], ['50–150 stärker', 50, 150], ['≥ 150 stärker', 150, Infinity]];
-  const rated = rs.filter((r) => r.ownRating != null && r.oppRating != null);
+  const rated = rs.filter((r) => hasRealRating(r) && r.oppRating != null);
   const diffRows = buckets
     .map(([label, a, b]) => {
       const l = rated.filter((r) => r.oppRating - r.ownRating >= a && r.oppRating - r.ownRating < b);
@@ -474,11 +508,48 @@ function opponents(rs, ctx) {
     .join('');
 
   return `<div class="meta-grid">${h2h}
-    ${card('Woher kommen deine Gegner?', 'fast', countries.length ? hbars(countryRows) : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: pendingNote })}
-    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: minGames > 1 ? 'Länder mit mindestens 3 Partien.' : '' })}
+    ${card('Woher kommen deine Gegner?', 'fast', countries.length ? hbars(countryRows) : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: `${countries.length ? `${limitNote} ` : ''}${pendingNote}`, head: limitPicker(ctx.countryLimit) })}
+    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: countries.length ? limitNote : '', head: limitPicker(ctx.countryLimit) })}
     ${card('Häufigste Gegner', 'fast', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
-    ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis.' })}
+    ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis. Nur gewertete Partien.' })}
   </div>`;
+}
+
+// Move categories in the "Zugqualität" tile, best to worst - all but BRILLIANT.
+const MIX_CATEGORIES = CATEGORY_ORDER.filter((id) => id !== 'BRILLIANT');
+const MIX_GOOD = new Set(['GREAT', 'BEST', 'EXCELLENT', 'GOOD']);
+const MIX_BAD = new Set(['INACCURACY', 'MISTAKE', 'MISS', 'BLUNDER']);
+
+/** Share of each move category in all moves played, yours vs. the opponents' -
+ *  a 100 % stacked bar each, plus a chip per category with your share. */
+function categoryMix(es, E) {
+  const totals = (key) => {
+    const t = Object.fromEntries(CATEGORY_ORDER.map((id) => [id, 0]));
+    for (const r of es) for (const [id, n] of Object.entries(E(r)[key] ?? {})) if (id in t) t[id] += n;
+    return { t, n: Object.values(t).reduce((a, b) => a + b, 0) };
+  };
+  const own = totals('counts');
+  const opp = totals('oppCounts');
+  const share = (side, id) => (side.n ? side.t[id] / side.n : 0);
+  const fmt = (x) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
+  const bar = (side, who) =>
+    `<div class="meta-mix-bar">${MIX_CATEGORIES.map((id) => {
+      const s = share(side, id);
+      return s ? `<i style="width:${s * 100}%;background:${CATEGORIES[id].color}" data-tip="${who} · ${CATEGORIES[id].label}: ${fmt(s)} (${side.t[id]} von ${side.n} Zügen)"></i>` : '';
+    }).join('')}</div>`;
+  const chips = MIX_CATEGORIES.map((id) => {
+    const s = share(own, id);
+    const diff = s - share(opp, id);
+    // Green when the difference is in your favor (more good moves, fewer bad ones), neutral for book/forced moves.
+    const verdict = MIX_GOOD.has(id) ? Math.sign(diff) : MIX_BAD.has(id) ? -Math.sign(diff) : 0;
+    const arrow = Math.abs(diff) < 0.0005 ? '' : `<em class="${verdict > 0 ? 'good' : verdict < 0 ? 'bad' : ''}">${diff > 0 ? '▲' : '▼'}</em>`;
+    return `<div class="meta-mix-chip" style="--c:${CATEGORIES[id].color}" data-tip="${CATEGORIES[id].label}: ${fmt(s)} deiner Züge (${own.t[id]} von ${own.n})\nGegner: ${fmt(share(opp, id))}">
+      <img src="${CATEGORIES[id].icon}" alt=""><span class="k">${CATEGORIES[id].label}</span><b>${fmt(s)}</b>${arrow}</div>`;
+  }).join('');
+  return `<div class="meta-kpi mix" style="--kpi-accent:#86b54c"><span class="l">🧩 Zugqualität · Anteil an allen ${own.n} gespielten Zügen</span>
+    <div class="meta-mix-rows"><span class="meta-muted">Du</span>${bar(own, 'Du')}<span class="meta-muted">Gegner</span>${bar(opp, 'Gegner')}</div>
+    <div class="meta-mix-chips">${chips}</div>
+    <span class="d">▲ / ▼: höherer / niedrigerer Anteil als bei deinen Gegnern. Brilliant-Züge zählen hier nicht mit.</span></div>`;
 }
 
 function quality(rs, ctx) {
@@ -486,13 +557,10 @@ function quality(rs, ctx) {
   const es = rs.filter((r) => ctx.engineOf(r));
   if (!es.length) return `<div class="meta-grid">${noEngineCard(ctx)}</div>`;
   const E = (r) => ctx.engineOf(r);
-  const count = (id) => (r) => E(r).counts[id] ?? 0;
   const note = coverageNote(ctx, es.length, rs.length);
-  const kpis = `<div class="meta-kpis">
-    ${kpi('Ø Genauigkeit', f1(avg(es, (r) => E(r).accuracy)), `Gegner ${f1(avg(es, (r) => E(r).oppAccuracy))}`)}
-    ${kpi('Patzer pro Partie', f1(avg(es, count('BLUNDER'))), `${sum(es, count('BLUNDER'))} insgesamt`, 'bad')}
-    ${kpi('Fehler pro Partie', f1(avg(es, count('MISTAKE'))), `Verpasst ${f1(avg(es, count('MISS')))} · Ungenau ${f1(avg(es, count('INACCURACY')))}`)}
-    ${kpi('Brillant / Großartig', `${sum(es, count('BRILLIANT'))} / ${sum(es, count('GREAT'))}`, `in ${es.length} Partien`)}
+  const kpis = `<div class="meta-kpis quality">
+    ${kpi('🧠 Ø Genauigkeit', f1(avg(es, (r) => E(r).accuracy)), `Gegner ${f1(avg(es, (r) => E(r).oppAccuracy))}`, '', '#4bc2a3')}
+    ${categoryMix(es, E)}
   </div>`;
 
   const accs = es.map((r) => E(r).accuracy).filter((x) => x != null);
@@ -527,11 +595,15 @@ function quality(rs, ctx) {
   const winning = es.filter((r) => E(r).maxCp >= 300);
   const converted = winning.filter((r) => r.result === 'W');
   const saved = es.filter((r) => E(r).minCp <= -300 && r.result !== 'L');
-  const thrown = es.filter((r) => E(r).maxCp >= 300 && r.result === 'L');
-  const thrownBig = thrown.filter((r) => E(r).maxCp >= 900);
-  const turned = es.filter((r) => E(r).minCp <= -300 && r.result === 'W');
-  const turnedBig = turned.filter((r) => E(r).minCp <= -900);
   // From the moves alone (no engine), so over all games, not just analyzed ones.
+  const thrown = rs.filter((r) => r.maxMaterial >= 3 && r.result === 'L');
+  const thrownBig = thrown.filter((r) => r.maxMaterial >= 9);
+  const turned = rs.filter((r) => r.minMaterial <= -3 && r.result === 'W');
+  const turnedBig = turned.filter((r) => r.minMaterial <= -9);
+  const m1 = es.map((r) => ({ r, m: mateInOne(E(r), r) })).filter((x) => x.m);
+  const m1Chances = m1.reduce((a, x) => a + x.m.chances, 0);
+  const m1Missed = m1.filter((x) => x.m.missed);
+  const m1MissedCount = m1Missed.reduce((a, x) => a + x.m.missed, 0);
   const blownLead = recordGames(rs.filter((r) => r.result === 'L' && r.maxMaterial > 0), 'maxMaterial', true);
   const comeback = recordGames(rs.filter((r) => r.result === 'W' && r.minMaterial < 0), 'minMaterial', false);
   const clockBlunders = es.filter((r) => r.initialClock).flatMap((r) => E(r).blunders);
@@ -542,15 +614,16 @@ function quality(rs, ctx) {
     ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
     ${card('Verwertung', 'eng', bigStats(headedLabels([
       [pc(winning.length ? converted.length / winning.length : null), `Gewinnstellungen verwertet (${converted.length} von ${winning.length})`],
-      [gamesCount(thrown), 'Siege verschenkt (von +3 noch verloren)'],
-      [gamesCount(thrownBig), 'Must-Wins verschenkt (von +9 noch verloren)'],
+      [gamesCount(thrown), 'Siege verschenkt (mit +3 Material-Vorsprung noch verloren)'],
+      [gamesCount(thrownBig), 'Must-Wins verschenkt (mit +9 Material-Vorsprung noch verloren)'],
       [gamesCount(saved), 'Partien aus Verluststellung gerettet (Remis oder Sieg)'],
-      [gamesCount(turned), 'Niederlagen abgewiesen (von −3 noch gewonnen)'],
-      [gamesCount(turnedBig), 'Dem Tod von der Schippe gesprungen (von −9 noch gewonnen)'],
+      [gamesCount(turned), 'Niederlagen abgewiesen (mit −3 Material-Rückstand noch gewonnen)'],
+      [gamesCount(turnedBig), 'Dem Tod von der Schippe gesprungen (mit −9 Material-Rückstand noch gewonnen)'],
+      [gamesCount(m1Missed.map((x) => x.r), String(m1MissedCount)), `Matt in 1 nicht verwertet (von ${m1Chances} M1-Chancen${m1Chances ? `, ${pc(m1MissedCount / m1Chances)}` : ''})`],
       [gamesCount(blownLead.games, signed(blownLead.value)), 'Größter verspielter Vorsprung (Material, und doch verloren)'],
       [gamesCount(comeback.games, signed(comeback.value)), 'Größte Aufholjagd (Material, und doch gewonnen)'],
       [pc(clockBlunders.length ? tt / clockBlunders.length : null), 'der Patzer in Zeitnot (unter 10 % Restzeit)'],
-    ])), { cls: 'w12', note: '„Gewinnstellung“: Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Ein erzwungenes Matt zählt als mehr als ±9. Die ±9-Werte sind jeweils ein Teil der ±3-Werte. Vorsprung und Aufholjagd: Materialbilanz in Bauerneinheiten (Bauer 1, Springer/Läufer 3, Turm 5, Dame 9), die mindestens einen Gegenzug lang bestand – aus allen Partien, auch ohne Engine.' })}
+    ])), { cls: 'w12', note: '„Gewinnstellung“: Engine-Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Verschenkte Siege, abgewiesene Niederlagen, Vorsprung und Aufholjagd: Materialbilanz in Bauerneinheiten (Bauer 1, Springer/Läufer 3, Turm 5, Dame 9), die mindestens einen Gegenzug lang bestand – aus allen Partien, auch ohne Engine. Die ±9-Werte sind jeweils ein Teil der ±3-Werte. Matt in 1: Stellungen, in denen die Engine ein Matt in einem Zug fand, du aber anders gezogen hast.' })}
     ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
     ${card('Mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
   </div>`;

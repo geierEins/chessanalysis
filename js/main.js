@@ -262,7 +262,12 @@ const fetchGamesBtn = el('fetch-games-btn');
 const fetchGamesBtnSpinner = el('fetch-games-btn-spinner');
 const fetchGamesBtnLabel = el('fetch-games-btn-label');
 const fetchGamesBtnFill = el('fetch-games-btn-fill');
-const gameSelect = new CustomSelect({ buttonId: 'game-btn', labelId: 'game-btn-label', menuId: 'game-menu' });
+const gameSelect = new CustomSelect({
+  buttonId: 'game-btn',
+  labelId: 'game-btn-label',
+  menuId: 'game-menu',
+  onChange: () => analyzeSelectedGame(),
+});
 gameSelect.setOptions([{ value: '', label: 'Erst Benutzername laden…' }]);
 gameSelect.disabled = true;
 const analyzeToggleBtn = el('analyze-toggle-btn');
@@ -270,6 +275,7 @@ const analyzeToggleBtnIcon = el('analyze-toggle-btn-icon');
 const analyzeToggleBtnCancelIcon = el('analyze-toggle-btn-cancel-icon');
 const analyzeToggleBtnSpinner = el('analyze-toggle-btn-spinner');
 const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
+const analyzeToggleBtnPct = el('analyze-toggle-btn-pct');
 // The one engine setting the app analyzes with - the same as the GitHub job
 // (scripts/auto-analysis/config.json), so every stored analysis matches it.
 // Shown as the fixed #engine-label in the top bar. slug: how the engine
@@ -1066,7 +1072,7 @@ usernameInput.addEventListener('keydown', (e) => {
 /** Toggles #analyze-toggle-btn between its two states in place (same
  *  element, same position in the row - not two separately shown/hidden
  *  buttons) - green-gradient magnifying-glass icon when idle (css/styles.css's
- *  .analyze-btn-ready), red X icon + spinner + progress fill while running -
+ *  .analyze-btn-ready), red X icon + progress fill + percentage while running -
  *  the same loading visualization #fetch-games-btn uses, so the row's own
  *  width never shifts the way the old "Analysiere Zug X von Y" text did. */
 function setAnalyzing(analyzing) {
@@ -1074,11 +1080,19 @@ function setAnalyzing(analyzing) {
   analyzeToggleBtnIcon.classList.toggle('hidden', analyzing);
   analyzeToggleBtnCancelIcon.classList.toggle('hidden', !analyzing);
   analyzeToggleBtnSpinner.classList.toggle('hidden', !analyzing);
-  analyzeToggleBtnFill.style.width = '0%';
+  analyzeToggleBtnPct.classList.toggle('hidden', !analyzing);
+  setAnalyzeProgress(null);
   analyzeToggleBtn.title = analyzing ? 'Analyse abbrechen' : 'Ausgewähltes Spiel analysieren';
   analyzeToggleBtn.classList.toggle('analyze-btn-ready', !analyzing);
   analyzeToggleBtn.classList.toggle('bg-red-600', analyzing);
   analyzeToggleBtn.classList.toggle('hover:bg-red-500', analyzing);
+}
+
+/** The running analysis' progress on #analyze-toggle-btn: fill + "37%", or
+ *  "…" (null) while nothing is measurable yet, e.g. the engine still loading. */
+function setAnalyzeProgress(fraction) {
+  analyzeToggleBtnFill.style.width = `${Math.round((fraction ?? 0) * 100)}%`;
+  analyzeToggleBtnPct.textContent = fraction == null ? '…' : `${Math.round(fraction * 100)}%`;
 }
 
 analyzeToggleBtn.addEventListener('click', () => {
@@ -1089,9 +1103,24 @@ analyzeToggleBtn.addEventListener('click', () => {
   if (isAnalyzing) {
     cancelAnalysis();
   } else {
-    startAnalysis();
+    analysisRun = startAnalysis();
   }
 });
+
+let analysisRun = null; // startAnalysis()'s promise - settles once a cancelled run has fully unwound
+let selectionToken = 0;
+
+/** Picking a game in the game picker analyzes it right away (instantly from a
+ *  stored analysis) - a run still going for the previous pick is cancelled first. */
+async function analyzeSelectedGame() {
+  const token = ++selectionToken;
+  if (isAnalyzing) {
+    cancelAnalysis();
+    await analysisRun;
+  }
+  if (token !== selectionToken || isAnalyzing) return; // a newer pick took over
+  analysisRun = startAnalysis();
+}
 
 async function startAnalysis() {
   const index = Number(gameSelect.value);
@@ -1134,9 +1163,7 @@ async function startAnalysis() {
       result = await analyzeGame(game.pgn, recorder, {
         depth: settings.depth,
         avgRating,
-        onProgress: (done, total) => {
-          analyzeToggleBtnFill.style.width = `${Math.round((done / total) * 100)}%`;
-        },
+        onProgress: (done, total) => setAnalyzeProgress(done / total),
       });
       saveManualAnalysis(game, result, String(recorder), settings);
     }
@@ -1983,9 +2010,7 @@ meta = initMetaMode({
     if (busy) analyzeToggleBtn.title = 'Meta-Analyse abbrechen';
     else updateAnalyzeButtonForMode();
   },
-  setRunProgress: (fraction) => {
-    analyzeToggleBtnFill.style.width = `${Math.round(fraction * 100)}%`;
-  },
+  setRunProgress: (fraction) => setAnalyzeProgress(fraction),
   onCoverageChange: () => updateAnalyzeButtonForMode(),
 });
 
@@ -2021,7 +2046,7 @@ async function openDeepLinkedGame({ user, game, end }) {
     gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
     refreshAnalyzedMarkers();
-    startAnalysis();
+    analysisRun = startAnalysis();
   } catch (err) {
     showToast(err.message ?? 'Die Partie konnte nicht geladen werden.', 'error');
   }

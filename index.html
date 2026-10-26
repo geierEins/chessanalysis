@@ -247,7 +247,7 @@
            shrinks the row's own width as "Analysiere Zug X von Y" changes. -->
       <button id="analyze-toggle-btn" disabled title="Ausgewähltes Spiel analysieren"
               class="relative overflow-hidden analyze-btn-ready disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded px-4 py-1 text-xs font-medium gap-1.5">
-        <span id="analyze-toggle-btn-fill" class="absolute inset-y-0 left-0 z-0 bg-white/25" style="width:0%"></span>
+        <span id="analyze-toggle-btn-fill" class="absolute inset-y-0 left-0 z-0 bg-white/35 transition-[width] duration-300" style="width:0%"></span>
         <svg id="analyze-toggle-btn-icon" class="relative z-10" width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="white" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
           <circle cx="10" cy="10" r="7"></circle>
@@ -259,6 +259,7 @@
           <line x1="19" y1="5" x2="5" y2="19"></line>
         </svg>
         <span id="analyze-toggle-btn-spinner" class="relative z-10 btn-spinner hidden"></span>
+        <span id="analyze-toggle-btn-pct" class="relative z-10 hidden tabular-nums"></span>
       </button>
 
       <!-- Kleine Optionen (js/ui/settingsPanel.js) - schwebendes Popover statt

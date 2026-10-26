@@ -15,6 +15,7 @@ const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
 const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
 const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
+const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
 
 /** Wrapped so a private-browsing/blocked-storage exception never breaks the
  *  app - these are conveniences, not required state. */
@@ -169,4 +170,16 @@ export function loadColorFilter() {
 /** @param {string[]} values */
 export function saveColorFilter(values) {
   safeSet(COLOR_FILTER_KEY, JSON.stringify(values));
+}
+
+/** @returns {number|null} how many countries the Meta-Analyse's country cards list (0 = all) */
+export function loadCountryLimit() {
+  const raw = safeGet(COUNTRY_LIMIT_KEY);
+  const n = raw == null ? NaN : Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+/** @param {number} limit */
+export function saveCountryLimit(limit) {
+  safeSet(COUNTRY_LIMIT_KEY, String(limit));
 }

@@ -16,7 +16,7 @@ import { META_TABS, renderMetaTab, gameListHtml } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
-import { loadMetaTab, saveMetaTab } from '../persistence.js';
+import { loadMetaTab, saveMetaTab, loadCountryLimit, saveCountryLimit } from '../persistence.js';
 
 const FILE_FORMAT = 'chessanalysis-meta';
 const FILE_VERSION = 1;
@@ -82,7 +82,9 @@ export function initMetaMode(host) {
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
   // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land.
-  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' } };  if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
+  const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' } };
+  if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
+  let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   let run = null; // the running analysis, see startRun()
   let engine = null;
   let engineLoadedId = null;
@@ -119,6 +121,7 @@ export function initMetaMode(host) {
       },
       opponent,
       sorts,
+      countryLimit,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -232,6 +235,13 @@ export function initMetaMode(host) {
       const { sortTable, sort: key } = sortTh.dataset;
       const current = sorts[sortTable];
       sorts[sortTable] = { key, dir: current.key === key && current.dir === 'desc' ? 'asc' : 'desc' };
+      render();
+      return;
+    }
+    const limitBtn = e.target.closest('[data-country-limit]');
+    if (limitBtn) {
+      countryLimit = Number(limitBtn.dataset.countryLimit);
+      saveCountryLimit(countryLimit);
       render();
       return;
     }

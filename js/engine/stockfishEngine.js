@@ -41,9 +41,11 @@ export class StockfishEngine {
     this.#worker = new Worker(new URL(engine.path, import.meta.url));
 
     await new Promise((resolve, reject) => {
+      // Generous: this includes downloading the engine - ~99 MB for sf19full,
+      // which on a slow connection easily takes longer than the old 20 s.
       const timeout = setTimeout(
-        () => reject(new Error('Engine-Initialisierung: Zeitüberschreitung (20s)')),
-        20000
+        () => reject(new Error('Engine-Initialisierung: Zeitüberschreitung (3 min)')),
+        180000
       );
 
       const onMessage = (e) => {

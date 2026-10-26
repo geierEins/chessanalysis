@@ -160,6 +160,8 @@ export function buildFastRecord(raw, username) {
     ownClockEnd: initialClock ? ownClockEnd : null,
     maxMaterial: material.max,
     minMaterial: material.min,
+    firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
+    endsInMate: Boolean(sans[sans.length - 1]?.endsWith('#')),
     raw: slimRawGame(raw),
     summary: summarizeGame(raw),
   };
@@ -241,4 +243,33 @@ export function buildEngineRecord(analysis, color, initialClock) {
     minCp,
     blunders,
   };
+}
+
+const mateInOneCache = new WeakMap(); // engine record -> mateInOne() result
+
+/**
+ * The user's mate-in-1 chances and how many of them weren't played, read from
+ * the engine record's per-move log (js/analysis/evalLog.js): entry i is the
+ * engine's answer for the position before ply i, scored for the side to move,
+ * so "#1" there means the mover had a mate in one. Only the game's last move
+ * can actually be mate, so any other chance was missed.
+ * @param {object} engineRec buildEngineRecord() + `evals`
+ * @param {object} r the game's fast record
+ * @returns {{chances: number, missed: number}|null} null without a log
+ */
+export function mateInOne(engineRec, r) {
+  if (!engineRec?.evals) return null;
+  if (mateInOneCache.has(engineRec)) return mateInOneCache.get(engineRec);
+  const entries = engineRec.evals.split(',');
+  const ownParity = r.color === r.firstMover ? 0 : 1;
+  let chances = 0;
+  let missed = 0;
+  for (let i = ownParity; i < Math.min(entries.length, r.plies); i += 2) {
+    if (entries[i].split(' ')[1] !== '#1') continue;
+    chances++;
+    if (!(i === r.plies - 1 && r.endsInMate)) missed++;
+  }
+  const result = { chances, missed };
+  mateInOneCache.set(engineRec, result);
+  return result;
 }

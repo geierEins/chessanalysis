@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
-import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily } from '../js/meta/metaRecords.js';
+import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne } from '../js/meta/metaRecords.js';
 import { openingLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -140,5 +140,25 @@ describe('openingBook: openingLine', () => {
   test('unknown names give null', () => {
     expectEqual(openingLine('Not An Opening'), null);
     expectEqual(openingLine(null), null);
+  });
+});
+
+describe('metaRecords: mateInOne', () => {
+  // Scholar's mate log: White "has" a mate in one before ply 5 (made up) and
+  // before ply 7, where Qxf7# is played; Black's #1 (ply 6) is not White's.
+  const evals = 'e2e4 30 20,e7e5 -30 -40,f1c4 30 20,b8c6 -30 -40,d1h5 #1 50,g8f6 #1 -40,h5f7 #1 400';
+
+  test('a played mate is a used chance, any other one is missed', () => {
+    const r = buildFastRecord(rawGame(), 'alice');
+    expectEqual(JSON.stringify(mateInOne({ evals }, r)), JSON.stringify({ chances: 2, missed: 1 }));
+  });
+
+  test("only the user's own moves count", () => {
+    const r = buildFastRecord(rawGame(), 'bob');
+    expectEqual(JSON.stringify(mateInOne({ evals }, r)), JSON.stringify({ chances: 1, missed: 1 }));
+  });
+
+  test('no engine log gives null', () => {
+    expectEqual(mateInOne({}, buildFastRecord(rawGame(), 'alice')), null);
   });
 });
