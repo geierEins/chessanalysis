@@ -256,6 +256,8 @@ html {
   white-space: nowrap;
 }
 
+.settings-row.hidden { display: none; }
+
 .settings-label {
   color: #d4d4d4;
 }

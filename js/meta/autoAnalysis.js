@@ -1,7 +1,7 @@
 // Analyses from the scheduled GitHub job (scripts/auto-analysis/): one master
-// file per player in the repo, in the Meta-Analyse export format, read
+// file per player in the repo ('chessanalysis-meta' format), read
 // straight from GitHub (the Netlify site is deployed separately and never
-// has them). Merged into the browser's IndexedDB like an import, so the
+// has them). Merged into the browser's IndexedDB, so the
 // Meta-Analyse and the single-game mode both only ever look there.
 
 import { loadEngineRecords, saveEngineRecords } from './metaStore.js';

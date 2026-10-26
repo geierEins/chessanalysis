@@ -278,9 +278,8 @@ const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
 const analyzeToggleBtnPct = el('analyze-toggle-btn-pct');
 // The one engine setting the app analyzes with - the same as the GitHub job
 // (scripts/auto-analysis/config.json), so every stored analysis matches it.
-// Shown as the fixed #engine-label in the top bar. slug: how the engine
-// appears in an exported Meta-Analyse's file name.
-const ENGINE = { engineId: 'sf19full', depth: 16, label: 'Stockfish 19 Full · Tiefe 16', slug: 'sf19-full' };
+// Shown as the fixed #engine-label in the top bar.
+const ENGINE = { engineId: 'sf19full', depth: 16, label: 'Stockfish 19 Full · Tiefe 16' };
 
 /** The engine + depth (also the Meta-Analyse's host.getEngineSettings). */
 function engineSettings() {
@@ -1937,6 +1936,9 @@ function applyAppMode() {
   // Board color and piece style only matter next to a board.
   el('board-theme-picker').classList.toggle('hidden', isMeta);
   el('piece-theme-picker').classList.toggle('hidden', isMeta);
+  // Same for the gear menu's board sounds and best-move arrow.
+  el('settings-sound-row').classList.toggle('hidden', isMeta);
+  el('settings-best-move-row').classList.toggle('hidden', isMeta);
   meta.setActive(isMeta);
   if (isMeta) {
     reviewPanel.classList.add('hidden');
@@ -1976,33 +1978,6 @@ meta = initMetaMode({
     colors: selectedColors,
   }),
   getEngineSettings: engineSettings,
-  /** After an import: widen every top-bar filter so all imported games show -
-   *  time range set to exactly the file's span, every type/color/outcome on. */
-  showAllGames: (fromMs, toMs) => {
-    const isoDay = (ms) => {
-      const d = new Date(ms);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-    customDateFromEl.value = isoDay(fromMs);
-    customDateToEl.value = isoDay(toMs);
-    if (timeRangeSelect.value !== 'custom') timeRangeSelect.select('custom');
-    timeRangeMenu.classList.add('hidden');
-    selectedGameTypes = new Set(GAME_TYPE_ORDER);
-    selectedColors = new Set(COLOR_ORDER);
-    selectedOutcomes = new Set(OUTCOME_ORDER);
-    saveOutcomeFilter([...selectedOutcomes]);
-    saveGameTypeFilter([...selectedGameTypes]);
-    saveColorFilter([...selectedColors]);
-    for (const cb of [...gameTypeFilterCheckboxes, ...colorFilterCheckboxes, ...outcomeFilterCheckboxes]) cb.checked = true;
-    updateGameTypeFilterButtonIcon();
-    updateColorFilterButtonIcon();
-    updateOutcomeFilterButtonIcon();
-  },
-  setUsername: (username) => {
-    usernameInput.value = username;
-    saveLastUsername(username);
-    updateUsernameAvatar(username);
-  },
   setBusy: (busy) => {
     setAnalyzing(busy);
     fetchGamesBtn.disabled = busy;
@@ -2032,7 +2007,7 @@ const settingsPanel = initSettingsPanel({
   },
 });
 
-// Restores whichever area was open last (gear menu "Bereich").
+// Restores whichever area was open last (gear menu "Modus").
 applyAppMode();
 if (deepLink) openDeepLinkedGame(deepLink);
 

@@ -11,15 +11,13 @@ import { analyzeGame } from '../analysis/gameAnalyzer.js';
 import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
 import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
-import { loadEngineRecords, saveEngineRecord, saveEngineRecords, loadCountries, saveCountries } from './metaStore.js';
+import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
 import { loadMetaTab, saveMetaTab, loadCountryLimit, saveCountryLimit } from '../persistence.js';
 
-const FILE_FORMAT = 'chessanalysis-meta';
-const FILE_VERSION = 1;
 const COUNTRY_FETCH_CONCURRENCY = 3;
 const RERENDER_EVERY_MS = 2500;
 
@@ -31,8 +29,7 @@ const yieldToUi = () => new Promise((r) => setTimeout(r, 0));
 /**
  * @param {{
  *   getFilters: () => {from: Date|null, to: Date|null, timeClasses: Set<string>, outcomes: Set<string>, colors: Set<string>},
- *   getEngineSettings: () => {engineId: string, depth: number, label: string, slug: string},
- *   setUsername: (username: string) => void,
+ *   getEngineSettings: () => {engineId: string, depth: number, label: string},
  *   setBusy: (busy: boolean) => void,
  *   setRunProgress: (fraction: number) => void,
  *   onCoverageChange: () => void,
@@ -43,9 +40,6 @@ export function initMetaMode(host) {
   const emptyEl = el('meta-empty');
   const contentEl = el('meta-content');
   const statusEl = el('meta-status-text');
-  const exportBtn = el('meta-export-btn');
-  const importBtns = [el('meta-import-btn'), el('meta-empty-import-btn')];
-  const importInput = el('meta-import-input');
   const tabsEl = el('meta-tabs');
   const tabPanelEl = el('meta-tabpanel');
   const tipEl = el('meta-tip');
@@ -173,7 +167,6 @@ export function initMetaMode(host) {
     else text += `<b>${esc(label)}</b>: ${have} von ${rs.length} mit Engine-Werten.${missing ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Alles analysiert.'}`;
     if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
     statusEl.innerHTML = text;
-    exportBtn.classList.toggle('hidden', have === 0 || Boolean(run));
   }
 
   tabsEl.addEventListener('click', (e) => {
@@ -620,124 +613,6 @@ export function initMetaMode(host) {
     const params = new URLSearchParams({ user: username, game: url, end: String(Math.round(r.endTime / 1000)) });
     window.open(`${location.pathname}?${params}`, '_blank', 'noopener');
   }
-
-  // ---------- export / import ----------
-
-  function ym(ms) {
-    const d = new Date(ms);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-
-  function exportFileName(rs) {
-    const { slug, depth } = host.getEngineSettings();
-    const clean = (s) => s.replace(/[^\w.-]+/g, '-');
-    const times = rs.map((r) => r.endTime);
-    const span = `${ym(Math.min(...times))}_bis_${ym(Math.max(...times))}`;
-    const vs = opponent ? `_vs-${clean(rs[0].opponent)}` : '';
-    return `meta-analyse_${clean(username)}_${span}${vs}_${slug}_tiefe${depth}.json`;
-  }
-
-  async function exportAnalysis() {
-    const rs = filtered();
-    const { engineId, depth, label } = host.getEngineSettings();
-    const payload = {
-      format: FILE_FORMAT,
-      version: FILE_VERSION,
-      exportedAt: new Date().toISOString(),
-      username,
-      engine: { id: engineId, depth, label },
-      games: rs.map((r) => ({ game: r.raw, engine: engineCache.get(r.url) ?? null })),
-      countries: Object.fromEntries([...new Set(rs.map((r) => r.opponent.toLowerCase()))].map((n) => [n, countries.get(n) ?? null])),
-    };
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    const name = exportFileName(rs);
-    // Chromium: a real "Speichern unter" dialog with the suggested name
-    // editable. Elsewhere: a plain download under that name.
-    if (window.showSaveFilePicker) {
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: name,
-          types: [{ description: 'Meta-Analyse', accept: { 'application/json': ['.json'] } }],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        showToast(`Gespeichert: ${handle.name}`, 'success');
-        return;
-      } catch (err) {
-        if (err?.name === 'AbortError') return;
-      }
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    showToast(`Gespeichert: ${name}`, 'success');
-  }
-
-  async function importAnalysis(file) {
-    let data;
-    try {
-      data = JSON.parse(await file.text());
-    } catch {
-      showToast('Die Datei ist kein gültiges JSON.', 'error');
-      return;
-    }
-    if (data?.format !== FILE_FORMAT || !Array.isArray(data.games) || !data.username || !data.engine?.id) {
-      showToast('Das ist keine Meta-Analyse-Datei dieser App.', 'error');
-      return;
-    }
-    if (data.version > FILE_VERSION) {
-      showToast('Die Datei stammt aus einer neueren Version der App.', 'error');
-      return;
-    }
-    const engineId = data.engine.id;
-    const depth = Number(data.engine.depth);
-    const withEngine = data.games.filter((g) => g.engine && g.game?.url);
-    await saveEngineRecords(engineId, depth, withEngine.map((g) => [g.game.url, g.engine]));
-    const countryEntries = Object.entries(data.countries ?? {});
-    for (const [k, v] of countryEntries) countries.set(k.toLowerCase(), v);
-    await saveCountries(countryEntries);
-    const rawGames = data.games.map((g) => g.game).filter(Boolean);
-    const times = rawGames.map((g) => g.end_time * 1000).filter(Number.isFinite);
-    if (!times.length) {
-      showToast('Die Datei enthält keine Partien.', 'error');
-      return;
-    }
-    host.setUsername(data.username);
-    host.showAllGames(Math.min(...times), Math.max(...times));
-    await setRecordsFrom(rawGames, data.username, null);
-    if (!records.length) {
-      showToast(`Keine Partien von ${data.username} in der Datei gefunden.`, 'error');
-      return;
-    }
-    // The app only shows its one engine setting - values from another one stay stored but hidden.
-    const current = host.getEngineSettings();
-    const hidden = current.engineId !== engineId || current.depth !== depth;
-    showToast(
-      `${records.length} Partien importiert (${withEngine.length} mit Engine-Werten${hidden ? `, aber von ${data.engine.label ?? engineId} – angezeigt werden nur Werte von ${current.label}` : ''}).`,
-      hidden ? 'info' : 'success',
-      hidden ? 6000 : undefined
-    );
-  }
-
-  exportBtn.addEventListener('click', () => {
-    exportAnalysis().catch((err) => showToast(`Export fehlgeschlagen: ${err.message ?? err}`, 'error'));
-  });
-  for (const b of importBtns) b.addEventListener('click', () => !run && importInput.click());
-  importInput.addEventListener('change', () => {
-    const file = importInput.files?.[0];
-    importInput.value = '';
-    if (file) {
-      importAnalysis(file).catch((err) => {
-        console.error('Meta import failed', err);
-        showToast(`Import fehlgeschlagen: ${err.message ?? err}`, 'error');
-      });
-    }
-  });
 
   renderTabs();
 

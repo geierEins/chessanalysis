@@ -3,9 +3,8 @@
 //
 // Files it maintains (committed to the repo; the app reads the master files
 // from raw.githubusercontent.com - see syncServerAnalysis in metaController.js):
-//  - data/<username>.json: one master file per player, in exactly the format
-//    of the Meta-Analyse export (js/meta/metaController.js), so the app can
-//    import or auto-load it unchanged;
+//  - data/<username>.json: one master file per player, in the
+//    'chessanalysis-meta' format js/meta/autoAnalysis.js loads;
 //  - data/state.json: per player, whether every game is analyzed and the
 //    ETags of the two newest monthly archives - what lets check.mjs decide
 //    "nothing new" with two tiny 304 requests per player.

@@ -315,7 +315,7 @@ function coverageNote(ctx, withEngine, total) {
 
 function noEngineCard(ctx) {
   return card('Noch keine Engine-Werte', 'eng',
-    `<p class="meta-muted">Für <b>${esc(ctx.engineLabel)}</b> ist für diese Partien noch nichts analysiert. Die Lupe oben startet die Analyse, oder eine gespeicherte Analyse importieren.</p>`,
+    `<p class="meta-muted">Für <b>${esc(ctx.engineLabel)}</b> ist für diese Partien noch nichts analysiert. Die Lupe oben startet die Analyse.</p>`,
     { cls: 'w12' });
 }
 
