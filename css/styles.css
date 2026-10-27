@@ -1,5 +1,25 @@
 :root {
   color-scheme: dark;
+  /* Site theme (gear menu "Themes", js/ui/siteTheme.js): the neutral ramp and
+     the accent as "r g b" channels, so both this file (rgb(var(--n-800))) and
+     Tailwind's neutral and blue classes (tailwind.config in index.html) follow
+     it. These defaults are "Standard" - Tailwind's own neutral and blue. */
+  --n-50: 250 250 250;
+  --n-100: 245 245 245;
+  --n-200: 229 229 229;
+  --n-300: 212 212 212;
+  --n-400: 163 163 163;
+  --n-500: 115 115 115;
+  --n-600: 82 82 82;
+  --n-700: 64 64 64;
+  --n-800: 38 38 38;
+  --n-900: 23 23 23;
+  --n-950: 10 10 10;
+  --accent-400: 96 165 250;
+  --accent-500: 59 130 246;
+  --accent-600: 37 99 235;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-body);
   --board-light: #EAE9D2;
   --board-dark: #4B7399;
   /* Overridden inline per-square by js/ui/board.js when marking a
@@ -101,7 +121,7 @@ html {
 }
 
 .board-theme-option:hover {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
 }
 
 /* Piece-theme picker (js/ui/pieceThemePicker.js) - a black knight sprite
@@ -126,7 +146,7 @@ html {
 }
 
 .piece-theme-option:hover {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
 }
 
 .piece-theme-option-icon {
@@ -201,20 +221,20 @@ html {
 }
 
 .outcome-filter-option:hover {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
 }
 
 /* #settings-btn/#settings-menu (js/ui/settingsPanel.js) - the gear turns a
    bit on hover and stays turned/highlighted while its popover is open. */
 #settings-btn {
-  color: #a3a3a3;
+  color: rgb(var(--n-400));
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 #settings-btn:hover,
 #settings-btn.menu-open {
-  color: #e5e5e5;
-  background-color: #404040;
+  color: rgb(var(--n-200));
+  background-color: rgb(var(--n-700));
 }
 
 .settings-gear-icon {
@@ -243,7 +263,7 @@ html {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #737373;
+  color: rgb(var(--n-500));
 }
 
 .settings-row {
@@ -259,7 +279,7 @@ html {
 .settings-row.hidden { display: none; }
 
 .settings-label {
-  color: #d4d4d4;
+  color: rgb(var(--n-300));
 }
 
 .settings-icon-toggle {
@@ -269,18 +289,18 @@ html {
   width: 30px;
   height: 24px;
   border-radius: 0.25rem;
-  border: 1px solid #404040;
-  background: #262626;
+  border: 1px solid rgb(var(--n-700));
+  background: rgb(var(--n-800));
   color: #4ade80;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .settings-icon-toggle:hover {
-  background: #404040;
+  background: rgb(var(--n-700));
 }
 
 .settings-icon-toggle.is-off {
-  color: #737373;
+  color: rgb(var(--n-500));
 }
 
 .settings-icon-toggle .settings-sound-off,
@@ -298,8 +318,8 @@ html {
   padding: 2px;
   gap: 2px;
   border-radius: 0.375rem;
-  border: 1px solid #404040;
-  background: #171717;
+  border: 1px solid rgb(var(--n-700));
+  background: rgb(var(--n-900));
 }
 
 .settings-segmented > button {
@@ -307,17 +327,17 @@ html {
   border-radius: 0.25rem;
   font-size: 0.7rem;
   font-weight: 500;
-  color: #a3a3a3;
+  color: rgb(var(--n-400));
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .settings-segmented > button:hover {
-  color: #e5e5e5;
+  color: rgb(var(--n-200));
 }
 
 .settings-segmented > button.active {
-  color: #e5e5e5;
-  background: #404040;
+  color: rgb(var(--n-200));
+  background: rgb(var(--n-700));
 }
 
 /* js/ui/customSelect.js - #game-type-menu/#game-menu/#time-range-menu's
@@ -337,7 +357,7 @@ html {
 }
 
 .custom-select-option:hover {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
 }
 
 /* The currently-selected option (js/ui/customSelect.js) - shown regardless
@@ -384,7 +404,7 @@ html {
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  color: #737373;
+  color: rgb(var(--n-500));
   opacity: 0;
   transition: opacity 0.15s ease;
   cursor: pointer;
@@ -417,7 +437,7 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Desktop: never wraps to a second line, guaranteed - native controls (the
@@ -479,13 +499,13 @@ body {
 }
 
 #filter-row::-webkit-scrollbar-thumb {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
   border-radius: 3px;
 }
 
 .nav-btn {
-  background-color: #262626;
-  border: 1px solid #404040;
+  background-color: rgb(var(--n-800));
+  border: 1px solid rgb(var(--n-700));
   border-radius: 0.25rem;
   padding: 0.3rem 0.5rem;
   font-size: 0.9rem;
@@ -494,7 +514,7 @@ body {
 }
 
 .nav-btn:hover {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
 }
 
 /* Visually distinct from the timeline controls (first/prev/play/next/last) -
@@ -590,7 +610,7 @@ body {
 .player-row-black {
   background-color: rgba(245, 245, 245, 0.12);
   background-image: linear-gradient(to right, rgba(245, 245, 245, 0.16), rgba(245, 245, 245, 0.07));
-  color: #e5e5e5;
+  color: rgb(var(--n-200));
 }
 
 /* No overflow:hidden here - it used to clip the avatar's own ring
@@ -797,8 +817,8 @@ body {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: #262626;
-  border: 1px solid #404040;
+  background: rgb(var(--n-800));
+  border: 1px solid rgb(var(--n-700));
   border-radius: 4px;
   padding: 4px 6px;
   font-size: 11px;
@@ -1077,7 +1097,7 @@ body {
   margin: 2px 0;
   padding: 3px 6px 4px 24px;
   margin-left: 0.9rem;
-  border-left: 2px solid #404040;
+  border-left: 2px solid rgb(var(--n-700));
 }
 
 /* The toggle/delete icons are NOT a separate header line - they're
@@ -1102,12 +1122,12 @@ body {
   width: 14px;
   text-align: center;
   font-size: 0.9em;
-  color: #737373;
+  color: rgb(var(--n-500));
   cursor: pointer;
 }
 
 .move-variation-toggle:hover {
-  color: #d4d4d4;
+  color: rgb(var(--n-300));
 }
 
 .move-variation-delete {
@@ -1117,7 +1137,7 @@ body {
   transform: translateY(-50%);
   padding: 0 2px;
   font-size: 0.9em;
-  color: #737373;
+  color: rgb(var(--n-500));
   cursor: pointer;
 }
 
@@ -1129,7 +1149,7 @@ body {
    variation's body is collapsed - the same "there's more, folded away"
    signal the old separate preview line gave. */
 .move-variation-collapsed-marker {
-  color: #737373;
+  color: rgb(var(--n-500));
 }
 
 .move-variation-collapsed-marker.hidden {
@@ -1142,7 +1162,7 @@ body {
 
 .move-variation-number,
 .move-variation-paren {
-  color: #737373;
+  color: rgb(var(--n-500));
 }
 
 /* #id beats .hidden's specificity otherwise (see #review-panel.hidden
@@ -1195,7 +1215,7 @@ body {
 }
 
 #move-list::-webkit-scrollbar-thumb {
-  background-color: #404040;
+  background-color: rgb(var(--n-700));
   border-radius: 3px;
 }
 
@@ -1219,7 +1239,7 @@ body {
 
 .move-strip-number {
   flex-shrink: 0;
-  color: #737373;
+  color: rgb(var(--n-500));
   font-size: 0.85rem;
 }
 
@@ -1255,33 +1275,33 @@ body {
   border-radius: 0.375rem;
   font-size: 0.7rem;
   font-weight: 500;
-  color: #a3a3a3;
+  color: rgb(var(--n-400));
   background: transparent;
   border: 1px solid transparent;
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-view-btn:hover {
-  color: #e5e5e5;
+  color: rgb(var(--n-200));
 }
 
 .dashboard-view-btn.active {
-  color: #e5e5e5;
-  background: #262626;
-  border-color: #404040;
+  color: rgb(var(--n-200));
+  background: rgb(var(--n-800));
+  border-color: rgb(var(--n-700));
 }
 
 /* "(Zug N)" jump link inside a #stats-table cell (js/main.js's
    formatMoveStat/renderStatsTable) - same jump-to-move idea as clicking a
    move-list row or a time-management-chart bar. */
 .stat-jump-link {
-  color: #737373;
+  color: rgb(var(--n-500));
   font-size: 0.85em;
   cursor: pointer;
 }
 
 .stat-jump-link:hover {
-  color: #a3a3a3;
+  color: rgb(var(--n-400));
   text-decoration: underline;
 }
 
@@ -1380,9 +1400,9 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
-    background-color: #262626;
-    border: 1px solid #404040;
-    color: #e5e5e5;
+    background-color: rgb(var(--n-800));
+    border: 1px solid rgb(var(--n-700));
+    color: rgb(var(--n-200));
     font-size: 1.2rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
@@ -1477,9 +1497,9 @@ body {
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #e5e5e5;
-  background: #262626;
-  border: 1px solid #404040;
+  color: rgb(var(--n-200));
+  background: rgb(var(--n-800));
+  border: 1px solid rgb(var(--n-700));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   opacity: 0;
   transform: translateY(8px);
@@ -1523,13 +1543,13 @@ button.field-error {
    win/draw/loss colors are always paired with a legend or tooltip, never the
    only way to tell them apart. */
 #meta-panel {
-  --meta-panel: #171717;
-  --meta-panel-2: #262626;
+  --meta-panel: rgb(var(--n-900));
+  --meta-panel-2: rgb(var(--n-800));
   --meta-line: #333333;
-  --meta-fg: #e5e5e5;
-  --meta-muted: #a3a3a3;
-  --meta-faint: #737373;
-  --meta-accent: #3b82f6;
+  --meta-fg: rgb(var(--n-200));
+  --meta-muted: rgb(var(--n-400));
+  --meta-faint: rgb(var(--n-500));
+  --meta-accent: rgb(var(--accent-500));
   --meta-win: #81b64c;
   --meta-draw: #8b8a86;
   --meta-loss: #e66767;
@@ -1598,15 +1618,15 @@ button.field-error {
   height: 26px;
   padding: 0 10px;
   border-radius: 4px;
-  border: 1px solid #404040;
-  background: #262626;
+  border: 1px solid rgb(var(--n-700));
+  background: rgb(var(--n-800));
   color: var(--meta-fg);
   font-size: 12px;
   white-space: nowrap;
   transition: background-color 0.15s ease;
 }
 
-.meta-btn:hover { background: #404040; }
+.meta-btn:hover { background: rgb(var(--n-700)); }
 .meta-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .meta-btn.danger { background: transparent; border-color: #e6676788; color: #f08a8a; }
 .meta-btn.danger:hover { background: #e6676722; }
@@ -1851,7 +1871,7 @@ button.field-error {
 .meta-tbl th.wide { min-width: 120px; }
 .meta-tbl th.sort { cursor: pointer; user-select: none; }
 .meta-tbl th.sort:hover, .meta-tbl th.sort.on { color: var(--meta-fg); }
-.meta-tbl td { padding: 6px 8px; border-bottom: 1px solid #262626; vertical-align: middle; font-variant-numeric: tabular-nums; }
+.meta-tbl td { padding: 6px 8px; border-bottom: 1px solid rgb(var(--n-800)); vertical-align: middle; font-variant-numeric: tabular-nums; }
 .meta-tbl .r { text-align: right; }
 .meta-tbl tr.click { cursor: pointer; }
 .meta-tbl tr.click:hover td { background: #ffffff0a; }
@@ -1921,7 +1941,7 @@ button.field-error {
   color: inherit;
   text-align: left;
   cursor: pointer;
-  text-decoration: underline dotted #737373;
+  text-decoration: underline dotted rgb(var(--n-500));
   text-underline-offset: 4px;
 }
 .meta-count:hover { color: var(--meta-accent); }
@@ -1933,7 +1953,7 @@ button.field-error {
   max-width: calc(100vw - 16px);
   padding: 4px 0;
 }
-.meta-pop-more { padding: 4px 10px 2px; font-size: 0.7rem; color: #a3a3a3; }
+.meta-pop-more { padding: 4px 10px 2px; font-size: 0.7rem; color: rgb(var(--n-400)); }
 
 #meta-tip {
   position: fixed;
@@ -1942,11 +1962,11 @@ button.field-error {
   max-width: 280px;
   white-space: pre-line;
   background: #000000e6;
-  border: 1px solid #404040;
+  border: 1px solid rgb(var(--n-700));
   border-radius: 4px;
   padding: 5px 8px;
   font-size: 12px;
-  color: #e5e5e5;
+  color: rgb(var(--n-200));
 }
 
 /* Opening tooltip: board of the opening's defining position (js/meta/openingBoard.js). */
@@ -1966,8 +1986,8 @@ button.field-error {
 .meta-ob > .d { background-color: var(--board-dark); background-image: var(--board-dark-image); background-size: cover; }
 .meta-ob > .hl::before { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--lastmove-color) 70%, transparent); }
 .meta-ob img { position: relative; width: 22px; height: 22px; max-width: none; display: block; }
-.meta-ob-moves { margin-top: 6px; color: #d4d4d4; font-variant-numeric: tabular-nums; }
-.meta-ob-extra { margin-top: 6px; padding-top: 6px; border-top: 1px solid #404040; color: #a3a3a3; white-space: pre-line; }
+.meta-ob-moves { margin-top: 6px; color: rgb(var(--n-300)); font-variant-numeric: tabular-nums; }
+.meta-ob-extra { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgb(var(--n-700)); color: rgb(var(--n-400)); white-space: pre-line; }
 
 /* Opponent picker (top bar, meta mode) - its menu reuses .custom-select-option. */
 #opponent-menu { width: 320px; max-width: calc(100vw - 16px); }
@@ -1977,21 +1997,152 @@ button.field-error {
   margin: 8px;
   height: 26px;
   padding: 0 8px;
-  background: #171717;
-  border: 1px solid #404040;
+  background: rgb(var(--n-900));
+  border: 1px solid rgb(var(--n-700));
   border-radius: 4px;
   font-size: 12px;
-  color: #e5e5e5;
+  color: rgb(var(--n-200));
 }
 
 .meta-opp-list { max-height: 320px; overflow-y: auto; }
 .meta-opp-option { justify-content: space-between; }
 .meta-opp-name { overflow: hidden; text-overflow: ellipsis; }
-.meta-opp-count { color: #a3a3a3; font-variant-numeric: tabular-nums; }
+.meta-opp-count { color: rgb(var(--n-400)); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 700px) {
   #opponent-picker,
   #opponent-btn {
     width: 100%;
   }
+}
+
+/* ---------- Site themes (gear menu "Themes", js/ui/siteTheme.js) ----------
+   "Standard" is :root above. Each theme re-points the neutral ramp and the
+   accent, which Tailwind's classes follow too (tailwind.config in
+   index.html); the rules below only add what a palette alone can't. */
+
+/* Cyberpunk: 8-bit neon - violet night, cyan text, magenta accent, pixel
+   fonts, hard square corners and a faint CRT scanline overlay. */
+html[data-site-theme="cyberpunk"] {
+  --n-50: 240 255 255;
+  --n-100: 225 252 255;
+  --n-200: 190 245 255;
+  --n-300: 140 225 245;
+  --n-400: 110 180 220;
+  --n-500: 125 95 190;
+  --n-600: 95 55 160;
+  --n-700: 70 30 125;
+  --n-800: 36 14 70;
+  --n-900: 20 8 42;
+  --n-950: 9 4 22;
+  --accent-400: 255 110 230;
+  --accent-500: 255 40 200;
+  --accent-600: 215 0 165;
+  --font-body: "Pixelify Sans", ui-monospace, monospace;
+  --font-display: "Press Start 2P", ui-monospace, monospace;
+}
+
+html[data-site-theme="cyberpunk"] body {
+  background-image:
+    linear-gradient(rgb(255 40 200 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 230 255 / 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+}
+
+html[data-site-theme="cyberpunk"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px);
+}
+
+html[data-site-theme="cyberpunk"] *,
+html[data-site-theme="cyberpunk"] *::before,
+html[data-site-theme="cyberpunk"] *::after {
+  border-radius: 0 !important;
+}
+
+/* Press Start 2P is very wide - only for short headings, and smaller. */
+html[data-site-theme="cyberpunk"] .settings-heading,
+html[data-site-theme="cyberpunk"] h2,
+html[data-site-theme="cyberpunk"] h3 {
+  font-family: var(--font-display);
+  font-size: 9px !important;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: rgb(var(--n-200));
+  text-shadow: 0 0 6px rgb(0 230 255 / 0.6);
+}
+
+html[data-site-theme="cyberpunk"] .bg-blue-600,
+html[data-site-theme="cyberpunk"] .settings-segmented > button.active,
+html[data-site-theme="cyberpunk"] .meta-seg button.on {
+  background: rgb(var(--accent-600));
+  color: #fff;
+  box-shadow: 0 0 10px rgb(var(--accent-500) / 0.65);
+  text-shadow: 0 0 4px rgb(255 255 255 / 0.6);
+}
+
+/* 8-bit drop shadows on the floating menus and cards. */
+html[data-site-theme="cyberpunk"] #settings-menu,
+html[data-site-theme="cyberpunk"] [role="menu"],
+html[data-site-theme="cyberpunk"] .meta-card {
+  box-shadow: 4px 4px 0 rgb(var(--accent-600) / 0.55), 0 0 0 1px rgb(0 230 255 / 0.25);
+}
+
+html[data-site-theme="cyberpunk"] #loader-panel {
+  border-bottom: 2px solid rgb(var(--accent-500));
+  box-shadow: 0 2px 14px rgb(var(--accent-500) / 0.35);
+}
+
+/* Nordlicht: cool nordic slate with an aurora glow - teal-green accent,
+   a violet counter-tone and frosted-glass top bar. */
+html[data-site-theme="nordlicht"] {
+  --n-50: 240 244 248;
+  --n-100: 229 235 242;
+  --n-200: 216 224 234;
+  --n-300: 189 200 216;
+  --n-400: 145 160 184;
+  --n-500: 106 120 146;
+  --n-600: 76 88 112;
+  --n-700: 55 66 88;
+  --n-800: 36 45 62;
+  --n-900: 24 31 45;
+  --n-950: 14 19 29;
+  --accent-400: 125 232 196;
+  --accent-500: 72 210 170;
+  --accent-600: 24 150 124;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --font-display: "Outfit", system-ui, sans-serif;
+}
+
+html[data-site-theme="nordlicht"] body {
+  background-image:
+    radial-gradient(1100px 520px at 12% -12%, rgb(72 210 170 / 0.16), transparent 62%),
+    radial-gradient(900px 480px at 88% -8%, rgb(150 110 255 / 0.16), transparent 62%);
+  background-attachment: fixed;
+}
+
+html[data-site-theme="nordlicht"] #loader-panel {
+  background-color: rgb(var(--n-900) / 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+html[data-site-theme="nordlicht"] .bg-blue-600 {
+  background-image: linear-gradient(135deg, rgb(var(--accent-600)), rgb(118 88 214));
+}
+
+html[data-site-theme="nordlicht"] .meta-card,
+html[data-site-theme="nordlicht"] #settings-menu,
+html[data-site-theme="nordlicht"] [role="menu"] {
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+html[data-site-theme="nordlicht"] h2,
+html[data-site-theme="nordlicht"] .settings-heading {
+  letter-spacing: 0.01em;
 }

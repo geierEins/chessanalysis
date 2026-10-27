@@ -29,6 +29,25 @@
 <meta name="twitter:image" content="icons/app/og-image.png">
 
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Site themes (js/ui/siteTheme.js): Tailwind's neutral and blue classes read
+  // the theme's CSS variables (css/styles.css) instead of fixed colors, and
+  // the saved theme is applied here already so the page never flashes the
+  // default one first.
+  {
+    const themed = (v) => `rgb(var(${v}) / <alpha-value>)`;
+    const neutral = Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((k) => [k, themed(`--n-${k}`)]));
+    const blue = { 400: themed('--accent-400'), 500: themed('--accent-500'), 600: themed('--accent-600') };
+    tailwind.config = { theme: { extend: { colors: { neutral, blue } } } };
+    try {
+      const theme = localStorage.getItem('chessreview.siteTheme');
+      if (theme && theme !== 'standard') document.documentElement.dataset.siteTheme = theme;
+    } catch {}
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&display=swap">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
@@ -286,6 +305,11 @@
               <button type="button" role="radio" data-app-mode="meta"
                       title="Meta-Analyse: Statistiken über viele Partien">Meta</button>
             </div>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label" title="Farbschema und Stil der ganzen Seite">Themes</span>
+            <!-- Buttons rendered by js/ui/settingsPanel.js from js/ui/siteTheme.js's SITE_THEMES. -->
+            <div id="settings-site-theme" class="settings-segmented" role="radiogroup" aria-label="Themes"></div>
           </div>
           <div id="settings-sound-row" class="settings-row">
             <span class="settings-label">Brettgeräusche</span>

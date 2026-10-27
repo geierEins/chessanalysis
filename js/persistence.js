@@ -16,6 +16,8 @@ const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
 const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
 const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
+// Also read by the inline script in index.html's <head> (before first paint).
+const SITE_THEME_KEY = 'chessreview.siteTheme';
 
 /** Wrapped so a private-browsing/blocked-storage exception never breaks the
  *  app - these are conveniences, not required state. */
@@ -129,6 +131,16 @@ export function loadAppMode() {
 /** @param {'game'|'meta'} mode */
 export function saveAppMode(mode) {
   safeSet(APP_MODE_KEY, mode);
+}
+
+/** @returns {string|null} the site theme's id (js/ui/siteTheme.js), null = never chosen */
+export function loadSiteTheme() {
+  return safeGet(SITE_THEME_KEY);
+}
+
+/** @param {string} id */
+export function saveSiteTheme(id) {
+  safeSet(SITE_THEME_KEY, id);
 }
 
 /** @returns {string|null} the Meta-Analyse tab last shown */

@@ -5,6 +5,8 @@
 // whenever it wouldn't fit the viewport, follows window resizes, and closes
 // on an outside click or Escape (returning focus to the gear).
 
+import { SITE_THEMES, currentSiteTheme, setSiteTheme } from './siteTheme.js';
+
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 4;
 
@@ -128,9 +130,37 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
     });
   }
 
+  // Themes: self-contained (js/ui/siteTheme.js) - nothing else in the app needs to know.
+  const themeGroup = document.getElementById('settings-site-theme');
+  let siteTheme = currentSiteTheme();
+  setSiteTheme(siteTheme); // the <head> script set the attribute, this also the theme-color
+  themeGroup.innerHTML = SITE_THEMES.map(
+    (t) => `<button type="button" role="radio" data-site-theme="${t.id}" title="${t.title}">${t.label}</button>`
+  ).join('');
+  const themeButtons = [...themeGroup.querySelectorAll('[data-site-theme]')];
+
+  function renderTheme() {
+    for (const b of themeButtons) {
+      const active = b.dataset.siteTheme === siteTheme;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', String(active));
+    }
+  }
+
+  for (const b of themeButtons) {
+    b.addEventListener('click', () => {
+      if (b.dataset.siteTheme === siteTheme) return;
+      siteTheme = b.dataset.siteTheme;
+      setSiteTheme(siteTheme);
+      renderTheme();
+      position(); // the menu's own size changes with the theme's fonts
+    });
+  }
+
   renderSound();
   renderTiming();
   renderMode();
+  renderTheme();
 
   return {
     setAppMode(mode) {
