@@ -74,9 +74,13 @@ function harmonicMean(values) {
  *   position in the game, start position through the final move (length =
  *   moveCount + 1).
  * @param {Array<'w'|'b'>} moveColors - which color played move i (length = moveCount).
- * @returns {{white: number|null, black: number|null}}
+ * @param {string[]|null} [moveGroups] - optional group of move i (e.g. the game
+ *   phase): then also the same score over only each group's moves, with the
+ *   weights from the whole game - so a group's score is comparable to the total.
+ * @returns {{white: number|null, black: number|null,
+ *   byGroup?: {w: Object<string, number>, b: Object<string, number>}}}
  */
-export function computeGameAccuracy(allWinPercentsWhite, moveColors) {
+export function computeGameAccuracy(allWinPercentsWhite, moveColors, moveGroups = null) {
   const n = allWinPercentsWhite.length;
   const moveCount = moveColors.length;
   if (moveCount === 0 || n !== moveCount + 1) return { white: null, black: null };
@@ -92,7 +96,7 @@ export function computeGameAccuracy(allWinPercentsWhite, moveColors) {
   }
   const weights = windows.map((w) => Math.max(0.5, Math.min(12, populationStandardDeviation(w))));
 
-  const perColor = { w: { pairs: [], accuracies: [] }, b: { pairs: [], accuracies: [] } };
+  const perColor = { w: [], b: [] }; // [accuracy, weight, group] per move
   for (let i = 0; i < moveCount; i++) {
     const before = allWinPercentsWhite[i];
     const after = allWinPercentsWhite[i + 1];
@@ -101,17 +105,24 @@ export function computeGameAccuracy(allWinPercentsWhite, moveColors) {
     // is equivalent to inverting both to Black's own perspective (100 - x).
     const [moverBefore, moverAfter] = color === 'w' ? [before, after] : [after, before];
     const acc = moveAccuracyFromWinPercents(moverBefore, moverAfter);
-    perColor[color].pairs.push([acc, weights[i]]);
-    perColor[color].accuracies.push(acc);
+    perColor[color].push([acc, weights[i], moveGroups?.[i]]);
   }
 
-  const finalFor = (color) => {
-    const { pairs, accuracies } = perColor[color];
-    if (accuracies.length === 0) return null;
-    const wMean = weightedMean(pairs);
-    const hMean = harmonicMean(accuracies);
+  const scoreOf = (moves) => {
+    if (moves.length === 0) return null;
+    const wMean = weightedMean(moves.map(([acc, weight]) => [acc, weight]));
+    const hMean = harmonicMean(moves.map(([acc]) => acc));
     return wMean === null || hMean === null ? null : (wMean + hMean) / 2;
   };
 
-  return { white: finalFor('w'), black: finalFor('b') };
+  const result = { white: scoreOf(perColor.w), black: scoreOf(perColor.b) };
+  if (moveGroups) {
+    result.byGroup = { w: {}, b: {} };
+    for (const color of ['w', 'b']) {
+      for (const group of new Set(perColor[color].map(([, , g]) => g))) {
+        result.byGroup[color][group] = scoreOf(perColor[color].filter(([, , g]) => g === group));
+      }
+    }
+  }
+  return result;
 }

@@ -12,6 +12,7 @@ import { summarizeGame } from '../api/chesscom.js';
 import { createBookTracker, openingNameForLine } from '../analysis/openingBook.js';
 import { parseClockSeconds, parseInitialClockSeconds, parseIncrementSeconds } from '../analysis/pgnClock.js';
 import { MATE_CP_EQUIVALENT } from '../analysis/gameAnalyzer.js';
+import { computeGameAccuracy } from '../analysis/accuracy.js';
 
 const LOSS_REASONS = { checkmated: 'checkmate', resigned: 'resign', timeout: 'timeout', abandoned: 'abandon' };
 const DRAW_REASONS = new Set(['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient']);
@@ -180,6 +181,8 @@ export function buildFastRecord(raw, username) {
     ownClockEnd: initialClock ? ownClockEnd : null,
     duration,
     ownMoveSeconds,
+    // Own pawns that reached the last rank, whatever they turned into.
+    promotions: verbose.filter((m) => m.color === color && m.promotion).length,
     maxMaterial: material.max,
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
@@ -214,7 +217,11 @@ function ownCp(evalWhite, color) {
   return color === 'w' ? cp : -cp;
 }
 
-const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+// Version of what buildEngineRecord() computes - raised when a stat changes,
+// so stored records get redone (scripts/auto-analysis/analyze.mjs) and
+// replaced in the browser (js/meta/autoAnalysis.js). 2: per-phase accuracy
+// with the game formula instead of a plain mean.
+export const ENGINE_RECORD_VERSION = 2;
 
 /**
  * Condenses gameAnalyzer.js's full per-move result into the few numbers the
@@ -231,8 +238,10 @@ export function buildEngineRecord(analysis, color, initialClock) {
     const target = m.color === color ? counts : oppCounts;
     target[m.category.id] = (target[m.category.id] ?? 0) + 1;
   }
-  const phases = { opening: [], middlegame: [], endgame: [] };
-  for (const m of own) phases[phaseOf(m)].push(m.accuracy);
+  // Same Lichess formula as the game's own accuracy, over each phase's moves
+  // (js/analysis/accuracy.js) - a plain mean of the per-move values would sit
+  // far above the total, since it hardly feels a single blunder.
+  const phases = computeGameAccuracy(analysis.winPercentsWhite, analysis.moves.map((m) => m.color), analysis.moves.map(phaseOf)).byGroup[color];
 
   let maxCp = 0;
   let minCp = 0;
@@ -252,14 +261,15 @@ export function buildEngineRecord(analysis, color, initialClock) {
 
   const round1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
   return {
+    v: ENGINE_RECORD_VERSION,
     accuracy: round1(color === 'w' ? analysis.accuracy.white : analysis.accuracy.black),
     oppAccuracy: round1(color === 'w' ? analysis.accuracy.black : analysis.accuracy.white),
     counts,
     oppCounts,
     phaseAccuracy: {
-      opening: round1(mean(phases.opening)),
-      middlegame: round1(mean(phases.middlegame)),
-      endgame: round1(mean(phases.endgame)),
+      opening: round1(phases.opening),
+      middlegame: round1(phases.middlegame),
+      endgame: round1(phases.endgame),
     },
     maxCp,
     minCp,

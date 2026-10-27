@@ -106,6 +106,7 @@ describe('metaRecords: buildEngineRecord', () => {
       move('w', 2, 'BLUNDER', -400, { clockSeconds: 10 }),
       move('b', 2, 'MISTAKE', 350),
     ],
+    winPercentsWhite: [50, 52, 53, 10, 80],
   };
 
   test('accuracy, counts and blunders for white', () => {
@@ -118,6 +119,14 @@ describe('metaRecords: buildEngineRecord', () => {
     expectTrue(e.blunders[0].timeTrouble, '10s of 180s is time trouble');
     expectEqual(e.maxCp, 350);
     expectEqual(e.minCp, -400);
+  });
+
+  test('phase accuracy uses the game formula, so a blunder pulls it down', () => {
+    const e = buildEngineRecord(analysis, 'w', 180);
+    // Both white moves are in the opening; the plain mean of 100 and the
+    // blunder's ~14 would be ~57, the game formula gives ~22.
+    expectTrue(e.phaseAccuracy.opening < 30, `opening ${e.phaseAccuracy.opening}`);
+    expectEqual(e.phaseAccuracy.endgame, null);
   });
 
   test('evals flip for black', () => {

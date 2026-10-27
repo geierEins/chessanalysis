@@ -44,7 +44,7 @@ globalThis.Worker = NodeWorker;
 
 const { StockfishEngine } = await import('../../js/engine/stockfishEngine.js');
 const { analyzeGame } = await import('../../js/analysis/gameAnalyzer.js');
-const { buildFastRecord, buildEngineRecord, isCoachGame } = await import('../../js/meta/metaRecords.js');
+const { buildFastRecord, buildEngineRecord, isCoachGame, ENGINE_RECORD_VERSION } = await import('../../js/meta/metaRecords.js');
 const { recordingEngine } = await import('../../js/analysis/evalLog.js');
 const { fetchPlayerProfile } = await import('../../js/api/chesscom.js');
 
@@ -91,8 +91,9 @@ async function preparePlayer(user, state) {
   const recent = recentArchiveUrls(user);
   const urls = [...new Set([...(s.complete ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
 
-  // Records without the engine log (older runs) count as not done and get replaced.
-  const done = new Set(master.games.filter((g) => g.engine?.evals).map((g) => g.game.url));
+  // Records without the engine log or of an older ENGINE_RECORD_VERSION
+  // (older runs) count as not done and get replaced.
+  const done = new Set(master.games.filter((g) => g.engine?.evals && (g.engine.v ?? 1) >= ENGINE_RECORD_VERSION).map((g) => g.game.url));
   const skipped = new Set(s.skipped);
   const etags = {};
   const targets = [];

@@ -498,13 +498,16 @@ function overview(rs, ctx) {
     const delta = mainList[mainList.length - 1].ownRating - mainList[0].ownRating;
     ratingKpi = kpi(`📈 Wertung ${TC_LABEL[mainTc] ?? mainTc}`, `${delta >= 0 ? '+' : ''}${delta}`, `${mainList[0].ownRating} → ${mainList[mainList.length - 1].ownRating}`, delta >= 0 ? 'up' : 'down', delta >= 0 ? 'var(--meta-win)' : 'var(--meta-loss)');
   }
-  const wdlDetail = `<span class="meta-wdl-nums"><b class="w">${c.W} S</b><b class="d">${c.D} R</b><b class="l">${c.L} N</b></span>${wdlBar(rs)}`;
+  const wdlDetail = `<span class="meta-wdl-nums"><b class="w">${c.W} S</b><b class="d">${c.D} R</b><b class="l">${c.L} N</b></span>`;
+  const promoted = rs.filter((r) => r.promotions);
+  const promotions = promoted.reduce((a, r) => a + r.promotions, 0);
   const kpis = `<div class="meta-kpis">
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
     ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
     ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${ratingKpi}
     ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
+    ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
   </div>`;
   const row = (label, list) =>
     list.length
@@ -808,6 +811,7 @@ function timeTab(rs, ctx) {
   const timeLosses = losses.filter((r) => r.termination === 'timeout');
   const timed = rs.filter((r) => r.duration != null);
   const avgDuration = avg(timed, (r) => r.duration);
+  const avgClockLeft = avg(rs.filter((r) => r.ownClockEnd != null), (r) => r.ownClockEnd);
   const pctFmt = (v) => `${Math.round(v)} %`;
   const lengthRows = [[0, 20, 'bis 20'], [21, 30, '21–30'], [31, 40, '31–40'], [41, 50, '41–50'], [51, Infinity, '51+']]
     .map(([a, b, label]) => {
@@ -863,7 +867,8 @@ function timeTab(rs, ctx) {
         [avgDuration == null ? '–' : fmtSeconds(avgDuration), 'Ø Dauer pro Partie'],
         [f0(avg(rs, (r) => r.moves)), 'Ø Züge pro Partie'],
         [pc(losses.length ? timeLosses.length / losses.length : null), 'der Niederlagen auf Zeit'],
-      ]), { note: 'Dauer: verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien.' })}
+        [avgClockLeft == null ? '–' : fmtSeconds(avgClockLeft), 'Ø Restzeit auf deiner Uhr'],
+      ]), { note: 'Dauer: verbrauchte Zeit beider Uhren aus dem PGN. Restzeit: was am Ende der Partie noch auf deiner Uhr stand, auch bei Niederlagen. Beides ohne Daily-Partien.' })}
       ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
     </div>
     <div class="meta-stack w8 fit">
@@ -874,10 +879,10 @@ function timeTab(rs, ctx) {
     <div class="meta-stack">
       ${card('Quote nach Tageszeit', 'fast', hbars(slots, { fmt: pctFmt, max: 100 }))}
       ${card('Serien und Tilt', 'fast', bigStats([
-        [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
-        [pc(score(afterLoss)), 'Quote direkt nach einer Niederlage'],
         [longestStreak(chrono, 'W'), 'längste Siegesserie'],
         [longestStreak(chrono, 'L'), 'längste Niederlagenserie'],
+        [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
+        [pc(score(afterLoss)), 'Quote direkt nach einer Niederlage'],
       ]), { note: 'Ist die Quote nach Niederlagen deutlich schlechter, hilft oft eine kurze Pause nach einer verlorenen Partie.' })}
     </div>
   </div>`;

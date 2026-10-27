@@ -21,8 +21,9 @@ export const config = JSON.parse(await readFile(new URL('./config.json', import.
 // Changing engine or depth in config.json invalidates every stored analysis.
 // The suffix is the data version: changing it sends every player back to
 // "waiting for the initial analysis" (e.g. "evals": records gained the
-// engine log, js/analysis/evalLog.js, so all older ones get redone).
-export const ENGINE_KEY = `${config.engine}|${config.depth}|evals`;
+// engine log, js/analysis/evalLog.js, so all older ones get redone;
+// "phases": ENGINE_RECORD_VERSION 2 in js/meta/metaRecords.js).
+export const ENGINE_KEY = `${config.engine}|${config.depth}|phases`;
 
 // Chess.com sits behind Cloudflare, which answers requests without a
 // User-Agent with a 403 challenge page.

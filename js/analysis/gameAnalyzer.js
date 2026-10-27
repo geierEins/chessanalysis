@@ -208,5 +208,7 @@ export async function analyzeGame(pgn, engine, { depth = 14, onProgress, avgRati
     startBestMoveSquares,
     moves: moveRecords,
     accuracy: computeGameAccuracy(allWinPercentsWhite, moveColors),
+    // For scores over part of the game (metaRecords.js's per-phase accuracy).
+    winPercentsWhite: allWinPercentsWhite,
   };
 }

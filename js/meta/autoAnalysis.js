@@ -13,7 +13,8 @@ const engineByUser = new Map(); // lowercased username -> {engineId, depth, labe
 
 /**
  * Stores every engine record of the player's master file that the browser
- * doesn't have yet - or only has without the per-move log (js/analysis/evalLog.js).
+ * doesn't have yet - or only has without the per-move log (js/analysis/evalLog.js)
+ * or in an older ENGINE_RECORD_VERSION (js/meta/metaRecords.js).
  * @returns {Promise<{engineId: string, depth: number, label: string, added: number,
  *   countries: Array<[string, string|null]>}|null>} null if the player has no master file
  */
@@ -31,7 +32,8 @@ export async function syncAutoAnalysis(user) {
   engineByUser.set(user.toLowerCase(), engine);
   const entries = data.games.filter((g) => g.engine && g.game?.url).map((g) => [g.game.url, g.engine]);
   const have = await loadEngineRecords(engine.engineId, engine.depth, entries.map(([url]) => url));
-  const fresh = entries.filter(([url, rec]) => !have.has(url) || (rec.evals && !have.get(url).evals));
+  const newer = (rec, old) => (rec.evals && !old.evals) || (rec.v ?? 1) > (old.v ?? 1);
+  const fresh = entries.filter(([url, rec]) => !have.has(url) || newer(rec, have.get(url)));
   await saveEngineRecords(engine.engineId, engine.depth, fresh);
   return { ...engine, added: fresh.length, countries: Object.entries(data.countries ?? {}) };
 }
