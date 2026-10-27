@@ -12,7 +12,7 @@ import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
 import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
@@ -79,6 +79,8 @@ export function initMetaMode(host) {
   const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' }, games: { key: 'date', dir: 'desc' } };
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
+  // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
+  const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   let run = null; // the running analysis, see startRun()
   let engine = null;
   let engineLoadedId = null;
@@ -116,6 +118,7 @@ export function initMetaMode(host) {
       opponent,
       sorts,
       countryLimit,
+      endings,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -144,6 +147,7 @@ export function initMetaMode(host) {
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
+    layoutFitCharts(tabPanelEl);
     host.onCoverageChange(); // the analyze button greys out once nothing is left to analyze
   }
 
@@ -213,6 +217,12 @@ export function initMetaMode(host) {
   });
   window.addEventListener('scroll', closeGamesPop, { passive: true });
   window.addEventListener('resize', closeGamesPop);
+  // Charts drawn at their box's pixel size (metaView's fitChart) follow it.
+  let fitFrame = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(fitFrame);
+    fitFrame = requestAnimationFrame(() => active && layoutFitCharts(tabPanelEl));
+  });
 
   tabPanelEl.addEventListener('click', (e) => {
     const countBtn = e.target.closest('.meta-count');
@@ -235,6 +245,15 @@ export function initMetaMode(host) {
     if (limitBtn) {
       countryLimit = Number(limitBtn.dataset.countryLimit);
       saveCountryLimit(countryLimit);
+      render();
+      return;
+    }
+    const endingBtn = e.target.closest('[data-ending]');
+    if (endingBtn) {
+      const chosen = endings[endingBtn.dataset.endingTable];
+      const key = endingBtn.dataset.ending;
+      if (chosen.has(key)) chosen.delete(key);
+      else chosen.add(key);
       render();
       return;
     }
@@ -315,7 +334,7 @@ export function initMetaMode(host) {
         ${rows
           .map(([key, x]) => {
             const flag = flagHtml(countries.get(key) ?? null).trim();
-            return option(key, `<span class="meta-opp-name">${flag} ${esc(x.name)}</span><span class="meta-opp-count">${x.n} ${x.n === 1 ? 'Partie' : 'Partien'}</span>`, 'meta-opp-option');
+            return option(key, `<span class="meta-opp-name">${flag}${esc(x.name)}</span><span class="meta-opp-count">${x.n} ${x.n === 1 ? 'Partie' : 'Partien'}</span>`, 'meta-opp-option');
           })
           .join('')}
       </div>`;

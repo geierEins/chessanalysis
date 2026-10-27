@@ -1723,9 +1723,33 @@ button.field-error {
 .meta-card.w4 { grid-column: span 4; }
 .meta-card.w8 { grid-column: span 8; }
 .meta-card.w12 { grid-column: span 12; }
+/* Several cards stacked in one grid column (e.g. "Uhr" over "Quote nach
+   Partielänge", beside "Zeit pro Zug"). A flex column whose cards share any
+   extra height, so two stacks side by side end on the same line and the
+   next row starts without a gap. */
+.meta-stack { grid-column: span 4; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.meta-stack > .meta-card { grid-column: auto; flex: 1 1 auto; }
+.meta-stack.w8 { grid-column: span 8; }
+
+/* A stack that takes its height from the row instead of setting it ("Zeit
+   pro Zug" + "Dauer der Partien" follow "Uhr" + "Quote nach Partielänge"):
+   size containment keeps its content out of the row's height, and the
+   charts scale down (keeping their proportions) to fit. Desktop only - in
+   the one-column layout there is no neighbor to take the height from. */
+/* Box of a chart drawn at its own pixel size (metaView's fitChart) - the
+   usual chart proportions, except where a .fit stack hands it the height. */
+.meta-fit { aspect-ratio: 640 / 200; min-width: 0; }
+.meta-fit > svg { width: 100%; height: 100%; }
+
+@media (min-width: 901px) {
+  .meta-stack.fit { contain: size; }
+  .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
+  .meta-stack.fit .meta-fit { aspect-ratio: auto; flex: 1 1 0; min-height: 90px; }
+}
 
 @media (max-width: 900px) {
-  .meta-card, .meta-card.w4, .meta-card.w8 { grid-column: span 12; }
+  .meta-card, .meta-card.w4, .meta-card.w8, .meta-stack, .meta-stack.w8 { grid-column: span 12; }
+  .meta-stack > .meta-card { grid-column: auto; }
 }
 
 .meta-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -1751,9 +1775,13 @@ button.field-error {
 
 .meta-kpis.wide { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .meta-kpis.quality { grid-template-columns: minmax(150px, 1fr) minmax(0, 4fr); }
+/* "Verwertung": a row in your favor over a row against you, five columns
+   each so related tiles stand above each other. */
+.meta-kpis.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 
 @media (max-width: 900px) {
   .meta-kpis.quality { grid-template-columns: minmax(0, 1fr); }
+  .meta-kpis.five { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 
 /* Stat tile: a colored top edge fading into a soft glow (--kpi-accent, set per tile). */
@@ -1773,6 +1801,23 @@ button.field-error {
 }
 
 .meta-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--kpi-accent), color-mix(in srgb, var(--kpi-accent) 15%, transparent));
+}
+
+/* The same accent on a whole card (card()'s accent option). */
+.meta-card.accent {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--kpi-accent) 16%, transparent), transparent 65%),
+    var(--meta-panel);
+}
+
+.meta-card.accent::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
@@ -1882,6 +1927,10 @@ button.field-error {
   vertical-align: -1px;
 }
 
+/* Flag + name: country ("Woher kommen deine Gegner?", "Quote nach Land") and the opponent menu. */
+.meta-country .player-flag,
+.meta-opp-name .player-flag { margin-right: 7px; }
+
 .meta-res {
   display: inline-grid;
   place-items: center;
@@ -1907,6 +1956,13 @@ button.field-error {
 .meta-donut-legend { display: grid; gap: 6px; }
 .meta-donut-legend div { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; }
 .meta-donut-legend i { width: 12px; height: 12px; border-radius: 2px; }
+.meta-pie { gap: 14px; }
+.meta-pie svg { width: 130px; height: 130px; }
+.meta-pie svg path { stroke: var(--meta-panel); stroke-width: 1.5; stroke-linejoin: round; }
+.meta-pie .meta-donut-legend { flex: 1 1 140px; font-size: 12px; }
+.meta-pie .meta-donut-legend b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The total under the legend, in its column only (not across the whole card). */
+.meta-pie .meta-donut-legend .meta-total { display: flex; margin-top: 2px; }
 
 .meta-svg { width: 100%; height: auto; display: block; }
 #meta-panel svg text { fill: var(--meta-muted); font-size: 11px; }

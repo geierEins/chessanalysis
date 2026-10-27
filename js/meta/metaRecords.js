@@ -10,7 +10,7 @@
 import { Chess } from '../chessLib.js';
 import { summarizeGame } from '../api/chesscom.js';
 import { createBookTracker, openingNameForLine } from '../analysis/openingBook.js';
-import { parseClockSeconds, parseInitialClockSeconds } from '../analysis/pgnClock.js';
+import { parseClockSeconds, parseInitialClockSeconds, parseIncrementSeconds } from '../analysis/pgnClock.js';
 import { MATE_CP_EQUIVALENT } from '../analysis/gameAnalyzer.js';
 
 const LOSS_REASONS = { checkmated: 'checkmate', resigned: 'resign', timeout: 'timeout', abandoned: 'abandon' };
@@ -37,7 +37,7 @@ export const PIECE_LABEL = { p: 'Bauer', n: 'Springer', b: 'Läufer', r: 'Turm',
 export const isCoachGame = (r) => /^coach-/i.test(r.opponent);
 
 /** Only the parts of a Chess.com game object the meta mode needs - also what
- *  an exported analysis file stores, so an import runs through the exact same
+ *  the auto-analysis master files store, so they run through the exact same
  *  buildFastRecord() path as a fresh download. */
 export function slimRawGame(raw) {
   const side = (p) => ({ username: p?.username, rating: p?.rating, result: p?.result });
@@ -142,6 +142,22 @@ export function buildFastRecord(raw, username) {
       break;
     }
   }
+  // Seconds spent on each own move (index 0 = move 1) and the game's length
+  // on both clocks together - like the single-game time chart
+  // (js/analysis/moveTimes.js). Only with a clock comment on every ply.
+  const increment = parseIncrementSeconds(timeControl);
+  const ownMoveSeconds = [];
+  let duration = null;
+  if (initialClock && clocks.length && clocks.length === sans.length) {
+    const last = [initialClock, initialClock];
+    duration = 0;
+    clocks.forEach((c, i) => {
+      const spent = Math.max(0, last[i % 2] - c + increment);
+      last[i % 2] = c;
+      duration += spent;
+      if ((i % 2 === 0) === (color === 'w')) ownMoveSeconds.push(spent);
+    });
+  }
 
   return {
     url: raw.url,
@@ -162,6 +178,8 @@ export function buildFastRecord(raw, username) {
     bookPlies,
     initialClock,
     ownClockEnd: initialClock ? ownClockEnd : null,
+    duration,
+    ownMoveSeconds,
     maxMaterial: material.max,
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',

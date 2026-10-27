@@ -111,6 +111,10 @@ const CARD_ICONS = {
   'Wie du verlierst': '💔',
   'Wie Remis entstehen': '🤝',
   'Uhr': '⏰',
+  'Zeit pro Zug': '⏱️',
+  'Längste Partien': '📏',
+  'Kürzeste Partien': '⚡',
+  'Dauer der Partien': '⌛',
   'Quote nach Partielänge': '📏',
   'Wann du spielst': '📅',
   'Quote nach Tageszeit': '🕒',
@@ -127,10 +131,12 @@ function cardIcon(title) {
 }
 
 /** head: extra controls right of the title, before the badge (e.g. limitPicker). */
-function card(title, src, body, { cls = 'w6', note = '', head = '' } = {}) {
+/** accent: optional color for the same colored top edge and glow as a stat tile (kpi()). */
+function card(title, src, body, { cls = 'w6', note = '', head = '', accent = '' } = {}) {
   const badge = src ? `<span class="meta-src ${src}">${src === 'fast' ? 'ohne Engine' : 'Engine'}</span>` : '';
   const right = head ? `<span class="meta-card-tools">${head}${badge}</span>` : badge;
-  return `<section class="meta-card ${cls}"><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${right}</div>${body}${
+  const attrs = accent ? `class="meta-card ${cls} accent" style="--kpi-accent:${accent}"` : `class="meta-card ${cls}"`;
+  return `<section ${attrs}><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${right}</div>${body}${
     note ? `<p class="meta-note">${note}</p>` : ''
   }</section>`;
 }
@@ -205,14 +211,54 @@ function donut(rs) {
     </div></div>`;
 }
 
-/** Vertical bars on one shared scale. bins: {label, v, tip?, color?} */
-function columns(bins, { color = 'var(--meta-s1)', H = 170 } = {}) {
-  const W = 640;
+/** The i-th of n shades of one base color for a pie's slices, dark to light:
+ *  from 50 % black mixed in, through the base, to 35 % white. */
+function shade(base, i, n) {
+  const t = n > 1 ? 1 - i / (n - 1) : 0.5;
+  if (t === 0.5) return base;
+  return t < 0.5
+    ? `color-mix(in srgb, ${base} ${Math.round(100 - (0.5 - t) * 70)}%, white)`
+    : `color-mix(in srgb, ${base} ${Math.round(100 - (t - 0.5) * 100)}%, black)`;
+}
+
+/** Pie chart with a legend. slices: {label, v, color} - largest first. */
+function pie(slices, { total = false } = {}) {
+  const n = slices.reduce((a, s) => a + s.v, 0);
+  const R = 60;
+  const C = 65;
+  const point = (f) => [C + R * Math.sin(2 * Math.PI * f), C - R * Math.cos(2 * Math.PI * f)];
+  let from = 0;
+  let paths = '';
+  for (const s of slices) {
+    const tip = `data-tip="${esc(`${s.label}: ${s.v} (${pc(s.v / n)})`)}"`;
+    if (s.v === n) {
+      paths += `<circle cx="${C}" cy="${C}" r="${R}" style="fill:${s.color}" ${tip}></circle>`;
+      break;
+    }
+    const to = from + s.v / n;
+    const [x1, y1] = point(from);
+    const [x2, y2] = point(to);
+    paths += `<path d="M${C} ${C}L${x1.toFixed(2)} ${y1.toFixed(2)}A${R} ${R} 0 ${to - from > 0.5 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}Z" style="fill:${s.color}" ${tip}></path>`;
+    from = to;
+  }
+  const legend = slices
+    .map((s) => `<div><i style="background:${s.color}"></i><span>${esc(s.label)}</span><b>${s.v} · ${pc(s.v / n)}</b></div>`)
+    .join('');
+  return `<div class="meta-donut meta-pie"><svg viewBox="0 0 130 130" role="img">${paths}</svg><div class="meta-donut-legend">${legend}${total ? `<div class="meta-total"><span>Gesamt:</span><span>${n}</span></div>` : ''}</div></div>`;
+}
+
+/** Vertical bars on one shared scale. bins: {label, v, tip?, color?}
+ *  W/H: the drawing size - fitChart() passes the box's real pixel size. */
+function columns(bins, { color = 'var(--meta-s1)', H = 170, W = 640 } = {}) {
   const P = { l: 34, r: 8, t: 8, b: 22 };
   const m = Math.max(1, ...bins.map((b) => b.v));
-  const step = m <= 5 ? 1 : m <= 12 ? 2 : m <= 30 ? 5 : m <= 60 ? 10 : m <= 150 ? 25 : 50;
+  // At most one grid line per ~22 px, so a low chart doesn't get crowded.
+  const lines = Math.max(2, Math.floor((H - P.t - P.b) / 22));
+  const step = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000].find((x) => m / x <= lines) ?? 2500;
   const top = Math.ceil(m / step) * step;
   const bw = (W - P.l - P.r) / bins.length;
+  // Every 2nd/3rd label only, where they would run into each other (tooltips still name every column).
+  const labelEvery = Math.max(1, Math.ceil(36 / bw));
   const Y = (v) => H - P.b - (v / top) * (H - P.t - P.b);
   let s = '';
   for (let v = 0; v <= top; v += step) {
@@ -226,10 +272,107 @@ function columns(bins, { color = 'var(--meta-s1)', H = 170 } = {}) {
       s += `<path d="M${x},${Y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 - 2 * r} q${r},0 ${r},${r} v${h - r} z" fill="${b.color ?? color}"/>`;
     }
     s += `<rect x="${x - 1}" y="${P.t}" width="${bw}" height="${H - P.t - P.b}" fill="transparent" data-tip="${esc(b.tip ?? `${b.label}: ${b.v}`)}"/>`;
-    s += `<text x="${x + bw / 2 - 1}" y="${H - 6}" text-anchor="middle">${b.label}</text>`;
+    if (i % labelEvery === 0) s += `<text x="${x + bw / 2 - 1}" y="${H - 6}" text-anchor="middle">${b.label}</text>`;
   });
   s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
   return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
+}
+
+// Charts drawn at their box's real pixel size instead of a fixed viewBox
+// scaled into it - for cards whose height comes from their neighbors
+// (.meta-stack.fit), where scaling would shrink text and bars alike.
+// renderMetaTab() puts placeholders into the HTML; layoutFitCharts() draws
+// them once the HTML is in the page, and again whenever the size changes.
+const fitDraws = new Map();
+let fitSeq = 0;
+
+/**
+ * @param {(W: number, H: number) => string} draw returns the chart's SVG
+ * @param {{height?: number}} [opts] height: a fixed height in px instead of the usual proportions
+ */
+function fitChart(draw, { height } = {}) {
+  const id = `fit${++fitSeq}`;
+  fitDraws.set(id, draw);
+  const style = height ? ` style="aspect-ratio:auto;height:${height}px"` : '';
+  return `<div class="meta-fit" data-fit="${id}"${style}></div>`;
+}
+
+/** Draws every fitChart() placeholder in root at its current size. */
+export function layoutFitCharts(root) {
+  for (const box of root.querySelectorAll('[data-fit]')) {
+    const draw = fitDraws.get(box.dataset.fit);
+    if (!draw) continue;
+    const W = Math.max(240, Math.floor(box.clientWidth));
+    const H = Math.max(90, Math.floor(box.clientHeight));
+    if (box.dataset.size === `${W}x${H}`) continue;
+    box.dataset.size = `${W}x${H}`;
+    box.innerHTML = draw(W, H);
+  }
+}
+
+const MOVE_TIME_MOVES = 50;
+const MOVE_TIME_MIN_GAMES = 3; // fewer games at a move number make the line jump around
+
+/** "1:05" / "0:08" for an axis or tooltip; whole seconds, minutes unpadded. */
+function fmtSeconds(sec) {
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+const DURATION_MINUTES = 20;
+
+/** Games per minute of duration, 0–1 to 19–20; anything longer gets one
+ *  extra "20+" column, only when there is such a game. */
+function durationColumns(timed) {
+  if (!timed.length) return '<p class="meta-muted">Keine Partien mit Uhrzeiten.</p>';
+  const counts = Array(DURATION_MINUTES + 1).fill(0);
+  for (const r of timed) counts[Math.min(DURATION_MINUTES, Math.floor(r.duration / 60))]++;
+  const games = (n) => `${n} ${n === 1 ? 'Partie' : 'Partien'}`;
+  const bins = counts.slice(0, DURATION_MINUTES).map((n, m) => ({ label: `${m}–${m + 1}`, v: n, tip: `${m}–${m + 1} Min.: ${games(n)}` }));
+  const longer = counts[DURATION_MINUTES];
+  if (longer) bins.push({ label: `${DURATION_MINUTES}+`, v: longer, tip: `ab ${DURATION_MINUTES} Min.: ${games(longer)}` });
+  return `<p class="meta-muted small">Dauer in Minuten</p>${fitChart((W, H) => columns(bins, { W, H }))}`;
+}
+
+/** Average time spent on own move 1-50, one line per time class (Daily has no clock). */
+function moveTimeChart(rs) {
+  const series = ['bullet', 'blitz', 'rapid']
+    .map((tc) => {
+      const games = rs.filter((r) => r.timeClass === tc && r.ownMoveSeconds?.length);
+      const points = [];
+      for (let m = 1; m <= MOVE_TIME_MOVES; m++) {
+        const xs = games.map((r) => r.ownMoveSeconds[m - 1]).filter((x) => x != null);
+        if (xs.length >= MOVE_TIME_MIN_GAMES) points.push({ m, v: xs.reduce((a, b) => a + b, 0) / xs.length, n: xs.length });
+      }
+      return { tc, points };
+    })
+    .filter((s) => s.points.length >= 2);
+  if (!series.length) return '<p class="meta-muted">Zu wenige Partien mit Uhrzeiten.</p>';
+  const top = Math.max(1, ...series.flatMap((s) => s.points.map((p) => p.v)));
+  const legend = series.map(({ tc }) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]}</span>`).join('');
+  const draw = (W, H) => {
+    const P = { l: 40, r: 10, t: 10, b: 24 };
+    const lines = Math.max(2, Math.floor((H - P.t - P.b) / 22));
+    const step = [1, 2, 5, 10, 15, 30, 60, 120, 300].find((x) => top / x <= lines) ?? 600;
+    const y1 = Math.ceil(top / step) * step;
+    const X = (m) => P.l + ((m - 1) / (MOVE_TIME_MOVES - 1)) * (W - P.l - P.r);
+    const Y = (v) => H - P.b - (v / y1) * (H - P.t - P.b);
+    let s = '';
+    for (let v = 0; v <= y1; v += step) {
+      s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fmtSeconds(v)}</text>`;
+    }
+    for (const m of [1, 10, 20, 30, 40, 50]) s += `<text x="${X(m)}" y="${H - 6}" text-anchor="middle">${m}</text>`;
+    s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+    for (const { tc, points } of series) {
+      const col = timeClassStyle(tc).color;
+      s += `<polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" points="${points.map((p) => `${X(p.m).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ')}"/>`;
+      for (const p of points) {
+        s += `<circle cx="${X(p.m).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="5" fill="transparent" data-tip="${TC_LABEL[tc]} · Zug ${p.m}: Ø ${fmtSeconds(p.v)} (aus ${p.n} Partien)"/>`;
+      }
+    }
+    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Zeit pro Zug">${s}</svg>`;
+  };
+  return `<div class="meta-legend">${legend}</div>${fitChart(draw)}`;
 }
 
 /** Rating of a game that actually counted for it - unrated games (e.g. against
@@ -242,9 +385,6 @@ function ratingChart(rs) {
   const series = TC_ORDER.map((tc) => [tc, rs.filter((r) => r.timeClass === tc && hasRealRating(r))]).filter(([, l]) => l.length >= 2);
   if (!series.length) return '<p class="meta-muted">Zu wenige Partien mit Wertung.</p>';
   const all = series.flatMap(([, l]) => l);
-  const W = 640;
-  const H = 220;
-  const P = { l: 40, r: 14, t: 10, b: 24 };
   const x0 = Math.min(...all.map((r) => r.endTime));
   const x1 = Math.max(...all.map((r) => r.endTime));
   const ys = all.map((r) => r.ownRating);
@@ -252,38 +392,44 @@ function ratingChart(rs) {
   const step = span > 600 ? 200 : span > 250 ? 100 : 50;
   const y0 = Math.floor((Math.min(...ys) - 10) / step) * step;
   const y1 = Math.ceil((Math.max(...ys) + 10) / step) * step;
-  const X = (x) => P.l + ((x - x0) / Math.max(1, x1 - x0)) * (W - P.l - P.r);
-  const Y = (y) => H - P.b - ((y - y0) / (y1 - y0)) * (H - P.t - P.b);
-  let s = '';
-  for (let y = y0; y <= y1; y += step) {
-    s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(y)}" y2="${Y(y)}"/><text x="${P.l - 6}" y="${Y(y) + 4}" text-anchor="end">${y}</text>`;
-  }
-  // Month ticks, thinned so labels never collide.
   const months = [];
   const d = new Date(x0);
   d.setDate(1);
   d.setHours(0, 0, 0, 0);
   d.setMonth(d.getMonth() + 1);
   for (; +d <= x1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d));
-  const every = Math.max(1, Math.ceil(months.length / 8));
-  months.forEach((m, i) => {
-    if (i % every) return;
-    const label = m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString('de-DE', { month: 'short' });
-    s += `<text x="${X(+m)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
-  });
-  let legend = '';
-  for (const [tc, list] of series) {
-    const col = timeClassStyle(tc).color;
-    const sorted = [...list].sort((a, b) => a.endTime - b.endTime);
-    s += `<polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" points="${sorted.map((r) => `${X(r.endTime).toFixed(1)},${Y(r.ownRating).toFixed(1)}`).join(' ')}"/>`;
-    for (const r of sorted) {
-      s += `<circle cx="${X(r.endTime).toFixed(1)}" cy="${Y(r.ownRating).toFixed(1)}" r="6" fill="transparent" data-tip="${TC_LABEL[tc]} · ${fmtDate(r.endTime)}\nWertung ${r.ownRating} · ${RES_WORD[r.result]} gegen ${esc(r.opponent)}"/>`;
+  const lines = series.map(([tc, list]) => [tc, [...list].sort((a, b) => a.endTime - b.endTime)]);
+  const legend = lines
+    .map(([tc, sorted]) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]} ${sorted[0].ownRating} → ${sorted[sorted.length - 1].ownRating}</span>`)
+    .join('');
+  // Drawn at the box's pixel size (fitChart), so text and lines keep their size on a wide card.
+  const draw = (W, H) => {
+    const P = { l: 40, r: 14, t: 8, b: 22 };
+    const X = (x) => P.l + ((x - x0) / Math.max(1, x1 - x0)) * (W - P.l - P.r);
+    const Y = (y) => H - P.b - ((y - y0) / (y1 - y0)) * (H - P.t - P.b);
+    let s = '';
+    for (let y = y0; y <= y1; y += step) {
+      s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(y)}" y2="${Y(y)}"/><text x="${P.l - 6}" y="${Y(y) + 4}" text-anchor="end">${y}</text>`;
     }
-    const last = sorted[sorted.length - 1];
-    s += `<circle cx="${X(last.endTime)}" cy="${Y(last.ownRating)}" r="4" fill="${col}" stroke="var(--meta-panel)" stroke-width="2"/>`;
-    legend += `<span><i style="background:${col}"></i>${TC_LABEL[tc]} ${sorted[0].ownRating} → ${last.ownRating}</span>`;
-  }
-  return `<div class="meta-legend">${legend}</div><svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wertungsverlauf">${s}</svg>`;
+    // Month ticks, thinned so labels never collide (~70 px each).
+    const every = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor((W - P.l - P.r) / 70))));
+    months.forEach((m, i) => {
+      if (i % every) return;
+      const label = m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString('de-DE', { month: 'short' });
+      s += `<text x="${X(+m)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    });
+    for (const [tc, sorted] of lines) {
+      const col = timeClassStyle(tc).color;
+      s += `<polyline fill="none" stroke="${col}" stroke-width="1.25" stroke-linejoin="round" points="${sorted.map((r) => `${X(r.endTime).toFixed(1)},${Y(r.ownRating).toFixed(1)}`).join(' ')}"/>`;
+      for (const r of sorted) {
+        s += `<circle cx="${X(r.endTime).toFixed(1)}" cy="${Y(r.ownRating).toFixed(1)}" r="5" fill="transparent" data-tip="${TC_LABEL[tc]} · ${fmtDate(r.endTime)}\nWertung ${r.ownRating} · ${RES_WORD[r.result]} gegen ${esc(r.opponent)}"/>`;
+      }
+      const last = sorted[sorted.length - 1];
+      s += `<circle cx="${X(last.endTime)}" cy="${Y(last.ownRating)}" r="3" fill="${col}" stroke="var(--meta-panel)" stroke-width="1.5"/>`;
+    }
+    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wertungsverlauf">${s}</svg>`;
+  };
+  return `<div class="meta-legend">${legend}</div>${fitChart(draw, { height: 180 })}`;
 }
 
 function longestStreak(rs, result) {
@@ -298,13 +444,33 @@ function longestStreak(rs, result) {
 
 /** A tile with the first 5 games of an already-sorted list - a row opens the game.
  *  value: the ranked number's cell content (default: the game length). */
-function topGamesTile(label, sorted, accent, detail = '', value = (r) => `<b>${r.moves}</b> Zg.`) {
+/** The five top games as a clickable table (rank, value, result, opponent, date). */
+function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
     return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.emoji} ${esc(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
   });
-  const body = rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
-  return `<div class="meta-kpi list" style="--kpi-accent:${accent}"><span class="l">${label}${detail ? ` <span class="meta-faint">· ${detail}</span>` : ''}</span>${body}</div>`;
+  return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
+}
+
+// Endings "Längste Partien" / "Kürzeste Partien" can be narrowed to (endingPicker).
+const ENDING_FILTERS = [['checkmate', 'Matt'], ['timeout', 'Zeit'], ['resign', 'Aufgabe'], ['abandon', 'Abbruch']];
+const ENDING_NOTE = 'Ohne Auswahl alle Partien, sonst nur die mit einem der gewählten Partieenden.';
+
+/** A copy of rs with only the chosen endings - all of them when none is chosen. */
+const byEnding = (rs, chosen) => (chosen.size ? rs.filter((r) => chosen.has(r.termination)) : [...rs]);
+
+/** Toggle chips over a top-games card; table: which card's set (metaController's endings). */
+function endingPicker(table, chosen) {
+  const btns = ENDING_FILTERS.map(([key, label]) => {
+    const on = chosen.has(key);
+    return `<button type="button" class="${on ? 'on' : ''}" data-ending-table="${table}" data-ending="${key}" aria-pressed="${on}">${label}</button>`;
+  });
+  return `<span class="meta-seg" role="group" aria-label="Nach Partieende filtern">${btns.join('')}</span>`;
+}
+
+function topGamesTile(label, sorted, accent, detail = '', value) {
+  return `<div class="meta-kpi list" style="--kpi-accent:${accent}"><span class="l">${label}${detail ? ` <span class="meta-faint">· ${detail}</span>` : ''}</span>${topGamesTable(sorted, value)}</div>`;
 }
 
 /** "Basis: 180 von 220 Partien" under engine cards when not every game is analyzed yet. */
@@ -339,10 +505,6 @@ function overview(rs, ctx) {
     ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${ratingKpi}
     ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
-  </div>
-  <div class="meta-kpis wide">
-    ${topGamesTile('📏 Längste Partien', [...rs].sort((a, b) => b.moves - a.moves || b.endTime - a.endTime), 'var(--meta-s1)')}
-    ${topGamesTile('⚡ Kürzeste Matt-Partien', rs.filter((r) => r.termination === 'checkmate').sort((a, b) => a.moves - b.moves || b.endTime - a.endTime), '#e66767', 'nur Schachmatt, keine Aufgabe oder Zeit')}
   </div>`;
   const row = (label, list) =>
     list.length
@@ -463,7 +625,7 @@ function opponents(rs, ctx) {
   const countryOf = (r) => ctx.countryOf(r.opponent) ?? null;
   const known = rs.filter((r) => countryOf(r));
   const countries = [...groupBy(known, countryOf)].sort(byCountDesc);
-  const countryLabel = (code) => `${flag(code)} ${esc(countryName(code))}`;
+  const countryLabel = (code) => `<span class="meta-country">${flag(code)}${esc(countryName(code))}</span>`;
   // Both country cards show the top ctx.countryLimit countries by game count
   // (0 = all) - the table then sorts just those.
   const topCountries = ctx.countryLimit ? countries.slice(0, ctx.countryLimit) : countries;
@@ -610,17 +772,19 @@ function quality(rs, ctx) {
   return kpis + `<div class="meta-grid">
     ${card('Verteilung der Genauigkeit', 'eng', columns(bins), { cls: 'w8', note: note || 'Genauigkeit je Partie, nach derselben Formel wie in der Einzelanalyse.' })}
     ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
-    ${card('Verwertung', 'eng', `<div class="meta-kpis">
+    ${card('Verwertung', 'eng', `<div class="meta-kpis five">
       ${kpi('🏁 Gewinnstellungen verwertet', pc(winning.length ? converted.length / winning.length : null), `${converted.length} von ${winning.length}`, '', GOOD)}
-      ${kpi('🎁 Siege verschenkt', gamesCount(thrown), 'mit +3 Material-Vorsprung noch verloren', '', BAD)}
-      ${kpi('💸 Must-Wins verschenkt', gamesCount(thrownBig), 'mit +9 Material-Vorsprung noch verloren', '', BAD)}
       ${kpi('🛟 Aus Verluststellung gerettet', gamesCount(saved), 'Remis oder Sieg', '', GOOD)}
       ${kpi('🛡️ Niederlagen abgewiesen', gamesCount(turned), 'mit −3 Material-Rückstand noch gewonnen', '', GOOD)}
       ${kpi('💀 Dem Tod von der Schippe gesprungen', gamesCount(turnedBig), 'mit −9 Material-Rückstand noch gewonnen', '', GOOD)}
-      ${kpi('♚ Matt in 1 nicht verwertet', gamesCount(m1Missed.map((x) => x.r), String(m1MissedCount)), `von ${m1Chances} M1-Chancen${m1Chances ? `, ${pc(m1MissedCount / m1Chances)}` : ''}`, '', BAD)}
-      ${kpi('📉 Größter verspielter Vorsprung', gamesCount(blownLead.games, signed(blownLead.value)), 'Material, und doch verloren', '', BAD)}
       ${kpi('📈 Größte Aufholjagd', gamesCount(comeback.games, signed(comeback.value)), 'Material, und doch gewonnen', '', GOOD)}
-      ${kpi('⏳ Patzer in Zeitnot', pc(clockBlunders.length ? tt / clockBlunders.length : null), 'Anteil, unter 10 % Restzeit', '', '#f08a3c')}
+    </div>
+    <div class="meta-kpis five">
+      ${kpi('♚ Matt in 1 nicht verwertet', gamesCount(m1Missed.map((x) => x.r), String(m1MissedCount)), `von ${m1Chances} M1-Chancen${m1Chances ? `, ${pc(m1MissedCount / m1Chances)}` : ''}`, '', BAD)}
+      ${kpi('⏳ Patzer in Zeitnot', pc(clockBlunders.length ? tt / clockBlunders.length : null), 'Anteil, unter 10 % Restzeit', '', BAD)}
+      ${kpi('🎁 Siege verschenkt', gamesCount(thrown), 'mit +3 Material-Vorsprung noch verloren', '', BAD)}
+      ${kpi('💸 Must-Wins verschenkt', gamesCount(thrownBig), 'mit +9 Material-Vorsprung noch verloren', '', BAD)}
+      ${kpi('📉 Größter verspielter Vorsprung', gamesCount(blownLead.games, signed(blownLead.value)), 'Material, und doch verloren', '', BAD)}
     </div>
     <div class="meta-kpis wide">
       ${topGamesTile('♚ Meiste verpasste Matt-in-1 in einer Partie', m1Top.map((x) => x.r), BAD, 'Matt in 1 möglich, aber anders gezogen', (r) => `<b>${m1Of.get(r)}</b>× M1`)}
@@ -630,25 +794,20 @@ function quality(rs, ctx) {
   </div>`;
 }
 
-function timeTab(rs) {
+function timeTab(rs, ctx) {
   if (!rs.length) return card('Zeit', '', EMPTY, { cls: 'w12' });
   const how = (result, color) => {
     const l = rs.filter((r) => r.result === result);
-    const rows = [...groupBy(l, (r) => r.termination)]
+    const slices = [...groupBy(l, (r) => r.termination)]
       .sort(byCountDesc)
-      .map(([k, x]) => ({ label: TERMINATION_LABEL[k] ?? k, v: x.length, tip: `${TERMINATION_LABEL[k] ?? k}: ${x.length} (${pc(x.length / l.length)})` }));
-    if (!rows.length) return '<p class="meta-muted">Keine Partien.</p>';
-    return hbars(rows, { color }) + `<div class="meta-total"><span>Gesamt:</span><span>${l.length}</span></div>`;
+      .map(([k, x], i, all) => ({ label: TERMINATION_LABEL[k] ?? k, v: x.length, color: shade(color, i, all.length) }));
+    if (!slices.length) return '<p class="meta-muted">Keine Partien.</p>';
+    return pie(slices, { total: true });
   };
   const losses = rs.filter((r) => r.result === 'L');
   const timeLosses = losses.filter((r) => r.termination === 'timeout');
-  const clocked = rs.filter((r) => r.initialClock && r.ownClockEnd != null && r.result !== 'L');
-  const clockRows = ['bullet', 'blitz', 'rapid']
-    .map((tc) => {
-      const l = clocked.filter((r) => r.timeClass === tc);
-      return l.length ? { label: TC_LABEL[tc], v: (avg(l, (r) => Math.min(1, r.ownClockEnd / r.initialClock)) ?? 0) * 100, tip: `${TC_LABEL[tc]}: ${l.length} Partien` } : null;
-    })
-    .filter(Boolean);
+  const timed = rs.filter((r) => r.duration != null);
+  const avgDuration = avg(timed, (r) => r.duration);
   const pctFmt = (v) => `${Math.round(v)} %`;
   const lengthRows = [[0, 20, 'bis 20'], [21, 30, '21–30'], [31, 40, '31–40'], [41, 50, '41–50'], [51, Infinity, '51+']]
     .map(([a, b, label]) => {
@@ -694,20 +853,33 @@ function timeTab(rs) {
   }
 
   return `<div class="meta-grid">
-    ${card('Wie du gewinnst', 'fast', how('W', 'var(--meta-win)'), { cls: 'w4' })}
-    ${card('Wie du verlierst', 'fast', how('L', 'var(--meta-loss)'), { cls: 'w4' })}
-    ${card('Wie Remis entstehen', 'fast', how('D', 'var(--meta-draw)'), { cls: 'w4' })}
-    ${card('Uhr', 'fast', bigStats([[pc(losses.length ? timeLosses.length / losses.length : null), 'der Niederlagen auf Zeit'], [f0(avg(rs, (r) => r.moves)), 'Ø Züge pro Partie']])
-      + '<h3>Ø Restzeit am Ende (ohne Niederlagen)</h3>' + hbars(clockRows, { fmt: pctFmt, max: 100 }), { note: 'Restzeit aus den Uhrzeiten im PGN, in Prozent der Startzeit. Daily-Partien zählen hier nicht.' })}
-    ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
+    ${card('Wie du gewinnst', 'fast', how('W', 'var(--meta-win)'), { cls: 'w4', accent: 'var(--meta-win)' })}
+    ${card('Wie du verlierst', 'fast', how('L', 'var(--meta-loss)'), { cls: 'w4', accent: 'var(--meta-loss)' })}
+    ${card('Wie Remis entstehen', 'fast', how('D', 'var(--meta-draw)'), { cls: 'w4', accent: 'var(--meta-draw)' })}
+    ${card('Längste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.longest).sort((a, b) => b.moves - a.moves || b.endTime - a.endTime)), { head: endingPicker('longest', ctx.endings.longest), note: ENDING_NOTE })}
+    ${card('Kürzeste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.shortest).sort((a, b) => a.moves - b.moves || b.endTime - a.endTime)), { head: endingPicker('shortest', ctx.endings.shortest), note: ENDING_NOTE })}
+    <div class="meta-stack">
+      ${card('Uhr', 'fast', bigStats([
+        [avgDuration == null ? '–' : fmtSeconds(avgDuration), 'Ø Dauer pro Partie'],
+        [f0(avg(rs, (r) => r.moves)), 'Ø Züge pro Partie'],
+        [pc(losses.length ? timeLosses.length / losses.length : null), 'der Niederlagen auf Zeit'],
+      ]), { note: 'Dauer: verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien.' })}
+      ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
+    </div>
+    <div class="meta-stack w8 fit">
+      ${card('Zeit pro Zug', 'fast', moveTimeChart(rs), { note: 'Ø Bedenkzeit für deinen 1. bis 50. Zug, je Spielart. Ein Punkt erscheint ab 3 Partien, die so lange gingen.' })}
+      ${card('Dauer der Partien', 'fast', durationColumns(timed), { note: 'Verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien. Längere Partien als 20 Minuten stehen gesammelt in „20+“.' })}
+    </div>
     ${card('Wann du spielst', 'fast', `<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}
-    ${card('Quote nach Tageszeit', 'fast', hbars(slots, { fmt: pctFmt, max: 100 }), { cls: 'w4' })}
-    ${card('Serien und Tilt', 'fast', bigStats([
-      [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
-      [pc(score(afterLoss)), 'Quote direkt nach einer Niederlage'],
-      [longestStreak(chrono, 'W'), 'längste Siegesserie'],
-      [longestStreak(chrono, 'L'), 'längste Niederlagenserie'],
-    ]), { cls: 'w12', note: 'Ist die Quote nach Niederlagen deutlich schlechter, hilft oft eine kurze Pause nach einer verlorenen Partie.' })}
+    <div class="meta-stack">
+      ${card('Quote nach Tageszeit', 'fast', hbars(slots, { fmt: pctFmt, max: 100 }))}
+      ${card('Serien und Tilt', 'fast', bigStats([
+        [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
+        [pc(score(afterLoss)), 'Quote direkt nach einer Niederlage'],
+        [longestStreak(chrono, 'W'), 'längste Siegesserie'],
+        [longestStreak(chrono, 'L'), 'längste Niederlagenserie'],
+      ]), { note: 'Ist die Quote nach Niederlagen deutlich schlechter, hilft oft eine kurze Pause nach einer verlorenen Partie.' })}
+    </div>
   </div>`;
 }
 
@@ -756,5 +928,6 @@ const RENDERERS = { overview, openings, opponents, quality, time: timeTab, games
  *   username: string, engineLabel: string, countriesPending: boolean, countriesDone: number, countriesTotal: number}} ctx
  */
 export function renderMetaTab(tab, records, ctx) {
+  fitDraws.clear(); // the previous render's charts are about to be replaced
   return (RENDERERS[tab] ?? overview)(records, ctx);
 }
