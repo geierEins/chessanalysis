@@ -13,7 +13,7 @@ import { MoveList } from './ui/moveList.js';
 import { Dashboard } from './ui/dashboard.js';
 import { TimeManagementChart } from './ui/timeManagementChart.js';
 import { setAvatar } from './ui/avatar.js';
-import { formatPlayerLabelHtml } from './ui/playerLabel.js';
+import { formatPlayerLabelHtml, escapeHtml } from './ui/playerLabel.js';
 import { CustomSelect } from './ui/customSelect.js';
 import { materialSummaryFromFen, isSacrifice } from './analysis/material.js';
 import { playMoveSound, playIllegalMoveSound, setSoundEnabled } from './ui/sounds.js';
@@ -301,8 +301,8 @@ const gameTypePicker = el('game-type-picker');
 const gameTypeFilterCheckboxes = [...gameTypeMenu.querySelectorAll('input[type="checkbox"]')];
 
 // Outcome filter (Gewonnen/Remis/Verloren) DOM refs - wired further down,
-// once ownOutcomeCategory/OUTCOME_CIRCLE exist (js/main.js's own helper
-// order), right after ownOutcomeCircle.
+// once ownOutcomeCategory/OUTCOME_LETTER exist (js/main.js's own helper
+// order), right after ownOutcomeBadge.
 const outcomeFilterBtn = el('outcome-filter-btn');
 const outcomeFilterMenu = el('outcome-filter-menu');
 const outcomeFilterPicker = el('outcome-filter-picker');
@@ -607,27 +607,23 @@ function ownOutcomeCategory(game, ownUsername) {
   return ownWon ? 'win' : 'loss';
 }
 
-const OUTCOME_CIRCLE = { win: '🟢', draw: '⚪', loss: '🔴' };
+// S/R/N badges for win/draw/loss, like the Meta-Analyse's result marks
+// (.outcome-badge) - in the game picker and the outcome filter.
+const OUTCOME_LETTER = { win: 'S', draw: 'R', loss: 'N' };
 
-/** Green/red/gray circle showing whether the searched user won, lost, or
- *  drew - shown in the game picklist instead of a trophy/handshake emoji. */
-function ownOutcomeCircle(game, ownUsername) {
+/** The S/R/N badge (HTML) showing whether the searched user won, lost, or drew. */
+function ownOutcomeBadge(game, ownUsername) {
   const category = ownOutcomeCategory(game, ownUsername);
-  return category ? OUTCOME_CIRCLE[category] : '';
+  return category ? `<span class="outcome-badge ${category}">${OUTCOME_LETTER[category]}</span>` : '';
 }
 
 const OUTCOME_ORDER = ['win', 'draw', 'loss'];
 
-/** Rebuilds #outcome-filter-btn's overlapping icon stack from the current
- *  selection - win/draw/loss order, whichever of the 3 are actually
- *  selected - instead of always showing a fixed 3-icon stack regardless of
- *  what's checked. */
+/** Rebuilds #outcome-filter-btn's badges from the current selection -
+ *  win/draw/loss order, only the ones actually selected. */
 function updateOutcomeFilterButtonIcon() {
-  const shown = OUTCOME_ORDER.filter((o) => selectedOutcomes.has(o));
-  // Descending z-index (leftmost highest) so each icon sits on top of the
-  // one to its right, per the left-to-right overlap css/styles.css sets up.
-  outcomeFilterBtn.innerHTML = shown
-    .map((o, i) => `<span class="outcome-filter-stack-icon" style="z-index:${shown.length - i}">${OUTCOME_CIRCLE[o]}</span>`)
+  outcomeFilterBtn.innerHTML = OUTCOME_ORDER.filter((o) => selectedOutcomes.has(o))
+    .map((o) => `<span class="outcome-badge ${o}">${OUTCOME_LETTER[o]}</span>`)
     .join('');
 }
 
@@ -674,16 +670,12 @@ const COLOR_ICON = {
   b: 'https://chessboardjs.com/img/chesspieces/wikipedia/bP.png',
 };
 
-/** Rebuilds #color-filter-btn's overlapping pawn-icon stack from the current
+/** Rebuilds #color-filter-btn's pawn icons (side by side) from the current
  *  selection - same idea as updateOutcomeFilterButtonIcon above, just pawn
- *  images instead of circle emoji. */
+ *  images instead of S/R/N badges. */
 function updateColorFilterButtonIcon() {
-  const shown = COLOR_ORDER.filter((c) => selectedColors.has(c));
-  colorFilterBtn.innerHTML = shown
-    .map(
-      (c, i) =>
-        `<img src="${COLOR_ICON[c]}" alt="" class="color-filter-stack-icon" style="z-index:${shown.length - i}">`
-    )
+  colorFilterBtn.innerHTML = COLOR_ORDER.filter((c) => selectedColors.has(c))
+    .map((c) => `<img src="${COLOR_ICON[c]}" alt="" class="color-filter-stack-icon">`)
     .join('');
 }
 
@@ -729,17 +721,21 @@ document.addEventListener('click', (e) => {
 });
 
 const GAME_TYPE_ORDER = ['bullet', 'blitz', 'rapid', 'daily'];
+// The Spielart menu's icons come from timeClassStyle too (index.html only marks where).
+for (const span of gameTypeMenu.querySelectorAll('[data-tc-icon]')) {
+  span.insertAdjacentHTML('afterbegin', `${timeClassStyle(span.dataset.tcIcon).icon} `);
+}
 
-/** Rebuilds #game-type-btn's overlapping icon stack from the current
+/** Rebuilds #game-type-btn's icons (side by side) from the current
  *  selection - same idea as the outcome/color filters above, reusing
- *  timeClassStyle for the emoji+color so they never drift out of sync with
+ *  timeClassStyle for the icon+color so they never drift out of sync with
  *  the game picklist's own per-game icons. */
 function updateGameTypeFilterButtonIcon() {
   const shown = GAME_TYPE_ORDER.filter((t) => selectedGameTypes.has(t));
   gameTypeBtn.innerHTML = shown
-    .map((t, i) => {
+    .map((t) => {
       const style = timeClassStyle(t);
-      return `<span class="game-type-filter-stack-icon" style="z-index:${shown.length - i}; color:${style.color}">${style.emoji}</span>`;
+      return `<span class="game-type-filter-stack-icon" style="color:${style.color}">${style.icon}</span>`;
     })
     .join('');
 }
@@ -1088,17 +1084,21 @@ function ensureEngine() {
 function buildGameOptions(gameList, username) {
   return gameList.map((game, index) => {
     const style = timeClassStyle(game.timeClass);
-    const outcome = ownOutcomeCircle(game, username);
-    const vs = `${style.emoji} vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
+    const outcome = ownOutcomeBadge(game, username);
+    const vs = `vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
     const moves = game.moveCount != null ? ` — ${game.moveCount} Zg.` : '';
     const stored = analyzedUrls.has(game.url) ? '✓' : ''; // opens without re-analyzing
     const join = (...parts) => parts.filter(Boolean).join(' ');
+    // The same as HTML: game-type icon and S/R/N badge are markup, the text escaped.
+    const html = (text) => join(style.icon, escapeHtml(text), outcome, stored);
     return {
       value: String(index),
       // Own name/elo dropped everywhere (see opponentLabel) - just "vs
       // Opponent (Elo) — Date"; the open menu adds the move count.
-      label: join(vs + moves, outcome, stored),
-      shortLabel: join(vs, outcome, stored),
+      label: join(vs + moves, stored),
+      shortLabel: join(vs, stored),
+      html: html(vs + moves),
+      shortHtml: html(vs),
       color: style.color,
     };
   });
@@ -1374,8 +1374,8 @@ const MOVE_QUALITY_RANK = {
  */
 function computeAdvancedStats(analysis, initialSeconds, incrementSeconds) {
   const perColor = {
-    w: { cpLossSum: 0, cpLossCount: 0, sacrifices: 0, checks: 0, forced: 0, bestMoves: [], worstBlunder: null, maxAdvantage: null, fastest: null, slowest: null },
-    b: { cpLossSum: 0, cpLossCount: 0, sacrifices: 0, checks: 0, forced: 0, bestMoves: [], worstBlunder: null, maxAdvantage: null, fastest: null, slowest: null },
+    w: { cpLossSum: 0, cpLossCount: 0, sacrifices: 0, checks: 0, forced: 0, missedMates: [], bestMoves: [], worstBlunder: null, maxAdvantage: null, fastest: null, slowest: null },
+    b: { cpLossSum: 0, cpLossCount: 0, sacrifices: 0, checks: 0, forced: 0, missedMates: [], bestMoves: [], worstBlunder: null, maxAdvantage: null, fastest: null, slowest: null },
   };
   const lastClock = { w: initialSeconds, b: initialSeconds };
 
@@ -1392,6 +1392,11 @@ function computeAdvancedStats(analysis, initialSeconds, incrementSeconds) {
     // also, definitionally, a check).
     if (move.san.endsWith('+') || move.san.endsWith('#')) stats.checks += 1;
     if (move.category.id === 'FORCED') stats.forced += 1;
+    // The engine saw a mate in 1 for the mover (white-perspective mate: +1
+    // for White, -1 for Black) and the move played didn't mate.
+    if (move.evalBeforeWhite?.mate === (move.color === 'w' ? 1 : -1) && !move.san.endsWith('#')) {
+      stats.missedMates.push({ ply: move.ply, moveNumber: move.moveNumber });
+    }
 
     const rank = MOVE_QUALITY_RANK[move.category.id];
     if (rank !== undefined) {
@@ -1438,6 +1443,7 @@ function computeAdvancedStats(analysis, initialSeconds, incrementSeconds) {
       sacrifices: s.sacrifices,
       checks: s.checks,
       forced: s.forced,
+      missedMates: s.missedMates,
       bestMoves: s.bestMoves,
       worstBlunder: s.worstBlunder,
       // 0 means "never actually ahead" - not a meaningful "peak", so null too.
@@ -1465,6 +1471,14 @@ function formatMoveStatList(entries, formatValue) {
   return entries.map((entry) => formatMoveStat(entry, formatValue)).join('<br>');
 }
 
+/** A count with every move it counts as its own jump link: "2 (Zug 12, 15)" -
+ *  each to the position BEFORE that move, where the chance was (ply - 1). */
+function formatMoveCountList(entries) {
+  if (!entries.length) return '0';
+  const links = entries.map((e) => `<span class="stat-jump-link" data-ply="${e.ply - 1}">${e.moveNumber}</span>`).join(', ');
+  return `${entries.length} <span class="stat-jump-group">(Zug ${links})</span>`;
+}
+
 /** Renders the "Statistik" tab's rows and wires each jump link to goToPly(). */
 // Shown as native hover tooltips on a few row labels - none of these need a
 // jump-to-move link (they explain a game-wide stat, not one tied to a single
@@ -1474,6 +1488,8 @@ function formatMoveStatList(entries, formatValue) {
 // a second line rather than one long one.
 const ACPL_EXPLANATION =
   'Durchschnittlicher Wertverlust pro Zug in Hundertstel eines Bauern (100 = ein Bauer).\nJe niedriger, desto präziser gespielt.';
+const MISSED_MATE_EXPLANATION =
+  'Züge, bei denen ein Matt in 1 möglich war, aber anders gezogen wurde.\nKlick auf eine Zugnummer springt zur Stellung davor, in der das Matt möglich war.';
 const DELTA_W_EXPLANATION =
   'Prozentpunkte Gewinnwahrscheinlichkeit, die dieser Zug im Vergleich zum bestmöglichen Zug gekostet hat.\n0% wäre der objektiv beste Zug gewesen.';
 
@@ -1489,6 +1505,11 @@ function renderStatsTable(stats) {
     ['Anzahl Opfer', stats.white.sacrifices, stats.black.sacrifices],
     ['Anzahl Schachsetzungen', stats.white.checks, stats.black.checks],
     ['Anzahl erzwungener Züge', stats.white.forced, stats.black.forced],
+    [
+      labelWithTooltip('Verpasste Matt-in-1-Züge', MISSED_MATE_EXPLANATION),
+      formatMoveCountList(stats.white.missedMates),
+      formatMoveCountList(stats.black.missedMates),
+    ],
     [
       'Größter Materialvorsprung',
       formatMoveStat(stats.white.maxAdvantage, (m) => `+${m.advantage}`),

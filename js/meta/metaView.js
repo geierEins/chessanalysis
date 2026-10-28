@@ -6,6 +6,7 @@
 
 import { timeClassStyle } from '../timeClassStyle.js';
 import { flagHtml, countryName } from '../ui/playerLabel.js';
+import { metaIcon, iconLabel } from './metaIcons.js';
 import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame } from './metaRecords.js';
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { pieceUrl } from './openingBoard.js';
@@ -23,7 +24,8 @@ export const META_TABS = [
 const TC_ORDER = ['bullet', 'blitz', 'rapid', 'daily'];
 const TC_LABEL = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', daily: 'Daily' };
 const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
-const RES_CIRCLE = { W: '🟢', D: '⚪', L: '🔴' }; // same as the game picker's (js/main.js's OUTCOME_CIRCLE)
+// The game list popup marks results with the same S/R/N badges as the game picker (css .outcome-badge).
+const RES_BADGE = { W: 'win', D: 'draw', L: 'loss' };
 const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const HEAT_RAMP = ['#1d2a3d', '#184f95', '#1c5cab', '#256abf', '#2a78d6', '#3987e5', '#5598e7', '#86b6ef'];
@@ -89,6 +91,7 @@ const CARD_ICONS = {
   'Übersicht': '🧾',
   'Sieg, Remis, Niederlage': '📊',
   'Nach Farbe und Spielart': '🎨',
+  'Die letzten 5 Partien': '🕑',
   'Wertungsverlauf': '📈',
   'Eröffnungen': '📖',
   'Mit Weiß': 'piece:wP',
@@ -134,16 +137,18 @@ function cardIcon(title) {
   if (!icon) return '';
   return icon.startsWith('piece:')
     ? `<img class="meta-card-icon" src="${pieceUrl(icon.slice(6))}" alt="">`
-    : `<span class="meta-card-icon" aria-hidden="true">${icon}</span>`;
+    : `<span class="meta-card-icon" aria-hidden="true">${metaIcon(icon) || icon}</span>`;
 }
 
 /** head: extra controls right of the title, before the badge (e.g. limitPicker). */
 /** accent: optional color for the same colored top edge and glow as a stat tile (kpi()). */
-function card(title, src, body, { cls = 'w6', note = '', head = '', accent = '' } = {}) {
+/** mid: content centered in the title row, between title and badge (e.g. a chart's legend). */
+function card(title, src, body, { cls = 'w6', note = '', head = '', accent = '', mid = '' } = {}) {
   const badge = src ? `<span class="meta-src ${src}">${src === 'fast' ? 'ohne Engine' : 'Engine'}</span>` : '';
   const right = head ? `<span class="meta-card-tools">${head}${badge}</span>` : badge;
   const attrs = accent ? `class="meta-card ${cls} accent" style="--kpi-accent:${accent}"` : `class="meta-card ${cls}"`;
-  return `<section ${attrs}><div class="meta-card-head"><h2>${cardIcon(title)}${title}</h2>${right}</div>${body}${
+  const headCls = mid ? 'meta-card-head has-mid' : 'meta-card-head';
+  return `<section ${attrs}><div class="${headCls}"><h2>${cardIcon(title)}${title}</h2>${mid ? `<div class="meta-card-mid">${mid}</div>` : ''}${right}</div>${body}${
     note ? `<p class="meta-note">${note}</p>` : ''
   }</section>`;
 }
@@ -153,7 +158,7 @@ const EMPTY = '<p class="meta-muted">Keine Partien für diese Filter.</p>';
 /** A stat tile. accent: its color (top edge and a soft glow), any CSS color. */
 function kpi(label, value, detail = '', cls = '', accent = '') {
   const style = accent ? ` style="--kpi-accent:${accent}"` : '';
-  return `<div class="meta-kpi"${style}><span class="l">${label}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
+  return `<div class="meta-kpi"${style}><span class="l">${iconLabel(label)}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
 }
 
 // Tile accents for stats in your favor / against you.
@@ -197,7 +202,7 @@ export function gameListHtml(list, shown) {
   const items = list.slice(0, shown).map((r) => {
     const style = timeClassStyle(r.timeClass);
     const elo = r.oppRating ? ` (${r.oppRating})` : '';
-    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.emoji} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. ${RES_CIRCLE[r.result]}</button>`;
+    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.icon} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. <span class="outcome-badge ${RES_BADGE[r.result]}">${RES_LETTER[r.result]}</span></button>`;
   });
   const n = Math.min(shown, list.length);
   const left = list.length - n;
@@ -213,27 +218,13 @@ function bigStats(items, cls = '') {
     .join('')}</div>`;
 }
 
-function donut(rs) {
-  const c = wdl(rs);
-  const n = rs.length || 1;
-  const R = 58;
-  const C = 2 * Math.PI * R;
-  let off = 0;
-  let arcs = '';
-  for (const [k, col, label] of [['W', 'var(--meta-win)', 'Siege'], ['D', 'var(--meta-draw)', 'Remis'], ['L', 'var(--meta-loss)', 'Niederlagen']]) {
-    const len = (c[k] / n) * C;
-    if (!len) continue;
-    arcs += `<circle cx="75" cy="75" r="${R}" fill="none" stroke="${col}" stroke-width="20" stroke-dasharray="${Math.max(0, len - 2)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 75 75)" data-tip="${label}: ${c[k]} (${pc(c[k] / n)})"></circle>`;
-    off += len;
-  }
-  return `<div class="meta-donut"><svg viewBox="0 0 150 150" role="img" aria-label="Sieg-Remis-Niederlage-Verteilung">${arcs}
-      <text x="75" y="72" text-anchor="middle" class="meta-donut-big">${pc(score(rs))}</text>
-      <text x="75" y="92" text-anchor="middle">Punkte-Quote</text></svg>
-    <div class="meta-donut-legend">
-      <div><i style="background:var(--meta-win)"></i><span>Siege</span><b>${c.W}</b></div>
-      <div><i style="background:var(--meta-draw)"></i><span>Remis</span><b>${c.D}</b></div>
-      <div><i style="background:var(--meta-loss)"></i><span>Niederlagen</span><b>${c.L}</b></div>
-    </div></div>`;
+/** Wins, draws and losses as a pie like "Zeit & Partieende"'s, each count opening its games. */
+function resultPie(rs) {
+  const slices = [['W', 'var(--meta-win)', 'Siege'], ['D', 'var(--meta-draw)', 'Remis'], ['L', 'var(--meta-loss)', 'Niederlagen']]
+    .map(([k, color, label]) => ({ label, color, games: rs.filter((r) => r.result === k) }))
+    .filter((s) => s.games.length)
+    .map((s) => ({ ...s, v: s.games.length }));
+  return pie(slices, { total: rs, center: { value: pc(score(rs)), label: 'Punkte-Quote' } });
 }
 
 /** The i-th of n shades of one base color for a pie's slices, dark to light:
@@ -248,7 +239,8 @@ function shade(base, i, n) {
 
 /** Pie chart with a legend. slices: {label, v, color} - largest first. */
 // total: true shows the sum under the legend, a list of games makes it clickable.
-function pie(slices, { total = false } = {}) {
+// center: {value, label} turns it into a ring with that text in its free middle.
+function pie(slices, { total = false, center = null } = {}) {
   const n = slices.reduce((a, s) => a + s.v, 0);
   const R = 60;
   const C = 65;
@@ -270,7 +262,11 @@ function pie(slices, { total = false } = {}) {
   const legend = slices
     .map((s) => `<div><i style="background:${s.color}"></i><span>${esc(s.label)}</span><b>${s.games ? gamesCount(s.games) : s.v} · ${pc(s.v / n)}</b></div>`)
     .join('');
-  return `<div class="meta-donut meta-pie"><svg viewBox="0 0 130 130" role="img">${paths}</svg><div class="meta-donut-legend">${legend}${total ? `<div class="meta-total"><span>Gesamt:</span><span>${Array.isArray(total) ? gamesCount(total) : n}</span></div>` : ''}</div></div>`;
+  // The ring: the panel color over the pie's middle (covering the slice edges there too).
+  const hole = center
+    ? `<circle cx="${C}" cy="${C}" r="${R - 17}" class="meta-pie-hole"></circle><text x="${C}" y="${C + 3}" text-anchor="middle" class="meta-donut-big">${center.value}</text><text x="${C}" y="${C + 19}" text-anchor="middle">${center.label}</text>`
+    : '';
+  return `<div class="meta-donut meta-pie${center ? ' meta-pie-ring' : ''}"><svg viewBox="0 0 130 130" role="img">${paths}${hole}</svg><div class="meta-donut-legend">${legend}${total ? `<div class="meta-total"><span>Gesamt:</span><span>${Array.isArray(total) ? gamesCount(total) : n}</span></div>` : ''}</div></div>`;
 }
 
 /** Vertical bars on one shared scale. bins: {label, v, tip?, color?}
@@ -407,9 +403,10 @@ function moveTimeChart(rs) {
  *  the check stays as a safety net. */
 const hasRealRating = (r) => r.rated && !isCoachGame(r) && r.ownRating != null;
 
+/** @returns {{legend: string, body: string}} the legend (for the card's title row) and the chart */
 function ratingChart(rs) {
   const series = TC_ORDER.map((tc) => [tc, rs.filter((r) => r.timeClass === tc && hasRealRating(r))]).filter(([, l]) => l.length >= 2);
-  if (!series.length) return '<p class="meta-muted">Zu wenige Partien mit Wertung.</p>';
+  if (!series.length) return { legend: '', body: '<p class="meta-muted">Zu wenige Partien mit Wertung.</p>' };
   const all = series.flatMap(([, l]) => l);
   const x0 = Math.min(...all.map((r) => r.endTime));
   const x1 = Math.max(...all.map((r) => r.endTime));
@@ -455,7 +452,7 @@ function ratingChart(rs) {
     }
     return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wertungsverlauf">${s}</svg>`;
   };
-  return `<div class="meta-legend">${legend}</div>${fitChart(draw, { height: 180 })}`;
+  return { legend: `<div class="meta-legend">${legend}</div>`, body: fitChart(draw, { height: 180 }) };
 }
 
 function longestStreak(rs, result) {
@@ -474,7 +471,7 @@ function longestStreak(rs, result) {
 function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
-    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.emoji} ${esc(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${esc(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
@@ -496,7 +493,7 @@ function endingPicker(table, chosen) {
 }
 
 function topGamesTile(label, sorted, accent, detail = '', value) {
-  return `<div class="meta-kpi list" style="--kpi-accent:${accent}"><span class="l">${label}${detail ? ` <span class="meta-faint">· ${detail}</span>` : ''}</span>${topGamesTable(sorted, value)}</div>`;
+  return `<div class="meta-kpi list" style="--kpi-accent:${accent}"><span class="l">${iconLabel(label)}${detail ? ` <span class="meta-faint">· ${detail}</span>` : ''}</span>${topGamesTable(sorted, value)}</div>`;
 }
 
 /** "Basis: 180 von 220 Partien" under engine cards when not every game is analyzed yet. */
@@ -512,6 +509,23 @@ function noEngineCard(ctx) {
 }
 
 // ---------- tabs ----------
+
+/** The overview's newest games, one compact clickable row each: result, color,
+ *  game type and opponent, then moves, accuracy and date. */
+function recentGames(list, ctx) {
+  const rows = list.map((r) => {
+    const style = timeClassStyle(r.timeClass);
+    const acc = ctx.engineOf(r)?.accuracy;
+    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen">`
+      + `<td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>`
+      + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
+      + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${esc(r.opponent)}</td>`
+      + `<td class="r">${r.moves} Zg.</td>`
+      + `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`
+      + `<td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+  });
+  return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
+}
 
 function overview(rs, ctx) {
   if (!rs.length) return card('Übersicht', '', EMPTY, { cls: 'w12' });
@@ -529,8 +543,8 @@ function overview(rs, ctx) {
   const promotions = promoted.reduce((a, r) => a + r.promotions, 0);
   const kpis = `<div class="meta-kpis">
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
-    ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
     ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
+    ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
     ${ratingKpi}
     ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
     ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
@@ -541,11 +555,15 @@ function overview(rs, ctx) {
       : '';
   const byColor = row('<span class="meta-colordot w"></span> Mit Weiß', rs.filter((r) => r.color === 'w'))
     + row('<span class="meta-colordot b"></span> Mit Schwarz', rs.filter((r) => r.color === 'b'));
-  const byTc = TC_ORDER.map((tc) => row(`${timeClassStyle(tc).emoji} ${TC_LABEL[tc]}`, rs.filter((r) => r.timeClass === tc))).join('');
+  const byTc = TC_ORDER.map((tc) => row(`<span style="color:${timeClassStyle(tc).color}">${timeClassStyle(tc).icon} ${TC_LABEL[tc]}</span>`, rs.filter((r) => r.timeClass === tc))).join('');
+  const rating = ratingChart(rs);
   return kpis + `<div class="meta-grid">
-    ${card('Sieg, Remis, Niederlage', 'fast', donut(rs), { cls: 'w4' })}
-    ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`, { cls: 'w8' })}
-    ${card('Wertungsverlauf', 'fast', ratingChart(rs), { cls: 'w12', note: 'Jeder Punkt ist eine Partie, Wertung laut Chess.com nach der Partie. Ungewertete Partien (z. B. gegen Bots) zählen nicht.' })}
+    <div class="meta-overview-row">
+      ${card('Sieg, Remis, Niederlage', 'fast', resultPie(rs))}
+      ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
+      ${card('Die letzten 5 Partien', '', recentGames(chrono.slice(-5).reverse(), ctx), { note: 'Die 5 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
+    </div>
+    ${card('Wertungsverlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
   </div>`;
 }
 
@@ -733,10 +751,60 @@ function categoryMix(es, E) {
     return `<div class="meta-mix-chip" style="--c:${CATEGORIES[id].color}" data-tip="${CATEGORIES[id].label}: ${fmt(s)} deiner Züge (${own.t[id]} von ${own.n})\nGegner: ${fmt(share(opp, id))}">
       <img src="${CATEGORIES[id].icon}" alt=""><span class="k">${CATEGORIES[id].label}</span><b>${fmt(s)}</b>${arrow}</div>`;
   }).join('');
-  return `<div class="meta-kpi mix" style="--kpi-accent:#86b54c"><span class="l">🧩 Zugqualität · Anteil an allen ${own.n} gespielten Zügen</span>
+  return `<div class="meta-kpi mix" style="--kpi-accent:#86b54c"><span class="l">${iconLabel(`🧩 Zugqualität · Anteil an allen ${own.n} gespielten Zügen`)}</span>
     <div class="meta-mix-rows"><span class="meta-muted">Du</span>${bar(own, 'Du')}<span class="meta-muted">Gegner</span>${bar(opp, 'Gegner')}</div>
     <div class="meta-mix-chips">${chips}</div>
     <span class="d">▲ / ▼: höherer / niedrigerer Anteil als bei deinen Gegnern. Brilliant-Züge zählen hier nicht mit.</span></div>`;
+}
+
+// The gauge's red -> yellow -> green scale (the result colors), as [position 0..1, rgb].
+const GAUGE_STOPS = [[0, [230, 103, 103]], [0.5, [242, 201, 76]], [1, [129, 182, 76]]];
+
+/** The scale's color at position t (0..1), mixed between its two nearest stops. */
+function gaugeColor(t) {
+  const i = t <= 0.5 ? 0 : 1;
+  const [[t0, c0], [t1, c1]] = [GAUGE_STOPS[i], GAUGE_STOPS[i + 1]];
+  const f = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+  return `rgb(${c0.map((c, k) => Math.round(c + (c1[k] - c) * f)).join(' ')})`;
+}
+
+/** "Ø Genauigkeit" as a speedometer: a 0-100 half-circle scale filled up to
+ *  your accuracy in a red-yellow-green gradient, a needle on it and a thin one
+ *  for the opponents'. Yours is green, theirs takes the scale's color under its needle. */
+function accuracyGauge(own, opp) {
+  const R = 78;
+  const angle = (v) => Math.PI * (1 - Math.max(0, Math.min(100, v ?? 0)) / 100);
+  const at = (v, r = R) => {
+    const a = angle(v);
+    return [(100 + r * Math.cos(a)).toFixed(2), (98 - r * Math.sin(a)).toFixed(2)];
+  };
+  // The gradient runs left to right across the arc, so the color at a value is
+  // the one at its point's horizontal position - not linear in the value itself.
+  const colorAt = (v) => gaugeColor((1 - Math.cos(angle(v))) / 2);
+  const ACC = 'var(--meta-win)'; // your needle, number and the tile's accent: green
+  const oppColor = opp == null ? 'var(--meta-muted)' : colorAt(opp);
+  const arc = (from, to) => `M${at(from).join(' ')}A${R} ${R} 0 0 1 ${at(to).join(' ')}`;
+  const ticks = [0, 25, 50, 75, 100].map((v) => {
+    const [x1, y1] = at(v, R + 10);
+    const [x2, y2] = at(v, R + 14);
+    const [tx, ty] = at(v, R + 22);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="meta-gauge-tick"></line><text x="${tx}" y="${Number(ty) + 3}" text-anchor="middle" class="meta-gauge-label">${v}</text>`;
+  }).join('');
+  const [nx, ny] = at(own, R - 16);
+  const [ox, oy] = at(opp, R - 16); // as long as your needle
+  const stops = GAUGE_STOPS.map(([t]) => `<stop offset="${t}" stop-color="${gaugeColor(t)}"/>`).join('');
+  return `<div class="meta-kpi meta-gauge" style="--kpi-accent:${ACC}"><span class="l">${iconLabel('🧠 Durchschnittliche Genauigkeit')}</span>
+    <svg viewBox="-6 -10 212 140" role="img" aria-label="Ø Genauigkeit ${f1(own)}, Gegner ${f1(opp)}">
+      <defs><linearGradient id="meta-gauge-scale" gradientUnits="userSpaceOnUse" x1="${100 - R}" y1="0" x2="${100 + R}" y2="0">${stops}</linearGradient></defs>
+      <path d="${arc(0, 100)}" class="meta-gauge-track"></path>
+      ${own == null ? '' : `<path d="${arc(0, own)}" class="meta-gauge-fill" style="--glow:${ACC}" data-tip="Deine Ø Genauigkeit: ${f1(own)}"></path>`}
+      ${ticks}
+      ${opp == null ? '' : `<line x1="100" y1="98" x2="${ox}" y2="${oy}" class="meta-gauge-needle opp" style="stroke:${oppColor}" data-tip="Ø Genauigkeit deiner Gegner: ${f1(opp)}"></line>`}
+      ${own == null ? '' : `<line x1="100" y1="98" x2="${nx}" y2="${ny}" class="meta-gauge-needle" style="stroke:${ACC}"></line>`}
+      <circle cx="100" cy="98" r="5" class="meta-gauge-pivot"></circle>
+      <text x="100" y="124" text-anchor="middle" class="meta-gauge-value" style="fill:${ACC}">${f1(own)}</text>
+    </svg>
+    <span class="d">Gegner <b class="meta-gauge-oppval" style="color:${oppColor}">${f1(opp)}</b></span></div>`;
 }
 
 function quality(rs, ctx) {
@@ -746,7 +814,7 @@ function quality(rs, ctx) {
   const E = (r) => ctx.engineOf(r);
   const note = coverageNote(ctx, es.length, rs.length);
   const kpis = `<div class="meta-kpis quality">
-    ${kpi('🧠 Ø Genauigkeit', f1(avg(es, (r) => E(r).accuracy)), `Gegner ${f1(avg(es, (r) => E(r).oppAccuracy))}`, '', '#4bc2a3')}
+    ${accuracyGauge(avg(es, (r) => E(r).accuracy), avg(es, (r) => E(r).oppAccuracy))}
     ${categoryMix(es, E)}
   </div>`;
 
@@ -1114,7 +1182,7 @@ function gamesTab(rs, ctx) {
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.emoji} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${flag(ctx.countryOf(r.opponent))} ${esc(r.opponent)}</td><td class="r">${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td></tr>`;
+          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${flag(ctx.countryOf(r.opponent))} ${esc(r.opponent)}</td><td class="r">${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td></tr>`;
         })
         .join('')}
       </tbody></table></div>`

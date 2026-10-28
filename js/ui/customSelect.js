@@ -61,7 +61,7 @@ export class CustomSelect {
   /**
    * Replaces the option list and selects `selectedValue` (or the first
    * option if omitted/not found).
-   * @param {Array<{value: string, label: string, shortLabel?: string, icon?: string, color?: string}>} options
+   * @param {Array<{value: string, label: string, shortLabel?: string, html?: string, shortHtml?: string, icon?: string, color?: string}>} options
    *   shortLabel, if given, is shown on the collapsed button instead of
    *   label - so the button doesn't have to grow to fit text that's only
    *   useful once the menu is already open (e.g. the game picker drops the
@@ -72,7 +72,9 @@ export class CustomSelect {
    *   button, and alongside label (in its own fixed-width column, so labels
    *   across options line up) in the open menu - see js/main.js's time-range
    *   filter for the pie-icon example this was built for. The open menu's
-   *   own items always show the full label either way.
+   *   own items always show the full label either way. html/shortHtml, if
+   *   given (markup the caller has escaped - e.g. icons plus an escaped
+   *   opponent name), are shown instead of label/shortLabel.
    * @param {string} [selectedValue]
    */
   setOptions(options, selectedValue) {
@@ -85,6 +87,8 @@ export class CustomSelect {
       item.className = 'custom-select-option';
       if (opt.icon) {
         item.innerHTML = `<span class="custom-select-option-icon">${opt.icon}</span><span>${opt.label}</span>`;
+      } else if (opt.html) {
+        item.innerHTML = opt.html;
       } else {
         item.textContent = opt.label;
       }
@@ -110,6 +114,8 @@ export class CustomSelect {
     this.#value = opt?.value ?? null;
     if (opt?.icon) {
       this.#btnLabel.innerHTML = opt.icon;
+    } else if (opt?.html) {
+      this.#btnLabel.innerHTML = opt.shortHtml ?? opt.html;
     } else {
       this.#btnLabel.textContent = (opt?.shortLabel ?? opt?.label) ?? '';
     }

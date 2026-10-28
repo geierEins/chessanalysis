@@ -3,7 +3,7 @@
 // player's name is shown as text (board top/bottom labels, the accuracy table
 // header).
 
-function escapeHtml(text) {
+export function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
