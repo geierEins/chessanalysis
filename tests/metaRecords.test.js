@@ -48,6 +48,19 @@ describe('metaRecords: buildFastRecord', () => {
     expectEqual(r.ownClockEnd, 160); // black's last clock, 0:02:40
   });
 
+  test('captures: who took what where', () => {
+    // Qxf7# - white's queen takes the f7 pawn, black never captures. Own piece first.
+    expectEqual(buildFastRecord(rawGame(), 'alice').captures.taken.join(), 'f7qp');
+    expectEqual(buildFastRecord(rawGame(), 'alice').captures.lost.join(), '');
+    expectEqual(buildFastRecord(rawGame(), 'bob').captures.lost.join(), 'f7pq');
+  });
+
+  test('captures: en passant counts the square the pawn stood on', () => {
+    const pgn = '[Event "Live Chess"]\n[Result "*"]\n\n1. e4 a6 2. e5 d5 3. exd6 *';
+    const r = buildFastRecord(rawGame({ pgn }), 'alice');
+    expectEqual(r.captures.taken.join(), 'd5pp');
+  });
+
   test('draw reasons count as draws', () => {
     const r = buildFastRecord(rawGame({ white: { username: 'Alice', result: 'repetition' }, black: { username: 'Bob', result: 'repetition' } }), 'alice');
     expectEqual(r.result, 'D');

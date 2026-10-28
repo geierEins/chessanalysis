@@ -15,6 +15,7 @@ export const META_TABS = [
   { id: 'openings', label: 'Eröffnungen' },
   { id: 'opponents', label: 'Gegner & Länder' },
   { id: 'quality', label: 'Spielqualität' },
+  { id: 'heatmap', label: 'Heatmap' },
   { id: 'time', label: 'Zeit & Partieende' },
   { id: 'games', label: 'Partien' },
 ];
@@ -102,6 +103,11 @@ const CARD_ICONS = {
   'Häufigste Gegner': '🔁',
   'Gegen Stärkere und Schwächere': '💪',
   'Spielqualität': '🎯',
+  'Schlag-Heatmap': '🔥',
+  'Zusammenfassung': '🧮',
+  'Die heißesten Felder': '📍',
+  'Welche Figuren du verlierst': '💀',
+  'Womit du schlägst': '⚔️',
   'Verteilung der Genauigkeit': '📶',
   'Genauigkeit nach Phase': '🧭',
   'Verwertung': '🏁',
@@ -184,8 +190,11 @@ export function gameListHtml(rs, total) {
   return items.join('') + more;
 }
 
-function bigStats(items) {
-  return `<div class="meta-big">${items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
+/** items: [value, label, color?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
+function bigStats(items, cls = '') {
+  return `<div class="meta-big${cls ? ` ${cls}` : ''}">${items
+    .map(([v, l, color]) => `<div><b${color ? ` style="color:${color}"` : ''}>${v}</b><span>${l}</span></div>`)
+    .join('')}</div>`;
 }
 
 function donut(rs) {
@@ -890,6 +899,139 @@ function timeTab(rs, ctx) {
 
 const GAMES_LIMIT = 200;
 
+// ---------- Heatmap tab ----------
+
+// Icons with a tooltip (metaController's shared data-tip one) instead of a label.
+const HEAT_MODES = [
+  ['taken', '⚔️', 'Zeigt an, wie oft ich auf diesem Feld eine gegnerische Figur geschlagen habe'],
+  ['lost', '💀', 'Zeigt an, wie oft eine meiner Figuren auf diesem Feld geschlagen wurde'],
+];
+const HEAT_PIECES = ['p', 'n', 'b', 'r', 'q']; // + the king where it can capture (piecePicker)
+const FILES = 'abcdefgh';
+
+/** Segmented control; attr: the data attribute metaController listens for.
+ *  options: [key, text, tip?] - with a tip, the text is only an icon and the tip names it. */
+function segPicker(options, current, attr, label) {
+  const btns = options.map(([key, text, tip]) => {
+    const on = key === current;
+    const tipAttrs = tip ? ` class="${on ? 'on ' : ''}icon" data-tip="${esc(tip)}" aria-label="${esc(tip)}"` : ` class="${on ? 'on' : ''}"`;
+    return `<button type="button"${tipAttrs} data-${attr}="${key}" aria-pressed="${on}">${text}</button>`;
+  });
+  return `<span class="meta-seg" role="group" aria-label="${label}">${btns.join('')}</span>`;
+}
+
+/** Toggle chips, one per piece type; none on = all pieces.
+ *  side: 'own' | 'opp' - which piece of a capture (metaController's heatmap.pieces / oppPieces).
+ *  The king only where it can take part: capturing, never captured. */
+function piecePicker(side, chosen, mode) {
+  const kingFits = side === 'own' ? mode === 'taken' : mode === 'lost';
+  const btns = [...HEAT_PIECES, ...(kingFits ? ['k'] : [])].map((p) => {
+    const on = chosen.includes(p);
+    return `<button type="button" class="${on ? 'on' : ''}" data-heat-piece="${p}" data-heat-side="${side}" aria-pressed="${on}">${PIECE_LABEL[p]}</button>`;
+  });
+  const label = side === 'own' ? 'Meine Figuren' : 'Gegnerische Figuren';
+  return `<span class="meta-seg" role="group" aria-label="${label}"><span class="meta-seg-l">${label}</span>${btns.join('')}</span>`;
+}
+
+/** Heat for a share t (0..1) of the busiest square, in the mode's color like
+ *  the mode switch: light to dark blue for "taken", light to dark red for "lost". */
+function heatColor(t, mode) {
+  const [h0, h1] = mode === 'lost' ? [12, 0] : [200, 222];
+  return `hsl(${Math.round(h0 + (h1 - h0) * t)} 85% ${Math.round(72 - 34 * t)}% / ${(0.35 + 0.6 * t).toFixed(2)})`;
+}
+
+function heatmapTab(rs, ctx) {
+  if (!rs.length) return card('Heatmap', '', EMPTY, { cls: 'w12' });
+  const { mode, pieces, oppPieces } = ctx.heatmap;
+  const games = rs; // the top bar's color filter decides which games
+  // Captures are "<square><own piece><opponent's piece>" (metaRecords' captureSquares),
+  // so one filter row is always the user's piece, the other the opponent's.
+  // A king chosen for the other direction (piecePicker hides it there) is left out.
+  const ownSel = pieces.filter((p) => p !== 'k' || mode === 'taken');
+  const oppSel = oppPieces.filter((p) => p !== 'k' || mode === 'lost');
+  const counts = (c) => (!ownSel.length || ownSel.includes(c[2])) && (!oppSel.length || oppSel.includes(c[3]));
+  const bySquare = new Map(); // "e4" -> {n, own: {q: 3, ...}, opp: {r: 2, ...}}
+  const byPiece = {}; // own piece -> count
+  const tally = (o, k) => (o[k] = (o[k] ?? 0) + 1);
+  for (const r of games) {
+    for (const c of (r.captures?.[mode] ?? []).filter(counts)) {
+      const sq = c.slice(0, 2);
+      const e = bySquare.get(sq) ?? { n: 0, own: {}, opp: {} };
+      e.n++;
+      tally(e.own, c[2]);
+      tally(e.opp, c[3]);
+      bySquare.set(sq, e);
+      tally(byPiece, c[2]);
+    }
+  }
+  const total = [...bySquare.values()].reduce((a, e) => a + e.n, 0);
+  const modeColor = mode === 'lost' ? 'var(--meta-loss)' : 'var(--meta-s1)'; // as the mode switch (css .meta-seg [data-heat-mode])
+  // Both directions for the summary, whichever the board shows.
+  const count = { lost: 0, taken: 0 };
+  for (const r of games) for (const k of ['lost', 'taken']) count[k] += (r.captures?.[k] ?? []).filter(counts).length;
+  const perGame = (n) => f1(games.length ? n / games.length : null);
+  const max = Math.max(1, ...[...bySquare.values()].map((e) => e.n));
+  const pieceList = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${PIECE_LABEL[p]} ${n}`).join(', ');
+  const [ownLabel, oppLabel] = mode === 'lost' ? ['Verloren', 'Geschlagen von'] : ['Geschlagen mit', 'Geschlagen wurde'];
+
+  // Black at the bottom only when every game is as Black (top bar's color filter) -
+  // with both colors there is no single own side.
+  const flipped = games.every((r) => r.color === 'b');
+  const ranks = flipped ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
+  const files = flipped ? [...FILES].reverse() : [...FILES];
+  let squares = '';
+  for (const rank of ranks) {
+    for (const f of files) {
+      const sq = `${f}${rank}`;
+      const e = bySquare.get(sq);
+      const light = (FILES.indexOf(f) + rank) % 2 === 0;
+      const detail = e ? `\n${ownLabel}: ${pieceList(e.own)}\n${oppLabel}: ${pieceList(e.opp)}` : '';
+      const tip = `${sq}: ${e?.n ?? 0} ${e?.n === 1 ? 'Schlag' : 'Schläge'}${detail}`;
+      squares += `<div class="meta-heat-sq ${light ? 'l' : 'd'}" data-tip="${esc(tip)}">${
+        e ? `<i style="background:${heatColor(e.n / max, mode)}"></i><b>${e.n}</b>` : ''
+      }${f === files[0] ? `<span class="rk">${rank}</span>` : ''}${rank === ranks[7] ? `<span class="fl">${f}</span>` : ''}</div>`;
+    }
+  }
+  const legend = `<div class="meta-heat-legend"><span>wenig</span><i style="background:linear-gradient(90deg, ${heatColor(0, mode)}, ${heatColor(0.5, mode)}, ${heatColor(1, mode)})"></i><span>viel</span></div>`;
+  const board = total
+    ? `<div class="meta-heat-board">${squares}</div>${legend}`
+    : `<p class="meta-muted">Keine Schlagzüge in diesen Partien.</p>`;
+
+  const topSquares = [...bySquare.entries()]
+    .sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]))
+    .slice(0, 8)
+    .map(([sq, e]) => ({ label: sq, v: e.n, tip: `${sq}: ${e.n} von ${total} (${pc(e.n / total)})`, color: modeColor }));
+  // Own pieces, so icons in the own color (with both colors: white).
+  const own = flipped ? 'b' : 'w';
+  const pieceRows = Object.entries(PIECE_LABEL)
+    .filter(([p]) => byPiece[p])
+    .map(([p, label]) => ({
+      label,
+      labelHtml: `<img class="meta-piece-icon" src="${pieceUrl(`${own}${p.toUpperCase()}`)}" alt="">${label}`,
+      v: byPiece[p],
+      tip: `${label}: ${byPiece[p]} (${pc(byPiece[p] / total)})`,
+    }))
+    .sort((a, b) => b.v - a.v);
+
+  const controls = `<div class="meta-heat-controls">${segPicker(HEAT_MODES, mode, 'heat-mode', 'Was zeigen')}${piecePicker('own', pieces, mode)}${piecePicker('opp', oppPieces, mode)}</div>`;
+  const what = mode === 'lost'
+    ? 'Felder, auf denen der Gegner deine Figuren geschlagen hat. „Meine Figuren“ wählt deine geschlagene Figur, „Gegnerische Figuren“ die schlagende'
+    : 'Felder, auf denen du gegnerische Figuren geschlagen hast. „Meine Figuren“ wählt deine schlagende Figur, „Gegnerische Figuren“ die geschlagene';
+  return `${controls}<div class="meta-grid">
+    ${card('Schlag-Heatmap', 'fast', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
+    <div class="meta-stack">
+      ${card('Zusammenfassung', 'fast', bigStats([
+        [count.taken, 'Figuren geschlagen', 'var(--meta-s1)'],
+        [perGame(count.taken), 'pro Partie', 'var(--meta-s1)'],
+        [count.lost, 'Figuren verloren', 'var(--meta-loss)'],
+        [perGame(count.lost), 'pro Partie', 'var(--meta-loss)'],
+      ], 'two'))}
+      ${card(mode === 'lost' ? 'Welche Figuren du verlierst' : 'Womit du schlägst', 'fast', hbars(pieceRows, { color: modeColor }))}
+      ${card('Die heißesten Felder', 'fast', hbars(topSquares))}
+    </div>
+  </div>`;
+}
+
 function gamesTab(rs, ctx) {
   const sort = ctx.sorts.games;
   const sortValue = {
@@ -924,7 +1066,7 @@ function gamesTab(rs, ctx) {
   return card(`Partien (${rs.length})`, 'fast', body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren.${more}` });
 }
 
-const RENDERERS = { overview, openings, opponents, quality, time: timeTab, games: gamesTab };
+const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, games: gamesTab };
 
 /**
  * @param {string} tab one of META_TABS' ids

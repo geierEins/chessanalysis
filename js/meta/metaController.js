@@ -16,7 +16,7 @@ import { META_TABS, renderMetaTab, gameListHtml, layoutFitCharts } from './metaV
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
-import { loadMetaTab, saveMetaTab, loadCountryLimit, saveCountryLimit } from '../persistence.js';
+import { loadMetaTab, saveMetaTab, loadCountryLimit, saveCountryLimit, loadHeatmap, saveHeatmap } from '../persistence.js';
 
 const COUNTRY_FETCH_CONCURRENCY = 3;
 const RERENDER_EVERY_MS = 2500;
@@ -81,6 +81,9 @@ export function initMetaMode(host) {
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
+  // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
+  // and which piece types - own and the opponent's (none = all).
+  const heatmap = loadHeatmap();
   let run = null; // the running analysis, see startRun()
   let engine = null;
   let engineLoadedId = null;
@@ -119,6 +122,7 @@ export function initMetaMode(host) {
       sorts,
       countryLimit,
       endings,
+      heatmap,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -245,6 +249,18 @@ export function initMetaMode(host) {
     if (limitBtn) {
       countryLimit = Number(limitBtn.dataset.countryLimit);
       saveCountryLimit(countryLimit);
+      render();
+      return;
+    }
+    const heatBtn = e.target.closest('[data-heat-mode], [data-heat-piece]');
+    if (heatBtn) {
+      if (heatBtn.dataset.heatMode) heatmap.mode = heatBtn.dataset.heatMode;
+      else {
+        const p = heatBtn.dataset.heatPiece;
+        const key = heatBtn.dataset.heatSide === 'opp' ? 'oppPieces' : 'pieces';
+        heatmap[key] = heatmap[key].includes(p) ? heatmap[key].filter((x) => x !== p) : [...heatmap[key], p];
+      }
+      saveHeatmap(heatmap);
       render();
       return;
     }

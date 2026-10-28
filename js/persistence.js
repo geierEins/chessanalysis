@@ -16,6 +16,7 @@ const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
 const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
 const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
+const HEATMAP_KEY = 'chessreview.heatmap';
 // Also read by the inline script in index.html's <head> (before first paint).
 const SITE_THEME_KEY = 'chessreview.siteTheme';
 
@@ -194,4 +195,27 @@ export function loadCountryLimit() {
 /** @param {number} limit */
 export function saveCountryLimit(limit) {
   safeSet(COUNTRY_LIMIT_KEY, String(limit));
+}
+
+// Piece letters of a saved Heatmap piece filter (anything else dropped).
+const pieceList = (xs) => (Array.isArray(xs) ? xs.filter((p) => typeof p === 'string' && p.length === 1 && 'pnbrqk'.includes(p)) : []);
+
+/** @returns {{mode: 'lost'|'taken', pieces: string[], oppPieces: string[]}} the Heatmap tab's last selection */
+export function loadHeatmap() {
+  let saved = {};
+  try {
+    saved = JSON.parse(safeGet(HEATMAP_KEY) ?? '{}') ?? {};
+  } catch {
+    // unreadable - defaults below
+  }
+  return {
+    mode: saved.mode === 'lost' ? 'lost' : 'taken',
+    pieces: pieceList(saved.pieces),
+    oppPieces: pieceList(saved.oppPieces),
+  };
+}
+
+/** @param {{mode: string, pieces: string[], oppPieces: string[]}} selection */
+export function saveHeatmap({ mode, pieces, oppPieces }) {
+  safeSet(HEATMAP_KEY, JSON.stringify({ mode, pieces, oppPieces }));
 }

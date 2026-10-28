@@ -105,6 +105,30 @@ function materialSwing(verboseMoves, color, startFen) {
 }
 
 /**
+ * Every capture of the game as "<square><own piece><opponent's piece>", for
+ * the Heatmap tab - the own piece always third, so "the user's queen" filters
+ * the same way in both directions:
+ *  - taken: the user captured; own = the capturing piece, then the captured one
+ *    (e.g. "h8qr": the user's queen took a rook on h8);
+ *  - lost: the opponent captured; own = the user's captured piece, then the
+ *    capturing one (e.g. "e4pn": a knight took the user's pawn on e4).
+ * The square is where the captured piece stood - for en passant that's beside
+ * the target square, not on it.
+ * @returns {{taken: string[], lost: string[]}}
+ */
+function captureSquares(verbose, color) {
+  const taken = [];
+  const lost = [];
+  for (const m of verbose) {
+    if (!m.captured) continue;
+    const square = m.flags.includes('e') ? m.to[0] + m.from[1] : m.to;
+    if (m.color === color) taken.push(square + m.piece + m.captured);
+    else lost.push(square + m.captured + m.piece);
+  }
+  return { taken, lost };
+}
+
+/**
  * @param {object} raw a Chess.com game object (or slimRawGame() of one)
  * @param {string} username the searched user
  * @returns {object|null} null if the user didn't play in this game or the PGN is unreadable
@@ -183,6 +207,7 @@ export function buildFastRecord(raw, username) {
     ownMoveSeconds,
     // Own pawns that reached the last rank, whatever they turned into.
     promotions: verbose.filter((m) => m.color === color && m.promotion).length,
+    captures: captureSquares(verbose, color),
     maxMaterial: material.max,
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
