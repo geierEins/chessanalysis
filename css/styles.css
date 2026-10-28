@@ -456,7 +456,7 @@ html {
 }
 
 body {
-  font-family: var(--font-body);
+  font-family: var(--font-body), sans-serif;
 }
 
 /* Desktop: never wraps to a second line, guaranteed - native controls (the
@@ -1906,6 +1906,7 @@ button.field-error {
   grid-template-rows: auto auto;
   column-gap: 6px;
   align-items: center;
+  --c: var(--meta-muted); /* set per chip inline (metaView mix chips) - the default only for a chip without one */
   padding: 6px 8px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--c) 10%, var(--meta-panel-2));
@@ -2231,7 +2232,7 @@ html[data-site-theme="cyberpunk"] *::after {
 html[data-site-theme="cyberpunk"] .settings-heading,
 html[data-site-theme="cyberpunk"] h2,
 html[data-site-theme="cyberpunk"] h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-display), sans-serif;
   font-size: 9px !important;
   line-height: 1.6;
   letter-spacing: 0.02em;
