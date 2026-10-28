@@ -239,7 +239,9 @@ document.addEventListener('click', (e) => {
 // alone on the collapsed button (so it stays a single small icon wide
 // instead of growing to fit "Letzte 12 Monate" etc.) and next to the full
 // label once the menu is open.
-const pieIcon = (percent) => `<span class="pie-icon" style="--pie:${percent}%"></span>`;
+// The custom property's name interpolated, so the IDE doesn't read it as a selector.
+const PIE_VAR = '--pie';
+const pieIcon = (percent) => `<span class="pie-icon" style="${PIE_VAR}:${percent}%"></span>`;
 const timeRangeMenu = el('time-range-menu');
 const timeRangeSelect = new CustomSelect({
   buttonId: 'time-range-btn',
@@ -315,7 +317,6 @@ const colorFilterMenu = el('color-filter-menu');
 const colorFilterPicker = el('color-filter-picker');
 const colorFilterCheckboxes = [...colorFilterMenu.querySelectorAll('input[type="checkbox"]')];
 const fetchGamesBtn = el('fetch-games-btn');
-const fetchGamesBtnSpinner = el('fetch-games-btn-spinner');
 const fetchGamesBtnLabel = el('fetch-games-btn-label');
 const fetchGamesBtnFill = el('fetch-games-btn-fill');
 const gameSelect = new CustomSelect({
@@ -995,7 +996,8 @@ fetchGamesBtn.addEventListener('click', async () => {
       });
 
     if (games.length === 0) {
-      throw new Error('Keine Partien für diesen Filter gefunden.');
+      showToast('Keine Partien für diesen Filter gefunden.', 'error');
+      return; // the finally below still resets the button
     }
 
     analyzedUrls = new Set();
@@ -1725,6 +1727,8 @@ function getLegalMovesFrom(source) {
  * branch. Returns synchronously (as chessboard.js's own onDrop requires);
  * a promotion is handled by rejecting the raw drop and completing the move
  * separately once js/ui/promotionPicker.js resolves.
+ * @param {string} source - the square the piece was dragged from, e.g. "e2"
+ * @param {string} target - the square it was dropped on
  * @param {{viaDrag: boolean}} [info] - viaDrag:false means this came from
  *   click-to-move (js/ui/board.js), where no chessboard.js drag animation
  *   ever ran to visually place the piece - completeUserMove() needs to know
@@ -2098,7 +2102,7 @@ meta = initMetaMode({
 
 initBoardThemePicker();
 initPieceThemePicker(board);
-const settingsPanel = initSettingsPanel({
+initSettingsPanel({
   appMode,
   onAppModeChange: (mode) => switchAppMode(mode),
   soundEnabled: loadSoundEnabled(),
@@ -2122,7 +2126,10 @@ if (deepLink) openDeepLinkedGame(deepLink);
 async function openDeepLinkedGame({ user, game, end }) {
   try {
     const [raw] = await Promise.all([fetchGame(user, game, end), syncAutoAnalysis(user)]);
-    if (!raw) throw new Error('Die Partie wurde bei Chess.com nicht gefunden.');
+    if (!raw) {
+      showToast('Die Partie wurde bei Chess.com nicht gefunden.', 'error');
+      return;
+    }
     games = [summarizeGame(raw)];
     gameSelect.setOptions(buildGameOptions(games, user), '0');
     gameSelect.disabled = false;
