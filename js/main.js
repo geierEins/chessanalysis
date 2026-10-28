@@ -38,6 +38,8 @@ import { showToast, flashFieldError } from './ui/toast.js';
 import {
   loadLastUsername,
   saveLastUsername,
+  loadSavedUsernames,
+  saveSavedUsernames,
   loadTimeRange,
   saveTimeRange,
   loadOutcomeFilter,
@@ -129,34 +131,91 @@ usernameInput.addEventListener('input', () => {
 // NOT wired up as an actual native datalist (that showed its own competing
 // triangle on top of this one, and only ever filtered to what's already
 // typed) - it's kept purely as this button's own preset data, so a preset
-// still only needs to be added in one place.
+// still only needs to be added in one place. They are only the starting
+// list: users get added locally (rememberUsername) and each entry, presets
+// included, has an ✕ to drop it.
 const usernamePresetsBtn = el('username-presets-btn');
 const usernamePresetsMenu = el('username-presets-menu');
 const usernamePicker = el('username-picker');
-for (const option of document.querySelectorAll('#username-presets option')) {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'custom-select-option';
-  const avatarImg = document.createElement('img');
-  avatarImg.alt = '';
-  avatarImg.className = 'w-6 h-6 rounded-full hidden shrink-0';
-  item.appendChild(avatarImg);
-  item.appendChild(document.createTextNode(option.value));
-  item.addEventListener('click', () => {
-    usernameInput.value = option.value;
-    updateUsernameAvatar(option.value);
-    usernamePresetsMenu.classList.add('hidden');
-    usernamePresetsBtn.classList.remove('menu-open');
-    usernameInput.focus();
-  });
-  usernamePresetsMenu.appendChild(item);
-  // Pre-fetches every preset's avatar up front (not just on click), so the
-  // menu itself shows each one's picture right away rather than a blank
-  // circle until you've picked it at least once.
-  fetchPlayerProfile(option.value).then(({ avatar }) => {
-    usernameAvatarCache.set(option.value.toLowerCase(), avatar);
-    setAvatar(avatarImg, avatar);
-  });
+let savedUsernames = loadSavedUsernames([...document.querySelectorAll('#username-presets option')].map((o) => o.value));
+const sameUser = (a, b) => a.toLowerCase() === b.toLowerCase();
+
+function closeUsernamePresets() {
+  usernamePresetsMenu.classList.add('hidden');
+  usernamePresetsBtn.classList.remove('menu-open');
+}
+
+function renderUsernamePresets() {
+  usernamePresetsMenu.replaceChildren();
+  if (!savedUsernames.length) {
+    const hint = document.createElement('p');
+    hint.className = 'username-preset-empty';
+    hint.textContent = 'Noch keine Benutzer - jeder gültige, für den du „Spiele laden“ drückst, landet hier.';
+    usernamePresetsMenu.appendChild(hint);
+  }
+  for (const name of savedUsernames) {
+    // A div, not a button: the ✕ inside is a button of its own.
+    const item = document.createElement('div');
+    item.className = 'custom-select-option username-preset';
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    const avatarImg = document.createElement('img');
+    avatarImg.alt = '';
+    avatarImg.className = 'w-6 h-6 rounded-full hidden shrink-0';
+    const label = document.createElement('span');
+    label.className = 'username-preset-name';
+    label.textContent = name;
+    item.append(avatarImg, label);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'username-preset-remove';
+    remove.title = 'Aus der Vorauswahl entfernen';
+    remove.setAttribute('aria-label', `${name} aus der Vorauswahl entfernen`);
+    remove.textContent = '✕';
+    remove.addEventListener('click', (e) => {
+      e.stopPropagation(); // not a pick of this user
+      savedUsernames = savedUsernames.filter((u) => !sameUser(u, name));
+      saveSavedUsernames(savedUsernames);
+      renderUsernamePresets();
+    });
+    item.appendChild(remove);
+    const pick = () => {
+      usernameInput.value = name;
+      updateUsernameAvatar(name);
+      closeUsernamePresets();
+      usernameInput.focus();
+    };
+    item.addEventListener('click', pick);
+    item.addEventListener('keydown', (e) => {
+      if (e.target === item && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        pick();
+      }
+    });
+    usernamePresetsMenu.appendChild(item);
+    // Every preset's avatar up front (not just on click), so the menu shows
+    // each one's picture right away - fetched once, then from the cache.
+    const key = name.toLowerCase();
+    if (usernameAvatarCache.has(key)) setAvatar(avatarImg, usernameAvatarCache.get(key));
+    else {
+      fetchPlayerProfile(name).then(({ avatar }) => {
+        usernameAvatarCache.set(key, avatar);
+        setAvatar(avatarImg, avatar);
+      });
+    }
+  }
+}
+renderUsernamePresets();
+
+/** Adds a user "Spiele laden" was pressed for to the dropdown, if chess.com knows them. */
+async function rememberUsername(username) {
+  if (savedUsernames.some((u) => sameUser(u, username))) return;
+  const { exists, avatar } = await fetchPlayerProfile(username);
+  if (!exists || savedUsernames.some((u) => sameUser(u, username))) return;
+  usernameAvatarCache.set(username.toLowerCase(), avatar);
+  savedUsernames = [...savedUsernames, username];
+  saveSavedUsernames(savedUsernames);
+  renderUsernamePresets();
 }
 usernamePresetsBtn.addEventListener('click', () => {
   if (usernamePresetsMenu.classList.contains('hidden')) {
@@ -167,15 +226,12 @@ usernamePresetsBtn.addEventListener('click', () => {
     usernamePresetsMenu.classList.remove('hidden');
     usernamePresetsBtn.classList.add('menu-open'); // stays visible even once the mouse leaves, while its own menu is open
   } else {
-    usernamePresetsMenu.classList.add('hidden');
-    usernamePresetsBtn.classList.remove('menu-open');
+    closeUsernamePresets();
   }
 });
 document.addEventListener('click', (e) => {
-  if (!usernamePicker.contains(e.target)) {
-    usernamePresetsMenu.classList.add('hidden');
-    usernamePresetsBtn.classList.remove('menu-open');
-  }
+  // isConnected: an ✕ click re-renders the menu, so its target is gone from the DOM by now.
+  if (e.target.isConnected && !usernamePicker.contains(e.target)) closeUsernamePresets();
 });
 // Custom dropdowns (not native <select>s) - see js/ui/customSelect.js for why.
 // icon is a growing "pie slice" (see .pie-icon in css/styles.css) - a
@@ -881,6 +937,7 @@ fetchGamesBtn.addEventListener('click', async () => {
 
   saveLastUsername(username);
   updateUsernameAvatar(username);
+  rememberUsername(username);
   setFetchGamesLoading(true);
   // Meta mode leaves the single-game picker alone, so switching back still
   // finds whatever game list was loaded there before.

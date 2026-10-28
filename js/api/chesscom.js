@@ -88,7 +88,7 @@ export async function fetchGame(username, url, endTimeSeconds) {
  * keep the originally-cased username from the game record instead (PGN/game
  * data preserves the casing the player actually signed up with).
  * @param {string} username
- * @returns {Promise<{avatar: string|null, country: string|null, title: string|null,
+ * @returns {Promise<{exists: boolean, avatar: string|null, country: string|null, title: string|null,
  *   status: string|null, league: string|null}>}
  *   country is Chess.com's code, e.g. "DE" (or a pseudo-code like "XE" for
  *   England). title e.g. "GM", status e.g. "premium"/"staff"/"mod"/"basic"/
@@ -100,6 +100,7 @@ export async function fetchPlayerProfile(username) {
     // `country` is a URL like ".../pub/country/DE" - only the code is needed.
     const country = data.country?.split('/').pop()?.toUpperCase() || null;
     return {
+      exists: true,
       avatar: data.avatar ?? null,
       country,
       title: data.title ?? null,
@@ -107,7 +108,7 @@ export async function fetchPlayerProfile(username) {
       league: data.league ?? null,
     };
   } catch {
-    return { avatar: null, country: null, title: null, status: null, league: null };
+    return { exists: false, avatar: null, country: null, title: null, status: null, league: null };
   }
 }
 

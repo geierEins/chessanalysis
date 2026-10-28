@@ -365,6 +365,20 @@ html {
   background-color: rgb(var(--n-700));
 }
 
+/* Username dropdown (js/main.js renderUsernamePresets): the name takes the
+   row, a remembered user's ✕ sits at its right end. */
+.username-preset-name { flex: 1 1 auto; }
+.username-preset-empty { padding: 6px 10px; max-width: 220px; font-size: 0.7rem; color: rgb(var(--n-400)); }
+.username-preset-remove {
+  margin: -2px -4px -2px 4px;
+  padding: 1px 5px;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: rgb(var(--n-500));
+}
+.username-preset-remove:hover { color: #fff; background: rgb(var(--n-600)); }
+
 /* The currently-selected option (js/ui/customSelect.js) - shown regardless
    of hover, so reopening a long-scrolled menu (e.g. the game picker) still
    shows at a glance which entry is already picked, not just on hover. */

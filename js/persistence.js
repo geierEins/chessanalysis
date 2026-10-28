@@ -17,6 +17,8 @@ const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
 const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
 const HEATMAP_KEY = 'chessreview.heatmap';
+const SAVED_USERNAMES_KEY = 'chessreview.savedUsernames'; // older: only the added users, read once for USERNAME_LIST_KEY
+const USERNAME_LIST_KEY = 'chessreview.usernameList';
 // Also read by the inline script in index.html's <head> (before first paint).
 const SITE_THEME_KEY = 'chessreview.siteTheme';
 
@@ -163,6 +165,23 @@ function loadList(key) {
   } catch {
     return null;
   }
+}
+
+const nameList = (xs) => xs.filter((u) => typeof u === 'string' && u.trim());
+
+/** @param {string[]} defaults - the dropdown's entries until it is first changed (index.html's presets)
+ *  @returns {string[]} the username dropdown's entries */
+export function loadSavedUsernames(defaults) {
+  const list = loadList(USERNAME_LIST_KEY);
+  if (list) return nameList(list);
+  // Before the list held the presets too, it kept only the users added to them.
+  const added = nameList(loadList(SAVED_USERNAMES_KEY) ?? []);
+  return [...defaults, ...added.filter((u) => !defaults.some((d) => d.toLowerCase() === u.toLowerCase()))];
+}
+
+/** @param {string[]} usernames */
+export function saveSavedUsernames(usernames) {
+  safeSet(USERNAME_LIST_KEY, JSON.stringify(usernames));
 }
 
 /** @returns {string[]|null} selected game types ("bullet", "blitz", ...) */
