@@ -205,10 +205,10 @@ export function gameListHtml(list, shown) {
   return `${head}<div class="meta-pop-list">${items.join('')}</div>${more}`;
 }
 
-/** items: [value, label, color?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
+/** items: [value, label, color?, tip?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
 function bigStats(items, cls = '') {
   return `<div class="meta-big${cls ? ` ${cls}` : ''}">${items
-    .map(([v, l, color]) => `<div><b${color ? ` style="color:${color}"` : ''}>${v}</b><span>${l}</span></div>`)
+    .map(([v, l, color, tip]) => `<div${tip ? ` data-tip="${esc(tip)}"` : ''}><b${color ? ` style="color:${color}"` : ''}>${v}</b><span>${l}</span></div>`)
     .join('')}</div>`;
 }
 
@@ -942,6 +942,32 @@ function segPicker(options, current, attr, label) {
 /** Toggle chips, one per piece type; none on = all pieces.
  *  side: 'own' | 'opp' - which piece of a capture (metaController's heatmap.pieces / oppPieces).
  *  The king only where it can take part: capturing, never captured. */
+// German nouns for the summary's sentences: 'Bauer' changes in the accusative/dative, the Dame is the only feminine one.
+const PIECE_NOUN = { p: ['Bauer', 'Bauern'], n: ['Springer', 'Springer'], b: ['Läufer', 'Läufer'], r: ['Turm', 'Turm'], q: ['Dame', 'Dame'], k: ['König', 'König'] };
+const joinOr = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} oder ${xs.at(-1)}`);
+
+/** The chosen pieces as one phrase, e.g. "einen gegnerischen Bauern oder Läufer".
+ *  kase: 'nom' | 'acc' | 'dat'; masc/fem: the article + adjective for each gender. */
+function piecePhrase(ps, kase, masc, fem) {
+  const inflected = (p) => PIECE_NOUN[p][kase === 'nom' ? 0 : 1];
+  const m = ps.filter((p) => p !== 'q').map(inflected);
+  return joinOr([...(m.length ? [`${masc} ${joinOr(m)}`] : []), ...(ps.includes('q') ? [`${fem} Dame`] : [])]);
+}
+
+/** The summary's tooltips: what its two counts mean under the current piece filters. */
+function heatSentences(own, opp, count) {
+  const times = (n) => (n === 1 ? 'einmal' : `${n}-mal`);
+  const takenBy = own.length ? piecePhrase(own, 'nom', 'dein', 'deine') : 'eine deiner Figuren';
+  const taken = opp.length ? piecePhrase(opp, 'acc', 'einen gegnerischen', 'eine gegnerische') : 'eine gegnerische Figur';
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const lostWho = own.length ? `${cap(piecePhrase(own, 'nom', 'dein', 'deine'))} wurde` : 'Deine Figuren wurden';
+  const lostBy = opp.length ? piecePhrase(opp, 'dat', 'einem gegnerischen', 'einer gegnerischen') : 'gegnerischen Figuren';
+  return {
+    taken: `${count.taken === 1 ? 'In einem Fall' : `In ${count.taken} Fällen`} hat ${takenBy} ${taken} geschlagen.`,
+    lost: `${lostWho} ${times(count.lost)} von ${lostBy} geschlagen.`,
+  };
+}
+
 // Between the two piece pickers, so the row reads as a sentence: "Meine Figuren schlägt / geschlagen von Gegnerische Figuren".
 function heatVerb(mode) {
   return mode === 'lost'
@@ -996,6 +1022,7 @@ function heatmapTab(rs, ctx) {
   const count = { lost: 0, taken: 0 };
   for (const r of games) for (const k of ['lost', 'taken']) count[k] += (r.captures?.[k] ?? []).filter(counts).length;
   const perGame = (n) => f1(games.length ? n / games.length : null);
+  const sentence = heatSentences(ownSel, oppSel, count); // the same filters as the counts
   const max = Math.max(1, ...[...bySquare.values()].map((e) => e.n));
   const pieceList = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${PIECE_LABEL[p]} ${n}`).join(', ');
   const [ownLabel, oppLabel] = mode === 'lost' ? ['Verloren', 'Geschlagen von'] : ['Geschlagen mit', 'Geschlagen wurde'];
@@ -1047,10 +1074,10 @@ function heatmapTab(rs, ctx) {
     ${card('Schlag-Heatmap', 'fast', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
     <div class="meta-stack">
       ${card('Zusammenfassung', 'fast', bigStats([
-        [count.taken, 'Figuren geschlagen', 'var(--meta-s1)'],
-        [perGame(count.taken), 'pro Partie', 'var(--meta-s1)'],
-        [count.lost, 'Figuren verloren', 'var(--meta-loss)'],
-        [perGame(count.lost), 'pro Partie', 'var(--meta-loss)'],
+        [count.taken, 'gegnerische Figuren geschlagen', 'var(--meta-s1)', sentence.taken],
+        [perGame(count.taken), 'pro Partie', 'var(--meta-s1)', `Im Schnitt ${perGame(count.taken)}-mal pro Partie (${games.length} Partien).`],
+        [count.lost, 'eigene Figuren verloren', 'var(--meta-loss)', sentence.lost],
+        [perGame(count.lost), 'pro Partie', 'var(--meta-loss)', `Im Schnitt ${perGame(count.lost)}-mal pro Partie (${games.length} Partien).`],
       ], 'two'))}
       ${card(mode === 'lost' ? 'Welche Figuren du verlierst' : 'Womit du schlägst', 'fast', hbars(pieceRows, { color: modeColor }))}
       ${card('Die heißesten Felder', 'fast', hbars(topSquares))}
