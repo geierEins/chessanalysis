@@ -1762,6 +1762,16 @@ button.field-error {
   .meta-stack.fit { contain: size; }
   .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
   .meta-stack.fit .meta-fit { aspect-ratio: auto; flex: 1 1 0; min-height: 90px; }
+  /* As tall as the king-moves top 5 needs (no scrolling); "Dauer der Partien" below gets the rest. */
+  .meta-stack.fit > .meta-side-by-side { flex: none; }
+  .meta-stack.fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; }
+}
+
+/* Two cards side by side inside a stack, sharing its width ("Zeit pro Zug" + "Längste Königsreisen"). */
+.meta-side-by-side { display: flex; gap: 12px; min-width: 0; }
+.meta-side-by-side > .meta-card { flex: 1 1 0; min-width: 0; }
+@media (max-width: 900px) {
+  .meta-side-by-side { flex-direction: column; }
 }
 
 @media (max-width: 900px) {
@@ -1888,8 +1898,7 @@ button.field-error {
 .meta-mix-chip em.bad { color: var(--meta-loss); }
 
 /* Segmented "Top 10 · 25 · 50 · Alle" switch in a card head */
-.meta-card-tools { display: inline-flex; align-items: center; gap: 8px; }
-.meta-seg { display: inline-flex; align-items: center; gap: 1px; padding: 2px; border-radius: 999px; background: var(--meta-panel-2); font-size: 11px; }
+.meta-card-tools { display: inline-flex; align-items: center; gap: 8px; }.meta-seg { display: inline-flex; align-items: center; gap: 1px; padding: 2px; border-radius: 999px; background: var(--meta-panel-2); font-size: 11px; }
 .meta-seg-l { padding: 0 4px 0 6px; color: var(--meta-faint); }
 .meta-seg button { padding: 1px 8px; border-radius: 999px; color: var(--meta-muted); font-variant-numeric: tabular-nums; }
 .meta-seg button:hover { color: var(--meta-fg); }

@@ -120,6 +120,7 @@ const CARD_ICONS = {
   'Zeit pro Zug': '⏱️',
   'Längste Partien': '📏',
   'Kürzeste Partien': '⚡',
+  'Längste Königsreisen': '👑',
   'Dauer der Partien': '⌛',
   'Quote nach Partielänge': '📏',
   'Wann du spielst': '📅',
@@ -821,7 +822,7 @@ function quality(rs, ctx) {
       ${topGamesTile('♚ Meiste verpasste Matt-in-1 in einer Partie', m1Top.map((x) => x.r), BAD, 'Matt in 1 möglich, aber anders gezogen', (r) => `<b>${m1Of.get(r)}</b>× M1`)}
     </div>`, { cls: 'w12', note: '„Gewinnstellung“: Engine-Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Verschenkte Siege, abgewiesene Niederlagen, Vorsprung und Aufholjagd: Materialbilanz in Bauerneinheiten (Bauer 1, Springer/Läufer 3, Turm 5, Dame 9), die mindestens einen Gegenzug lang bestand – aus allen Partien, auch ohne Engine. Die ±9-Werte sind jeweils ein Teil der ±3-Werte. Matt in 1: Stellungen, in denen die Engine ein Matt in einem Zug fand, du aber anders gezogen hast.' })}
     ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
-    ${card('Mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
+    ${card('Patzer mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
   </div>`;
 }
 
@@ -888,8 +889,8 @@ function timeTab(rs, ctx) {
     ${card('Wie du gewinnst', 'fast', how('W', 'var(--meta-win)'), { cls: 'w4', accent: 'var(--meta-win)' })}
     ${card('Wie du verlierst', 'fast', how('L', 'var(--meta-loss)'), { cls: 'w4', accent: 'var(--meta-loss)' })}
     ${card('Wie Remis entstehen', 'fast', how('D', 'var(--meta-draw)'), { cls: 'w4', accent: 'var(--meta-draw)' })}
-    ${card('Längste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.longest).sort((a, b) => b.moves - a.moves || b.endTime - a.endTime)), { head: endingPicker('longest', ctx.endings.longest), note: ENDING_NOTE })}
     ${card('Kürzeste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.shortest).sort((a, b) => a.moves - b.moves || b.endTime - a.endTime)), { head: endingPicker('shortest', ctx.endings.shortest), note: ENDING_NOTE })}
+    ${card('Längste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.longest).sort((a, b) => b.moves - a.moves || b.endTime - a.endTime)), { head: endingPicker('longest', ctx.endings.longest), note: ENDING_NOTE })}
     <div class="meta-stack">
       ${card('Uhr', 'fast', bigStats([
         [avgDuration == null ? '–' : fmtSeconds(avgDuration), 'Ø Dauer pro Partie'],
@@ -900,7 +901,10 @@ function timeTab(rs, ctx) {
       ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
     </div>
     <div class="meta-stack w8 fit">
-      ${card('Zeit pro Zug', 'fast', moveTimeChart(rs), { note: 'Ø Bedenkzeit für deinen 1. bis 50. Zug, je Spielart. Ein Punkt erscheint ab 3 Partien, die so lange gingen.' })}
+      <div class="meta-side-by-side">
+        ${card('Zeit pro Zug', 'fast', moveTimeChart(rs), { note: 'Ø Bedenkzeit für deinen 1. bis 50. Zug, je Spielart. Ein Punkt erscheint ab 3 Partien, die so lange gingen.' })}
+        ${card('Längste Königsreisen', 'fast', topGamesTable(rs.filter((r) => r.kingMoves > 0).sort((a, b) => b.kingMoves - a.kingMoves || b.endTime - a.endTime), (r) => `<b>${r.kingMoves}</b> Königszüge`), { note: 'Partien, in denen dein König am häufigsten gezogen hat (Rochade eingerechnet).' })}
+      </div>
       ${card('Dauer der Partien', 'fast', durationColumns(timed), { note: 'Verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien. Längere Partien als 20 Minuten stehen gesammelt in „20+“.' })}
     </div>
     ${card('Wann du spielst', 'fast', `<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}

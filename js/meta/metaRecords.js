@@ -208,6 +208,8 @@ export function buildFastRecord(raw, username) {
     // Own pawns that reached the last rank, whatever they turned into.
     promotions: verbose.filter((m) => m.color === color && m.promotion).length,
     captures: captureSquares(verbose, color),
+    // Own king moves, castling included ("Längste Königsreisen").
+    kingMoves: verbose.filter((m) => m.color === color && m.piece === 'k').length,
     maxMaterial: material.max,
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
