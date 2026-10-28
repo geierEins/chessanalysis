@@ -1711,15 +1711,16 @@ button.field-error {
 .meta-status {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 8px 12px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start; /* the game-type counts follow right after the text */
   font-size: 12px;
   color: var(--meta-muted);
 }
 
 .meta-status b { color: var(--meta-fg); font-weight: 600; }
-.meta-status-types { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Right after the status text, not pushed to the right edge. */
+.meta-status-types { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .meta-status-dot { color: var(--meta-faint); }
 
 .meta-tabs {
@@ -2366,7 +2367,7 @@ html .settings-segmented > button[data-app-mode="meta"].active { background: lin
 .meta-gauge .l { justify-self: start; }
 .meta-gauge > svg { width: 100%; max-width: 240px; height: auto; display: block; }
 .meta-gauge-track { fill: none; stroke: var(--meta-panel-2); stroke-width: 14; stroke-linecap: round; }
-.meta-gauge-fill { fill: none; stroke: url(#meta-gauge-scale); stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--glow) 45%, transparent)); }
+.meta-gauge-fill { --glow: var(--meta-win); /* set inline (metaView accuracyGauge) */ fill: none; stroke: url(#meta-gauge-scale); stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--glow) 45%, transparent)); }
 .meta-gauge-tick { stroke: var(--meta-faint); stroke-width: 1.5; }
 #meta-panel svg text.meta-gauge-label { font-size: 9px; fill: var(--meta-faint); }
 .meta-gauge-needle { stroke: var(--meta-fg); stroke-width: 3; stroke-linecap: round; }
@@ -2382,6 +2383,12 @@ html .settings-segmented > button[data-app-mode="meta"].active { background: lin
 /* The S/R/N badge at the end of a game picker / game list entry. */
 .custom-select-option .outcome-badge,
 #game-btn .outcome-badge { margin-left: 2px; }
+/* Next to 12px list text the badge is smaller, its middle on the text's middle
+   (a 16px one also stretched the line, so the text sat high in the button). */
+.custom-select-option .outcome-badge,
+#game-btn .outcome-badge { width: 13px; height: 13px; font-size: 8.5px; border-radius: 2px; vertical-align: -2.5px; }
+/* Collapsed button: a touch higher than in the open list. */
+#game-btn .outcome-badge { vertical-align: -1px; }
 
 /* Meta-Analyse icons (js/meta/metaIcons.js): one-color line icons in the tile's
    accent (its colored top edge), on a card without one in the theme accent. */

@@ -1137,7 +1137,7 @@ function setAnalyzing(analyzing) {
   analyzeToggleBtnCancelIcon.classList.toggle('hidden', !analyzing);
   analyzeToggleBtnSpinner.classList.toggle('hidden', !analyzing);
   analyzeToggleBtnPct.classList.toggle('hidden', !analyzing);
-  setAnalyzeProgress(null);
+  setAnalyzeProgress(null); // also puts the tab title back once it's done
   analyzeToggleBtn.title = analyzing ? 'Analyse abbrechen' : 'Ausgewähltes Spiel analysieren';
   analyzeToggleBtn.classList.toggle('analyze-btn-ready', !analyzing);
   analyzeToggleBtn.classList.toggle('bg-red-600', analyzing);
@@ -1147,9 +1147,14 @@ function setAnalyzing(analyzing) {
 /** The running analysis' progress on #analyze-toggle-btn: fill + "37%", or
  *  "…" (null) while nothing is measurable yet, e.g. the engine still loading. */
 function setAnalyzeProgress(fraction) {
+  const pct = fraction == null ? '…' : `${Math.round(fraction * 100)}%`;
   analyzeToggleBtnFill.style.width = `${Math.round((fraction ?? 0) * 100)}%`;
-  analyzeToggleBtnPct.textContent = fraction == null ? '…' : `${Math.round(fraction * 100)}%`;
+  analyzeToggleBtnPct.textContent = pct;
+  // The same in the browser tab's title, so a game opened in a new tab shows
+  // how far its analysis is from any other tab ("37% · Chess Analysis").
+  document.title = isAnalyzing ? `${pct} · ${BASE_TITLE}` : BASE_TITLE;
 }
+const BASE_TITLE = document.title;
 
 analyzeToggleBtn.addEventListener('click', () => {
   if (appMode === 'meta') {
