@@ -12,7 +12,7 @@ import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
 import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, layoutFitCharts } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
@@ -193,10 +193,9 @@ export function initMetaMode(host) {
   }
 
   function openGamesPop(btn) {
-    const byUrl = new Map(records.map((r) => [r.url, r]));
-    const rs = btn.dataset.games.split(' ').map((u) => byUrl.get(u)).filter(Boolean);
-    gamesPopEl.innerHTML = gameListHtml(rs, Number(btn.dataset.total));
+    gamesPopEl.innerHTML = gameListHtml(gameListById(btn.dataset.games), LISTED_GAMES_STEP);
     gamesPopEl.dataset.for = btn.dataset.games; // a second click on the same count closes it
+    gamesPopEl.dataset.shown = String(LISTED_GAMES_STEP);
     gamesPopEl.classList.remove('hidden');
     // Under the number, shifted left / flipped above where it wouldn't fit.
     const rect = btn.getBoundingClientRect();
@@ -208,6 +207,20 @@ export function initMetaMode(host) {
   }
 
   gamesPopEl.addEventListener('click', (e) => {
+    // "+ 10 weitere": the next games below, the box keeps its height and scrolls.
+    if (e.target.closest('[data-more]')) {
+      e.stopPropagation(); // the button is replaced below - the document's outside-click check would close the list
+      const list = gameListById(gamesPopEl.dataset.for);
+      if (!list.length) return closeGamesPop();
+      const scroll = gamesPopEl.querySelector('.meta-pop-list')?.scrollTop ?? 0;
+      const shown = Number(gamesPopEl.dataset.shown) + LISTED_GAMES_STEP;
+      gamesPopEl.dataset.shown = String(shown);
+      gamesPopEl.innerHTML = gameListHtml(list, shown);
+      const box = gamesPopEl.querySelector('.meta-pop-list');
+      box.scrollTop = scroll;
+      box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+      return;
+    }
     const item = e.target.closest('[data-game]');
     if (!item) return;
     closeGamesPop();

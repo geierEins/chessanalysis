@@ -159,15 +159,25 @@ function kpi(label, value, detail = '', cls = '', accent = '') {
 const GOOD = 'var(--meta-win)';
 const BAD = 'var(--meta-loss)';
 
-const MAX_LISTED_GAMES = 10;
+/** How many games the list behind a count shows at first, and adds per "more" click. */
+export const LISTED_GAMES_STEP = 10;
+
+// The games behind each count of the current render, by the id in its data-games.
+const gameLists = new Map();
+
+/** @returns {object[]} the games behind a count's data-games id (empty once re-rendered) */
+export function gameListById(id) {
+  return gameLists.get(id) ?? [];
+}
 
 /** A count that opens the list of its games on click (metaController's
- *  #meta-games-pop) - the newest MAX_LISTED_GAMES of them. `text` replaces
- *  the count as the shown value (e.g. "+9" for a record game). */
+ *  #meta-games-pop), newest first, LISTED_GAMES_STEP at a time. `text`
+ *  replaces the count as the shown value (e.g. "+9" for a record game). */
 function gamesCount(list, text = list.length) {
   if (!list.length) return text === list.length ? '0' : '–';
-  const urls = list.slice(0, MAX_LISTED_GAMES).map((r) => r.url).join(' ');
-  return `<button type="button" class="meta-count" data-games="${esc(urls)}" data-total="${list.length}" title="Partien anzeigen">${text}</button>`;
+  const id = String(gameLists.size + 1);
+  gameLists.set(id, list);
+  return `<button type="button" class="meta-count" data-games="${id}" title="Partien anzeigen">${text}</button>`;
 }
 
 /** The games with the most extreme value of `key` (all of them on a tie), e.g. the biggest lead that was still lost. */
@@ -179,15 +189,20 @@ function recordGames(list, key, pickMax) {
 
 const signed = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
 
-/** The floating game list behind gamesCount() - styled like the game picker. */
-export function gameListHtml(rs, total) {
-  const items = rs.map((r) => {
+/** The floating game list behind gamesCount() - styled like the game picker:
+ *  the first `shown` games of `list` in a scroll box, plus a "more" button
+ *  while some are left. */
+export function gameListHtml(list, shown) {
+  const items = list.slice(0, shown).map((r) => {
     const style = timeClassStyle(r.timeClass);
     const elo = r.oppRating ? ` (${r.oppRating})` : '';
     return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.emoji} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. ${RES_CIRCLE[r.result]}</button>`;
   });
-  const more = total > rs.length ? `<p class="meta-pop-more">… und ${total - rs.length} weitere</p>` : '';
-  return items.join('') + more;
+  const n = Math.min(shown, list.length);
+  const left = list.length - n;
+  const head = list.length > LISTED_GAMES_STEP ? `<p class="meta-pop-head">${n} von ${list.length}</p>` : '';
+  const more = left > 0 ? `<button type="button" class="meta-pop-more" data-more>+ ${Math.min(LISTED_GAMES_STEP, left)} weitere (noch ${left})</button>` : '';
+  return `${head}<div class="meta-pop-list">${items.join('')}</div>${more}`;
 }
 
 /** items: [value, label, color?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
@@ -231,6 +246,7 @@ function shade(base, i, n) {
 }
 
 /** Pie chart with a legend. slices: {label, v, color} - largest first. */
+// total: true shows the sum under the legend, a list of games makes it clickable.
 function pie(slices, { total = false } = {}) {
   const n = slices.reduce((a, s) => a + s.v, 0);
   const R = 60;
@@ -251,9 +267,9 @@ function pie(slices, { total = false } = {}) {
     from = to;
   }
   const legend = slices
-    .map((s) => `<div><i style="background:${s.color}"></i><span>${esc(s.label)}</span><b>${s.v} · ${pc(s.v / n)}</b></div>`)
+    .map((s) => `<div><i style="background:${s.color}"></i><span>${esc(s.label)}</span><b>${s.games ? gamesCount(s.games) : s.v} · ${pc(s.v / n)}</b></div>`)
     .join('');
-  return `<div class="meta-donut meta-pie"><svg viewBox="0 0 130 130" role="img">${paths}</svg><div class="meta-donut-legend">${legend}${total ? `<div class="meta-total"><span>Gesamt:</span><span>${n}</span></div>` : ''}</div></div>`;
+  return `<div class="meta-donut meta-pie"><svg viewBox="0 0 130 130" role="img">${paths}</svg><div class="meta-donut-legend">${legend}${total ? `<div class="meta-total"><span>Gesamt:</span><span>${Array.isArray(total) ? gamesCount(total) : n}</span></div>` : ''}</div></div>`;
 }
 
 /** Vertical bars on one shared scale. bins: {label, v, tip?, color?}
@@ -741,8 +757,11 @@ function quality(rs, ctx) {
     bins.push({ label: a, v: n, tip: `Genauigkeit ${a}–${a + 5}: ${n} Partien` });
   }
   const phase = [['Eröffnung', 'opening'], ['Mittelspiel', 'middlegame'], ['Endspiel', 'endgame']].map(([label, k]) => {
-    const v = avg(es, (r) => E(r).phaseAccuracy[k]);
-    return { label, v: v ?? 0, tip: `${label}: ${f1(v)} (aus ${es.filter((r) => E(r).phaseAccuracy[k] != null).length} Partien)` };
+    // The total over exactly the games that reached this phase - the fair comparison.
+    const games = es.filter((r) => E(r).phaseAccuracy[k] != null);
+    const v = avg(games, (r) => E(r).phaseAccuracy[k]);
+    const total = avg(games, (r) => E(r).accuracy);
+    return { label, v: v ?? 0, tip: `${label}: ${f1(v)} · Gesamt in diesen Partien: ${f1(total)} (aus ${games.length} Partien)` };
   });
   const byRes = [['Siege', 'W', 'var(--meta-win)'], ['Remis', 'D', 'var(--meta-draw)'], ['Niederlagen', 'L', 'var(--meta-loss)']].map(([label, k, color]) => ({
     label, v: avg(es.filter((r) => r.result === k), (r) => E(r).accuracy) ?? 0, color,
@@ -812,9 +831,9 @@ function timeTab(rs, ctx) {
     const l = rs.filter((r) => r.result === result);
     const slices = [...groupBy(l, (r) => r.termination)]
       .sort(byCountDesc)
-      .map(([k, x], i, all) => ({ label: TERMINATION_LABEL[k] ?? k, v: x.length, color: shade(color, i, all.length) }));
+      .map(([k, x], i, all) => ({ label: TERMINATION_LABEL[k] ?? k, v: x.length, games: x, color: shade(color, i, all.length) }));
     if (!slices.length) return '<p class="meta-muted">Keine Partien.</p>';
-    return pie(slices, { total: true });
+    return pie(slices, { total: l });
   };
   const losses = rs.filter((r) => r.result === 'L');
   const timeLosses = losses.filter((r) => r.termination === 'timeout');
@@ -892,7 +911,7 @@ function timeTab(rs, ctx) {
         [longestStreak(chrono, 'L'), 'längste Niederlagenserie'],
         [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
         [pc(score(afterLoss)), 'Quote direkt nach einer Niederlage'],
-      ]), { note: 'Ist die Quote nach Niederlagen deutlich schlechter, hilft oft eine kurze Pause nach einer verlorenen Partie.' })}
+      ]))}
     </div>
   </div>`;
 }
@@ -1076,5 +1095,6 @@ const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab,
  */
 export function renderMetaTab(tab, records, ctx) {
   fitDraws.clear(); // the previous render's charts are about to be replaced
+  gameLists.clear(); // ... and so are its counts
   return (RENDERERS[tab] ?? overview)(records, ctx);
 }

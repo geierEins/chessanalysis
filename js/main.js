@@ -1168,6 +1168,7 @@ async function startAnalysis() {
     }
     analysis = result;
 
+    el('game-empty').classList.add('hidden');
     reviewPanel.classList.remove('hidden');
     // On mobile, the filter bar eats 5 rows above the fold - collapse it out
     // of the way now that there's a board to show, and reveal the floating
@@ -1940,6 +1941,7 @@ function applyAppMode() {
   el('settings-sound-row').classList.toggle('hidden', isMeta);
   el('settings-best-move-row').classList.toggle('hidden', isMeta);
   meta.setActive(isMeta);
+  el('game-empty').classList.toggle('hidden', isMeta || Boolean(analysis));
   if (isMeta) {
     reviewPanel.classList.add('hidden');
     // The mobile "filters collapsed" state only makes sense next to a board.
