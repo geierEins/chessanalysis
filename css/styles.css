@@ -1462,6 +1462,11 @@ body {
   filter: brightness(1.1);
 }
 
+/* In Meta mode in the violet of the top bar's mode tint (see "Mode tint" below). */
+#loader-panel[data-mode="meta"] .analyze-btn-ready {
+  background: linear-gradient(to bottom, #a98cf7, #6b4fcf);
+}
+
 .btn-spinner {
   width: 11px;
   height: 11px;
@@ -2287,3 +2292,42 @@ html[data-site-theme="nordlicht"] h2,
 html[data-site-theme="nordlicht"] .settings-heading {
   letter-spacing: 0.01em;
 }
+
+/* ---------- Mode tint of the top filter bar ----------
+   A light tint (plus a thin line at the bottom edge) marks which mode is on:
+   green for the single-game analysis, violet for Meta. On a switch the new
+   tint sweeps in from the right while the old one gives way to the left
+   (js/main.js's markModeInBar sets data-mode / data-prev-mode and .mode-sweep).
+   Layered over the bar's own background, so it works under every site theme. */
+#loader-panel {
+  --tint-game: 129 182 76;
+  --tint-meta: 150 120 246;
+  --t-old: var(--tint-game);
+  --t-new: var(--tint-game);
+}
+#loader-panel[data-mode="meta"] { --t-new: var(--tint-meta); }
+#loader-panel[data-prev-mode="meta"] { --t-old: var(--tint-meta); }
+#loader-panel::before,
+#loader-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#loader-panel::before { background: linear-gradient(to top, rgb(var(--t-old) / 0.55) 0 2px, rgb(var(--t-old) / 0.09) 2px); }
+#loader-panel::after { background: linear-gradient(to top, rgb(var(--t-new) / 0.55) 0 2px, rgb(var(--t-new) / 0.09) 2px); clip-path: inset(0 0 0 100%); }
+#loader-panel.mode-sweep::before { animation: mode-sweep-out 650ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+#loader-panel.mode-sweep::after { animation: mode-sweep-in 650ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+@keyframes mode-sweep-in { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes mode-sweep-out { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 100% 0 0); } }
+@media (prefers-reduced-motion: reduce) {
+  #loader-panel.mode-sweep::before,
+  #loader-panel.mode-sweep::after { animation-duration: 1ms; }
+}
+
+/* The gear menu's "Modus" switch in the same colors as the mode tint and the
+   analyze button: green for Spiel, violet for Meta (after the themes, so it wins there too). */
+html .settings-segmented > button[data-app-mode].active { color: #fff; text-shadow: none; box-shadow: none; }
+html .settings-segmented > button[data-app-mode="game"].active { background: linear-gradient(to bottom, #9CC859, #5A8A43); }
+html .settings-segmented > button[data-app-mode="meta"].active { background: linear-gradient(to bottom, #a98cf7, #6b4fcf); }

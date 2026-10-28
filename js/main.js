@@ -1931,8 +1931,30 @@ function updateAnalyzeButtonForMode() {
   }
 }
 
+/** The top bar's mode tint (css/styles.css "Mode tint"): set at once on the
+ *  first call, swept in from the right on every later mode change. */
+function markModeInBar() {
+  const prev = loaderPanel.dataset.mode;
+  loaderPanel.dataset.mode = appMode;
+  if (!prev || prev === appMode) {
+    loaderPanel.dataset.prevMode = appMode;
+    return;
+  }
+  loaderPanel.dataset.prevMode = prev;
+  loaderPanel.classList.remove('mode-sweep');
+  void loaderPanel.offsetWidth; // restart the animation on a quick switch back
+  loaderPanel.classList.add('mode-sweep');
+}
+
+loaderPanel.addEventListener('animationend', (e) => {
+  if (e.pseudoElement !== '::after') return;
+  loaderPanel.classList.remove('mode-sweep');
+  loaderPanel.dataset.prevMode = loaderPanel.dataset.mode;
+});
+
 function applyAppMode() {
   const isMeta = appMode === 'meta';
+  markModeInBar();
   gamePickerEl.classList.toggle('hidden', isMeta);
   // Board color and piece style only matter next to a board.
   el('board-theme-picker').classList.toggle('hidden', isMeta);
