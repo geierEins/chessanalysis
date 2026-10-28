@@ -2010,6 +2010,10 @@ button.field-error {
 .meta-heat-controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
 /* Opponent's piece chips in red, own ones in the usual blue accent. */
 .meta-seg button[data-heat-side="opp"].on { background: var(--meta-loss); }
+/* "schlägt" / "geschlagen von" between the two piece pickers, in the mode's color. */
+.meta-heat-verb { align-self: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.meta-heat-verb.taken { color: var(--meta-s1); }
+.meta-heat-verb.lost { color: var(--meta-loss); }
 .meta-heat-board {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));

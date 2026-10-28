@@ -942,6 +942,13 @@ function segPicker(options, current, attr, label) {
 /** Toggle chips, one per piece type; none on = all pieces.
  *  side: 'own' | 'opp' - which piece of a capture (metaController's heatmap.pieces / oppPieces).
  *  The king only where it can take part: capturing, never captured. */
+// Between the two piece pickers, so the row reads as a sentence: "Meine Figuren schlägt / geschlagen von Gegnerische Figuren".
+function heatVerb(mode) {
+  return mode === 'lost'
+    ? '<span class="meta-heat-verb lost">geschlagen von</span>'
+    : '<span class="meta-heat-verb taken">schlägt</span>';
+}
+
 function piecePicker(side, chosen, mode) {
   const kingFits = side === 'own' ? mode === 'taken' : mode === 'lost';
   const btns = [...HEAT_PIECES, ...(kingFits ? ['k'] : [])].map((p) => {
@@ -1032,7 +1039,7 @@ function heatmapTab(rs, ctx) {
     }))
     .sort((a, b) => b.v - a.v);
 
-  const controls = `<div class="meta-heat-controls">${segPicker(HEAT_MODES, mode, 'heat-mode', 'Was zeigen')}${piecePicker('own', pieces, mode)}${piecePicker('opp', oppPieces, mode)}</div>`;
+  const controls = `<div class="meta-heat-controls">${segPicker(HEAT_MODES, mode, 'heat-mode', 'Was zeigen')}${piecePicker('own', pieces, mode)}${heatVerb(mode)}${piecePicker('opp', oppPieces, mode)}</div>`;
   const what = mode === 'lost'
     ? 'Felder, auf denen der Gegner deine Figuren geschlagen hat. „Meine Figuren“ wählt deine geschlagene Figur, „Gegnerische Figuren“ die schlagende'
     : 'Felder, auf denen du gegnerische Figuren geschlagen hast. „Meine Figuren“ wählt deine schlagende Figur, „Gegnerische Figuren“ die geschlagene';
