@@ -10,6 +10,10 @@ import { StockfishEngine } from '../engine/stockfishEngine.js';
 import { analyzeGame } from '../analysis/gameAnalyzer.js';
 import { showToast } from '../ui/toast.js';
 import { flagHtml } from '../ui/playerLabel.js';
+import { timeClassStyle } from '../timeClassStyle.js';
+
+// The status line's game-type counts, in the Spielart dropdown's order.
+const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, layoutFitCharts } from './metaView.js';
@@ -40,6 +44,7 @@ export function initMetaMode(host) {
   const emptyEl = el('meta-empty');
   const contentEl = el('meta-content');
   const statusEl = el('meta-status-text');
+  const typesEl = el('meta-status-types');
   const tabsEl = el('meta-tabs');
   const tabPanelEl = el('meta-tabpanel');
   const tipEl = el('meta-tip');
@@ -175,6 +180,11 @@ export function initMetaMode(host) {
     else text += `<b>${esc(label)}</b>: ${have} von ${rs.length} mit Engine-Werten.${missing ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Alles analysiert.'}`;
     if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
     statusEl.innerHTML = text;
+    // Right-aligned: all loaded games per game type (not just the filtered ones).
+    typesEl.innerHTML = TYPE_ORDER.map(([tc, label]) => {
+      const n = records.filter((r) => r.timeClass === tc).length;
+      return n ? `<b style="color:${timeClassStyle(tc).color}" title="${n} ${label}-Partien geladen">${n}</b>` : '';
+    }).filter(Boolean).join('<span class="meta-status-dot">·</span>');
   }
 
   tabsEl.addEventListener('click', (e) => {

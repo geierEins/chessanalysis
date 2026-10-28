@@ -1721,6 +1721,8 @@ button.field-error {
 }
 
 .meta-status b { color: var(--meta-fg); font-weight: 600; }
+.meta-status-types { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meta-status-dot { color: var(--meta-faint); }
 
 .meta-tabs {
   display: flex;
