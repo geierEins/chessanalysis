@@ -51,11 +51,9 @@ function New-Icon {
   $bmp.Dispose()
 }
 
-New-Icon -Size 512 -OutFile 'icon-512.png'
-New-Icon -Size 192 -OutFile 'icon-192.png'
-New-Icon -Size 180 -OutFile 'apple-touch-icon.png'
-New-Icon -Size 32  -OutFile 'favicon-32.png'
-New-Icon -Size 16  -OutFile 'favicon-16.png'
+# The app icon PNGs now come from icons/app/logo.svg instead - see
+# scripts/render-app-icons.sh. Only the Open Graph image below is still
+# drawn here.
 
 # --- Open Graph share image (1200x630) ---
 $ogW = 1200; $ogH = 630

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- App logo: violet pawn (the Meta filter bar's #9678F6, shaded with
+       #6B4FCF) on the app background. Square, not rounded - Android/iOS apply
+       their own corner mask (see scripts/generate-icons.ps1). -->
+  <defs>
+    <!-- The pawn as one path (head, collar, body), so it can be reused both
+         as a fill and as a clip path (a clipPath can't <use> a group). -->
+    <path id="pawn" d="M48 8A13 13 0 1 1 48 34A13 13 0 1 1 48 8Z
+                       M39 34H57A4 4 0 0 1 57 42H39A4 4 0 0 1 39 34Z
+                       M42 41H54C54 52 58 62 64 70C67 73 67 80 63 82H33C29 80 29 73 32 70C38 62 42 52 42 41Z"/>
+    <clipPath id="pawn-clip">
+      <use href="#pawn"/>
+    </clipPath>
+  </defs>
+  <rect width="96" height="96" fill="#171717"/>
+  <!-- Dark tone underneath, the light tone shifted left on top: leaves a
+       darker rim along the right edges, like the original raster logo. -->
+  <!-- translate: the pawn spans y 8-82, shifted down to sit centered. -->
+  <g transform="translate(0 3)">
+    <use href="#pawn" fill="#6B4FCF"/>
+    <g clip-path="url(#pawn-clip)">
+      <use href="#pawn" fill="#9678F6" transform="translate(-4 0)"/>
+    </g>
+  </g>
+</svg>
