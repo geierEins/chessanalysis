@@ -411,6 +411,29 @@ export class BoardView {
     this.#badgeEl = badge;
   }
 
+  /**
+   * Same spot as showBadge(), but a neutral spinning placeholder - shown while
+   * a move's classification is still being computed in the background (a
+   * branch move, see js/main.js's evaluateBranchNode).
+   * @param {string} square - e.g. "e4"
+   */
+  showLoadingBadge(square) {
+    this.clearBadge();
+    if (!square) return;
+    this.#lastBadge = { square, category: null };
+
+    const squareEl = this.#squareEl(square);
+    if (!squareEl) return;
+    squareEl.style.position = 'relative';
+
+    const badge = document.createElement('span');
+    badge.className = 'move-badge move-badge-loading';
+    badge.setAttribute('role', 'img');
+    badge.setAttribute('aria-label', 'Zugqualität wird berechnet');
+    squareEl.appendChild(badge);
+    this.#badgeEl = badge;
+  }
+
   clearLastMoveHighlight() {
     this.#lastMoveSquares = null;
     for (const el of this.#lastMoveEls) el.classList.remove('lastmove-highlight');
@@ -616,7 +639,8 @@ export class BoardView {
     // just gets dropped on a resize - the squares it pointed at are about to
     // be recreated anyway.
     this.clearMoveHighlights();
-    if (this.#lastBadge) this.showBadge(this.#lastBadge.square, this.#lastBadge.category);
+    if (this.#lastBadge?.category) this.showBadge(this.#lastBadge.square, this.#lastBadge.category);
+    else if (this.#lastBadge) this.showLoadingBadge(this.#lastBadge.square);
     if (this.#lastMoveSquares) this.showLastMoveHighlight(this.#lastMoveSquares.from, this.#lastMoveSquares.to);
     if (this.#lastTerminationMarkers) this.showTerminationBadges(this.#lastTerminationMarkers);
     if (this.#lastArrow) this.showArrow(this.#lastArrow.from, this.#lastArrow.to);

@@ -407,9 +407,7 @@ let avgRating = null; // average of both players' ratings - reused by branch-mov
 let isAnalyzing = false; // drives #analyze-toggle-btn's label/color (setAnalyzing)
 
 const board = new BoardView('board', 'board-arrow-paths', 'board-user-arrow-paths', {
-  onMoveEnd: () => {
-    if (pendingBadge) board.showBadge(pendingBadge.square, pendingBadge.category);
-  },
+  onMoveEnd: () => showPendingBadge(),
   canDragStart: (source, piece) => {
     if (!analysis || !currentNode) return false;
     const sideToMove = currentNode.fenAfter.split(' ')[1]; // FEN's own turn field ('w'/'b')
@@ -426,6 +424,7 @@ const board = new BoardView('board', 'board-arrow-paths', 'board-user-arrow-path
     if (currentNode) {
       board.clearBadge();
       board.setPosition(currentNode.fenAfter);
+      showPendingBadge();
     }
   },
 });
@@ -1663,6 +1662,10 @@ function goToNode(node, { fromDrop = false } = {}) {
   const suppressBadge = isRealFinalNode(currentNode) && currentNode.piece === 'k';
   pendingBadge =
     currentNode.parent && !suppressBadge ? { square: currentNode.to, category: currentNode.category } : null;
+  // No category yet: a branch move whose evaluateBranchNode() is still running
+  // (or about to start - completeUserMove() calls this first), so it gets the
+  // loading placeholder instead - unless its evaluation already failed.
+  if (pendingBadge && !pendingBadge.category && !currentNode.evaluationFailed) pendingBadge.loading = true;
 
   // Outlines the from/to squares of whichever move is currently shown, so
   // it's clear at a glance which piece just moved and where from.
@@ -1813,6 +1816,7 @@ function completeUserMove(source, target, promotion, { fromDrop }) {
  */
 async function evaluateBranchNode(node) {
   const { depth } = ENGINE;
+  node.evaluationFailed = false;
   try {
     // Also starts the engine if the game came from a stored analysis without one.
     const branchEngine = await ensureEngine();
@@ -1821,7 +1825,14 @@ async function evaluateBranchNode(node) {
     applyBranchEvaluation(node, beforeResult, afterResult);
   } catch (err) {
     if (err.name !== 'AbortError') console.error('Branch-Auswertung fehlgeschlagen:', err);
-    return; // engine terminated/cancelled - node just stays uncategorized
+    // Engine terminated/cancelled - node just stays uncategorized, so its
+    // loading placeholder must not keep spinning forever.
+    node.evaluationFailed = true;
+    if (currentNode === node) {
+      pendingBadge = null;
+      board.clearBadge();
+    }
+    return;
   }
 
   if (currentNode === node) {
@@ -1904,6 +1915,13 @@ function applyBranchEvaluation(node, beforeResult, afterResult) {
     bestMoveSquares: isBestMove ? null : squaresFromUci(bestMoveUci),
     nextBestMoveSquares: afterResult ? squaresFromUci(afterResult.bestMoveUci) : null,
   });
+}
+
+/** Shows the badge pendingBadge describes - the move's category icon, or the
+ *  loading placeholder while its classification is still being computed. */
+function showPendingBadge() {
+  if (pendingBadge?.category) board.showBadge(pendingBadge.square, pendingBadge.category);
+  else if (pendingBadge?.loading) board.showLoadingBadge(pendingBadge.square);
 }
 
 function stopAutoPlay() {
