@@ -111,29 +111,104 @@ html {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
+/* The appearance dropdown (#appearance-menu, js/ui/appearancePicker.js):
+   "Brettfarbe" as a row of swatches, "Figuren" and "Theme" as lists. */
+/* Gray like the gear (#settings-btn), lighter on hover / while open. */
+#appearance-btn {
+  color: rgb(var(--n-400));
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+#appearance-btn:hover,
+#appearance-btn[aria-expanded="true"] {
+  color: rgb(var(--n-200));
+  background-color: rgb(var(--n-700));
+}
+
+.appearance-icon {
+  display: block;
+}
+
+#appearance-menu {
+  width: 232px;
+  padding: 4px 0;
+}
+
+.appearance-section + .appearance-section {
+  border-top: 1px solid rgb(var(--n-700));
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.appearance-heading {
+  padding: 4px 10px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--n-400));
+}
+
+.board-theme-options {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 2px 6px 4px;
+}
+
 .board-theme-option {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  width: 100%;
+  justify-content: center;
+  padding: 5px 0;
+  border-radius: 4px;
   cursor: pointer;
+}
+
+.board-theme-option .board-theme-swatch {
+  width: 20px;
+  height: 20px;
 }
 
 .board-theme-option:hover {
   background-color: rgb(var(--n-700));
 }
 
-/* Piece-theme picker (js/ui/pieceThemePicker.js) - a black knight sprite
-   from the actual set stands in as that set's own icon, so the collapsed
-   button and each menu row show a real sample of the art style rather than
-   an abstract glyph. */
-.piece-theme-btn-icon {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
+.piece-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
 }
 
+.site-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.site-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  width: 100%;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.site-theme-option:hover {
+  background-color: rgb(var(--n-700));
+}
+
+.site-theme-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25); /* color per theme: SITE_THEMES' ring */
+}
+
+/* Piece sets (js/ui/pieceThemePicker.js) - a knight sprite from the actual
+   set stands in as that set's own icon, so each row shows a real sample of
+   the art style rather than an abstract glyph. */
 .piece-theme-option {
   display: flex;
   align-items: center;
@@ -2302,7 +2377,7 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
   }
 }
 
-/* ---------- Site themes (gear menu "Themes", js/ui/siteTheme.js) ----------
+/* ---------- Site themes (appearance dropdown "Theme", js/ui/siteTheme.js) ----------
    "Standard" is :root above. Each theme re-points the neutral ramp and the
    accent, which Tailwind's classes follow too (tailwind.config in
    index.html); the rules below only add what a palette alone can't. */

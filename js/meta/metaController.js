@@ -562,7 +562,8 @@ export function initMetaMode(host) {
       run.resume = null;
     }
     progress.pauseBtn.textContent = paused ? 'Fortsetzen' : 'Pausieren';
-    progress.title.textContent = paused ? 'Engine-Analyse pausiert (nach der laufenden Partie)' : 'Engine-Analyse läuft';
+    const engineLabel = host.getEngineSettings().label;
+    progress.title.textContent = paused ? `Engine-Analyse pausiert (nach der laufenden Partie) · ${engineLabel}` : `Engine-Analyse läuft · ${engineLabel}`;
     updateProgress();
   }
 

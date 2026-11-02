@@ -200,19 +200,29 @@
         </button>
         <div id="opponent-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
       </div>
-      <!-- Fixed engine (js/main.js's ENGINE), the same the GitHub job uses. -->
-      <!-- self-stretch: as tall as the row's buttons, whose emoji/icons make them taller than plain text. -->
-      <span id="engine-label" class="self-stretch flex items-center border border-neutral-700 rounded px-2 text-xs text-neutral-400 cursor-default select-none"
-            title="Analyse mit Stockfish 19 Full (volles NNUE-Netz), Suchtiefe 16 Halbzüge – dieselbe Einstellung wie die automatische Analyse auf GitHub">SF19·T16</span>
 
-      <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher
-           ein kleines eigenes Dropdown mit echten Farbfeldern. -->
-      <div id="board-theme-picker" class="relative">
-        <button id="board-theme-btn" type="button" title="Brettfarbe"
-                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs flex items-center">
-          <span id="board-theme-btn-swatch" class="board-theme-swatch"></span>
+      <!-- Darstellung (js/ui/appearancePicker.js): Brettfarbe, Figurenstil und
+           Theme in einem Dropdown - im Meta-Modus nur das Theme. -->
+      <div id="appearance-picker" class="relative">
+        <button id="appearance-btn" type="button" title="Darstellung: Brettfarbe, Figuren und Theme"
+                aria-label="Darstellung" aria-haspopup="dialog" aria-expanded="false" aria-controls="appearance-menu"
+                class="bg-neutral-800 border border-neutral-700 rounded px-1.5 py-1 text-xs flex items-center">
+          <!-- Artist's palette, drawn like the gear next to it (14px, line only, gray). -->
+          <svg class="appearance-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16.5A4.5 4.5 0 0 0 21 10.7C21 6.4 17 3 12 3Z"/>
+            <circle cx="7.5" cy="11.5" r="1"/>
+            <circle cx="10.5" cy="7.5" r="1"/>
+            <circle cx="15" cy="8" r="1"/>
+          </svg>
         </button>
-        <div id="board-theme-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+        <div id="appearance-menu" role="dialog" aria-label="Darstellung"
+             class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
+          <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher
+               echte Farbfelder (js/ui/boardThemePicker.js). -->
+          <div id="appearance-board-section" class="appearance-section">
+            <div class="appearance-heading">Brettfarbe</div>
+            <div id="board-theme-options" class="board-theme-options">
           <button type="button" class="board-theme-option" data-light="#EAE9D2" data-dark="#4B7399">
             <span class="board-theme-swatch" style="background: conic-gradient(#EAE9D2 90deg, #4B7399 90deg 180deg, #EAE9D2 180deg 270deg, #4B7399 270deg)"></span>
           </button>
@@ -239,18 +249,19 @@
           <button type="button" class="board-theme-option" data-light="#EDDEBE" data-dark="#8B5A2B" data-wood="true">
             <span class="board-theme-swatch" style="background: conic-gradient(#EDDEBE 90deg, #8B5A2B 90deg 180deg, #EDDEBE 180deg 270deg, #8B5A2B 270deg)"></span>
           </button>
+            </div>
+          </div>
+          <!-- Optionen (ein Beispiel-Springer aus jedem Set) von js/ui/pieceThemePicker.js. -->
+          <div id="appearance-piece-section" class="appearance-section">
+            <div class="appearance-heading">Figuren</div>
+            <div id="piece-theme-options" class="piece-theme-options"></div>
+          </div>
+          <!-- Farbschema der ganzen Seite - Optionen von js/ui/siteTheme.js's SITE_THEMES. -->
+          <div class="appearance-section">
+            <div class="appearance-heading">Theme</div>
+            <div id="site-theme-options" class="site-theme-options" role="radiogroup" aria-label="Theme"></div>
+          </div>
         </div>
-      </div>
-
-      <!-- Figurenstil-Dropdown, gleich neben der Brettfarbe - Optionen und
-           Icon (ein Beispiel-Springer aus jedem Set) werden von
-           js/ui/pieceThemePicker.js befüllt. -->
-      <div id="piece-theme-picker" class="relative">
-        <button id="piece-theme-btn" type="button" title="Figurenstil"
-                class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs flex items-center">
-          <img id="piece-theme-btn-icon" alt="" class="piece-theme-btn-icon">
-        </button>
-        <div id="piece-theme-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
       </div>
 
       <!-- One button, two states (js/main.js's setAnalyzing) - a plain
@@ -260,7 +271,7 @@
            loading visualization as #fetch-games-btn) - never a second
            element with its own gap in the layout, and never text that grows/
            shrinks the row's own width as "Analysiere Zug X von Y" changes. -->
-      <button id="analyze-toggle-btn" disabled title="Ausgewähltes Spiel analysieren"
+      <button id="analyze-toggle-btn" disabled title="Ausgewähltes Spiel analysieren (Stockfish 19 Full · Tiefe 16)"
               class="relative overflow-hidden analyze-btn-ready disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded px-4 py-1 text-xs font-medium gap-1.5">
         <span id="analyze-toggle-btn-fill" class="absolute inset-y-0 left-0 z-0 bg-white/35 transition-[width] duration-300" style="width:0%"></span>
         <svg id="analyze-toggle-btn-icon" class="relative z-10" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -301,11 +312,6 @@
               <button type="button" role="radio" data-app-mode="meta"
                       title="Meta-Analyse: Statistiken über viele Partien">Meta</button>
             </div>
-          </div>
-          <div class="settings-row">
-            <span class="settings-label" title="Farbschema und Stil der ganzen Seite">Themes</span>
-            <!-- Buttons rendered by js/ui/settingsPanel.js from js/ui/siteTheme.js's SITE_THEMES. -->
-            <div id="settings-site-theme" class="settings-segmented" role="radiogroup" aria-label="Themes"></div>
           </div>
           <div id="settings-sound-row" class="settings-row">
             <span class="settings-label">Brettgeräusche</span>

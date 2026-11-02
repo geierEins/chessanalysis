@@ -1,16 +1,12 @@
-// Board theme picker: native <select> can't show two colors per entry, so
-// this is a small custom dropdown instead. Self-contained (own DOM refs,
-// own listeners, own persistence) - main.js just calls initBoardThemePicker()
-// once at startup.
+// Board colors: the "Brettfarbe" swatches in the appearance dropdown
+// (js/ui/appearancePicker.js opens and closes it). Self-contained (own DOM
+// refs, own listeners, own persistence) - main.js just calls
+// initBoardThemePicker() once at startup.
 
 import { complementaryHighlight, mutedComplementaryHighlight } from '../colorUtils.js';
 import { loadBoardTheme, saveBoardTheme } from '../persistence.js';
 
 export function initBoardThemePicker() {
-  const boardThemePicker = document.getElementById('board-theme-picker');
-  const boardThemeBtn = document.getElementById('board-theme-btn');
-  const boardThemeMenu = document.getElementById('board-theme-menu');
-  const boardThemeBtnSwatch = document.getElementById('board-theme-btn-swatch');
 
   function setBoardTheme(light, dark, isWood = false) {
     document.documentElement.style.setProperty('--board-light', light);
@@ -45,10 +41,6 @@ export function initBoardThemePicker() {
     // toned variant instead (see mutedComplementaryHighlight's own comment).
     document.documentElement.style.setProperty('--lastmove-color', mutedComplementaryHighlight(light, dark));
     document.documentElement.style.setProperty('--best-move-arrow-color', complementaryHighlight(dark));
-    // Single swatch, split into 4 alternating quadrants (a mini 2x2
-    // checkerboard) rather than two separate light/dark squares.
-    boardThemeBtnSwatch.style.background =
-      `conic-gradient(${light} 90deg, ${dark} 90deg 180deg, ${light} 180deg 270deg, ${dark} 270deg)`;
   }
 
   // Highlights whichever swatch button matches the active theme, so
@@ -77,33 +69,14 @@ export function initBoardThemePicker() {
     )
   );
 
-  boardThemeBtn.addEventListener('click', () => {
-    if (boardThemeMenu.classList.contains('hidden')) {
-      // position: fixed (computed here, not CSS `absolute`) so the menu isn't
-      // clipped by #filter-row's horizontal-scroll container - see the same
-      // comment on CustomSelect#openMenu in js/ui/customSelect.js.
-      const rect = boardThemeBtn.getBoundingClientRect();
-      boardThemeMenu.style.position = 'fixed';
-      boardThemeMenu.style.top = `${rect.bottom + 4}px`;
-      boardThemeMenu.style.right = `${window.innerWidth - rect.right}px`;
-      boardThemeMenu.classList.remove('hidden');
-      selectedOption?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-    } else {
-      boardThemeMenu.classList.add('hidden');
-    }
-  });
-
+  // The dropdown stays open on a pick, so several can be tried in a row.
   for (const option of document.querySelectorAll('.board-theme-option')) {
+    option.title = option.dataset.wood === 'true' ? 'Holzmaserung' : '';
     option.addEventListener('click', () => {
       const isWood = option.dataset.wood === 'true';
       setBoardTheme(option.dataset.light, option.dataset.dark, isWood);
       saveBoardTheme(option.dataset.light, option.dataset.dark, isWood);
       markSelected(option);
-      boardThemeMenu.classList.add('hidden');
     });
   }
-
-  document.addEventListener('click', (e) => {
-    if (!boardThemePicker.contains(e.target)) boardThemeMenu.classList.add('hidden');
-  });
 }

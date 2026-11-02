@@ -62,6 +62,7 @@ import { computeTerminationMarkers } from './analysis/termination.js';
 import { computeMoveTimesSpent } from './analysis/moveTimes.js';
 import { initBoardThemePicker } from './ui/boardThemePicker.js';
 import { initPieceThemePicker } from './ui/pieceThemePicker.js';
+import { initAppearancePicker } from './ui/appearancePicker.js';
 import { initSettingsPanel } from './ui/settingsPanel.js';
 
 // Registers the (no-op/no-cache) service worker so the browser considers the
@@ -337,7 +338,7 @@ const analyzeToggleBtnFill = el('analyze-toggle-btn-fill');
 const analyzeToggleBtnPct = el('analyze-toggle-btn-pct');
 // The one engine setting the app analyzes with - the same as the GitHub job
 // (scripts/auto-analysis/config.json), so every stored analysis matches it.
-// Shown as the fixed #engine-label in the top bar.
+// Named in the analyze button's tooltip and the Meta-Analyse's progress title.
 const ENGINE = { engineId: 'sf19full', depth: 16, label: 'Stockfish 19 Full · Tiefe 16' };
 
 /** The engine + depth (also the Meta-Analyse's host.getEngineSettings). */
@@ -1141,7 +1142,7 @@ function setAnalyzing(analyzing) {
   analyzeToggleBtnSpinner.classList.toggle('hidden', !analyzing);
   analyzeToggleBtnPct.classList.toggle('hidden', !analyzing);
   setAnalyzeProgress(null); // also puts the tab title back once it's done
-  analyzeToggleBtn.title = analyzing ? 'Analyse abbrechen' : 'Ausgewähltes Spiel analysieren';
+  analyzeToggleBtn.title = analyzing ? 'Analyse abbrechen' : `Ausgewähltes Spiel analysieren (${ENGINE.label})`;
   analyzeToggleBtn.classList.toggle('analyze-btn-ready', !analyzing);
   analyzeToggleBtn.classList.toggle('bg-red-600', analyzing);
   analyzeToggleBtn.classList.toggle('hover:bg-red-500', analyzing);
@@ -2009,10 +2010,10 @@ function updateAnalyzeButtonForMode() {
     analyzeToggleBtn.disabled = !meta?.hasData || allDone;
     analyzeToggleBtn.title = allDone
       ? 'Alle gefilterten Partien sind schon analysiert'
-      : 'Meta-Analyse starten: alle gefilterten Partien ohne Engine-Werte analysieren';
+      : `Meta-Analyse starten: alle gefilterten Partien ohne Engine-Werte analysieren (${ENGINE.label})`;
   } else {
     analyzeToggleBtn.disabled = games.length === 0;
-    analyzeToggleBtn.title = 'Ausgewähltes Spiel analysieren';
+    analyzeToggleBtn.title = `Ausgewähltes Spiel analysieren (${ENGINE.label})`;
   }
 }
 
@@ -2041,9 +2042,8 @@ function applyAppMode() {
   const isMeta = appMode === 'meta';
   markModeInBar();
   gamePickerEl.classList.toggle('hidden', isMeta);
-  // Board color and piece style only matter next to a board.
-  el('board-theme-picker').classList.toggle('hidden', isMeta);
-  el('piece-theme-picker').classList.toggle('hidden', isMeta);
+  // Board color and piece style only matter next to a board - the Meta mode gets just the theme.
+  appearance.setMetaMode(isMeta);
   // Same for the gear menu's board sounds and best-move arrow.
   el('settings-sound-row').classList.toggle('hidden', isMeta);
   el('settings-best-move-row').classList.toggle('hidden', isMeta);
@@ -2101,6 +2101,7 @@ meta = initMetaMode({
 
 initBoardThemePicker();
 initPieceThemePicker(board);
+const appearance = initAppearancePicker();
 initSettingsPanel({
   appMode,
   onAppModeChange: (mode) => switchAppMode(mode),
