@@ -80,6 +80,7 @@ export function initMetaMode(host) {
   let countryJob = { generation: 0, done: 0, total: 0, running: false };
   let opponent = null; // lowercased opponent name, or null = all
   let tab = loadMetaTab() ?? 'overview';
+  let marked = null; // urls of a streak opened from the overview, highlighted in the "Partien" tab (showStreak)
   // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land, Partien.
   const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' }, games: { key: 'date', dir: 'desc' } };
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
@@ -118,6 +119,7 @@ export function initMetaMode(host) {
     const { label } = host.getEngineSettings();
     return {
       engineOf: (r) => engineCache.get(r.url) ?? null,
+      marked,
       // 'running' / 'queued' while the run still has the game ahead of it, else null.
       queueState: (r) => {
         const i = run ? run.targets.indexOf(r) : -1;
@@ -195,11 +197,25 @@ export function initMetaMode(host) {
   tabsEl.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
+    marked = null;
     tab = b.dataset.tab;
     saveMetaTab(tab);
     renderTabs();
     render();
   });
+
+  /** The overview's longest-streak counts: the "Partien" tab, newest first, with the
+   *  streak marked and scrolled to its first game - the bottom row of the block, so the rest shows above it. */
+  function showStreak(games) {
+    if (!games.length) return;
+    marked = new Set(games.map((r) => r.url));
+    tab = 'games';
+    saveMetaTab(tab);
+    sorts.games = { key: 'date', dir: 'desc' };
+    renderTabs();
+    render();
+    tabPanelEl.querySelector(`tr[data-game="${CSS.escape(games[0].url)}"]`)?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }
 
   // ---------- game list behind a clickable count (metaView's gamesCount) ----------
 
@@ -257,6 +273,11 @@ export function initMetaMode(host) {
   });
 
   tabPanelEl.addEventListener('click', (e) => {
+    const streakBtn = e.target.closest('[data-streak]');
+    if (streakBtn) {
+      showStreak(gameListById(streakBtn.dataset.streak));
+      return;
+    }
     const countBtn = e.target.closest('.meta-count');
     if (countBtn) {
       const isOpenHere = !gamesPopEl.classList.contains('hidden') && gamesPopEl.dataset.for === countBtn.dataset.games;
@@ -335,7 +356,8 @@ export function initMetaMode(host) {
       const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : null;
       tipEl.classList.toggle('board', Boolean(board));
       if (board) tipEl.innerHTML = board;
-      else tipEl.textContent = t.getAttribute('data-tip') ?? t.dataset.opening;
+      // Plain text, except **...** in a data-tip, which is shown bold.
+      else tipEl.innerHTML = esc(t.getAttribute('data-tip') ?? t.dataset.opening).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     }
     tipEl.classList.remove('hidden');
     const x = Math.min(e.clientX + 12, window.innerWidth - tipEl.offsetWidth - 8);

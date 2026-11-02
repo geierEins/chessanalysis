@@ -218,6 +218,11 @@
         </button>
         <div id="appearance-menu" role="dialog" aria-label="Darstellung"
              class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
+          <!-- Farbschema der ganzen Seite - Optionen von js/ui/siteTheme.js's SITE_THEMES. -->
+          <div class="appearance-section">
+            <div class="appearance-heading">Theme</div>
+            <div id="site-theme-options" class="site-theme-options" role="radiogroup" aria-label="Theme"></div>
+          </div>
           <!-- Natives <select> kann keine zwei Farben pro Eintrag anzeigen - daher
                echte Farbfelder (js/ui/boardThemePicker.js). -->
           <div id="appearance-board-section" class="appearance-section">
@@ -255,11 +260,6 @@
           <div id="appearance-piece-section" class="appearance-section">
             <div class="appearance-heading">Figuren</div>
             <div id="piece-theme-options" class="piece-theme-options"></div>
-          </div>
-          <!-- Farbschema der ganzen Seite - Optionen von js/ui/siteTheme.js's SITE_THEMES. -->
-          <div class="appearance-section">
-            <div class="appearance-heading">Theme</div>
-            <div id="site-theme-options" class="site-theme-options" role="radiogroup" aria-label="Theme"></div>
           </div>
         </div>
       </div>

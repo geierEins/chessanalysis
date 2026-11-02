@@ -1935,6 +1935,7 @@ button.field-error {
 }
 
 .meta-card.w4 { grid-column: span 4; }
+.meta-card.w6 { grid-column: span 6; }
 .meta-card.w8 { grid-column: span 8; }
 .meta-card.w12 { grid-column: span 12; }
 /* Several cards stacked in one grid column (e.g. "Uhr" over "Quote nach
@@ -1975,7 +1976,7 @@ button.field-error {
 }
 
 @media (max-width: 900px) {
-  .meta-card, .meta-card.w4, .meta-card.w8, .meta-stack, .meta-stack.w8 { grid-column: span 12; }
+  .meta-card, .meta-card.w4, .meta-card.w6, .meta-card.w8, .meta-stack, .meta-stack.w8 { grid-column: span 12; }
   .meta-stack > .meta-card { grid-column: auto; }
 }
 
@@ -2124,6 +2125,10 @@ button.field-error {
 .meta-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--meta-muted); }
 .meta-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .meta-legend.spaced { column-gap: 44px; }
+
+/* "Partien" tab: a streak opened from the overview (metaController's showStreak) */
+.meta-tbl tr.meta-marked td { background: color-mix(in srgb, var(--meta-accent) 14%, transparent); }
+.meta-tbl tr.meta-marked td:first-child { box-shadow: inset 3px 0 0 var(--meta-accent); }
 
 /* "Partien" tab: the last column's magnifier / spinner / hourglass (metaView's analyzeCell) */
 .meta-analyze { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; border-radius: 5px; color: var(--meta-muted); vertical-align: middle; }

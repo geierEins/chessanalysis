@@ -96,6 +96,9 @@ const CARD_ICONS = {
   'Nach Farbe und Spielart': '🎨',
   'Die letzten 5 Partien': '🕑',
   'Elo-Verlauf': '📈',
+  'Partien pro Tag': '📅',
+  'Beste Tage': '🏆',
+  'Schlechteste Tage': '💔',
   'Eröffnungen': '📖',
   'Mit Weiß': 'piece:wP',
   'Mit Schwarz': 'piece:bP',
@@ -458,6 +461,97 @@ function ratingChart(rs) {
   return { legend: `<div class="meta-legend spaced">${legend}</div>`, body: fitChart(draw, { height: 180 }) };
 }
 
+/** One column per calendar day of the period (local time), stacked by game type;
+ *  days without a game stay empty. @returns {{legend: string, body: string}} */
+function gamesPerDayChart(rs) {
+  const dayOf = (ms) => {
+    const d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    return +d;
+  };
+  const byDay = groupBy(rs, (r) => dayOf(r.endTime));
+  const first = Math.min(...byDay.keys());
+  const last = Math.max(...byDay.keys());
+  const days = [];
+  // setDate steps keep local midnight across daylight-saving changes.
+  for (const d = new Date(first); +d <= last; d.setDate(d.getDate() + 1)) days.push(+d);
+  const max = Math.max(...[...byDay.values()].map((l) => l.length));
+  const types = TC_ORDER.filter((tc) => rs.some((r) => r.timeClass === tc));
+  const active = byDay.size;
+  const legend = types.map((tc) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]}</span>`).join('')
+    + `<span class="meta-muted">${active} von ${days.length} Tagen gespielt · Ø ${f1(rs.length / active)} an Spieltagen · max. ${max}</span>`;
+  const draw = (W, H) => {
+    const P = { l: 34, r: 10, t: 8, b: 22 };
+    const lines = Math.max(2, Math.floor((H - P.t - P.b) / 26));
+    const step = [1, 2, 5, 10, 20, 25, 50, 100].find((x) => max / x <= lines) ?? 200;
+    const top = Math.ceil(max / step) * step;
+    const bw = (W - P.l - P.r) / days.length;
+    const gap = bw > 6 ? 1.5 : bw > 3 ? 0.75 : 0;
+    const Y = (v) => H - P.b - (v / top) * (H - P.t - P.b);
+    let s = '';
+    for (let v = 0; v <= top; v += step) {
+      s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+    // Ticks: every month's 1st over long periods, otherwise each Monday (or every day for a short one), ~60 px apart.
+    const ticks = days.filter((t) => {
+      const d = new Date(t);
+      return days.length > 62 ? d.getDate() === 1 : days.length > 14 ? d.getDay() === 1 : true;
+    });
+    const every = Math.max(1, Math.ceil(ticks.length / Math.max(2, Math.floor((W - P.l - P.r) / 60))));
+    ticks.forEach((t, i) => {
+      if (i % every) return;
+      const d = new Date(t);
+      const label = days.length > 62
+        ? (d.getMonth() === 0 ? String(d.getFullYear()) : d.toLocaleDateString('de-DE', { month: 'short' }))
+        : d.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
+      s += `<text x="${P.l + days.indexOf(t) * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    });
+    days.forEach((t, i) => {
+      const list = byDay.get(t);
+      if (!list) return;
+      const x = P.l + i * bw + gap / 2;
+      let y = Y(0);
+      const parts = [];
+      for (const tc of types) {
+        const n = list.filter((r) => r.timeClass === tc).length;
+        if (!n) continue;
+        const h = Y(0) - Y(n);
+        y -= h;
+        s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, bw - gap).toFixed(1)}" height="${h.toFixed(1)}" fill="${timeClassStyle(tc).color}"/>`;
+        parts.push(`${TC_LABEL[tc]} ${n}`);
+      }
+      const c = wdl(list);
+      const date = new Date(t).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
+      // Hover target: the whole column height, so even a 1-game day is easy to hit.
+      s += `<rect x="${(P.l + i * bw).toFixed(1)}" y="${P.t}" width="${bw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent" data-tip="${date}: **${list.length} ${list.length === 1 ? 'Partie' : 'Partien'}**\n${parts.join(' · ')}\n${c.W} S · ${c.D} R · ${c.L} N"/>`;
+    });
+    s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Partien pro Tag">${s}</svg>`;
+  };
+  return { legend: `<div class="meta-legend spaced">${legend}</div>`, body: fitChart(draw, { height: 160 }) };
+}
+
+const DAY_MIN_GAMES = 3; // a day with one won game would otherwise always be "the best"
+const DAYS_NOTE = `Siegesquote = Siege / Partien des Tages, nur Tage mit mindestens ${DAY_MIN_GAMES} Partien. Bei Gleichstand zählt der Tag mit mehr Partien. Anzahl anklicken: die Partien des Tages.`;
+
+/** The 3 days with the highest and the lowest win rate. @returns {{best: string, worst: string}} rows for two cards */
+function bestWorstDays(rs) {
+  const dayOf = (ms) => new Date(ms).setHours(0, 0, 0, 0);
+  const days = [...groupBy(rs, (r) => dayOf(r.endTime))]
+    .filter(([, l]) => l.length >= DAY_MIN_GAMES)
+    .map(([day, l]) => ({ day, l, rate: wdl(l).W / l.length }));
+  const rows = (list) => {
+    if (!list.length) return `<p class="meta-muted">Keine Tage mit mindestens ${DAY_MIN_GAMES} Partien.</p>`;
+    return `<div class="meta-rows">${list.map(({ day, l, rate }) => {
+      const date = new Date(day).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
+      return `<div class="meta-pair"><div class="meta-card-head small"><span>${date}</span><span class="meta-muted">${gamesCount(l, `${l.length} Partien`)} · <b>${pc(rate)}</b> Siege</span></div>${wdlBar(l)}</div>`;
+    }).join('')}</div>${WDL_LEGEND}`;
+  };
+  const best = [...days].sort((a, b) => b.rate - a.rate || b.l.length - a.l.length).slice(0, 3);
+  const worst = [...days].sort((a, b) => a.rate - b.rate || b.l.length - a.l.length).slice(0, 3);
+  return { best: rows(best), worst: rows(worst) };
+}
+
 function longestStreak(rs, result) {
   let cur = 0;
   let best = 0;
@@ -466,6 +560,25 @@ function longestStreak(rs, result) {
     best = Math.max(best, cur);
   }
   return best;
+}
+
+/** The games of the most recent longest streak of `result` in a chronological list. */
+function longestStreakGames(chrono, result) {
+  let best = [];
+  let cur = [];
+  for (const r of chrono) {
+    cur = r.result === result ? [...cur, r] : [];
+    if (cur.length && cur.length >= best.length) best = cur;
+  }
+  return best;
+}
+
+/** A streak's length as a link - metaController opens the "Partien" tab, marks the streak and scrolls to its first game. */
+function streakLink(games) {
+  if (!games.length) return '0';
+  const id = String(gameLists.size + 1);
+  gameLists.set(id, games);
+  return `<button type="button" class="meta-count" data-streak="${id}" title="In der Partienliste zeigen">${games.length}</button>`;
 }
 
 /** A tile with the first 5 games of an already-sorted list - a row opens the game.
@@ -542,7 +655,8 @@ function overview(rs, ctx) {
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
     ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
-    ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
+    ${kpi('🔥 Längste Siegesserie', streakLink(longestStreakGames(chrono, 'W')), 'Partien in Folge', '', '#f08a3c')}
+    ${kpi('💔 Längste Niederlagenserie', streakLink(longestStreakGames(chrono, 'L')), 'Partien in Folge', '', 'var(--meta-loss)')}
     ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
   </div>`;
   const row = (label, list) =>
@@ -553,6 +667,8 @@ function overview(rs, ctx) {
     + row('<span class="meta-colordot b"></span> Mit Schwarz', rs.filter((r) => r.color === 'b'));
   const byTc = TC_ORDER.map((tc) => row(`<span style="color:${timeClassStyle(tc).color}">${timeClassStyle(tc).icon} ${TC_LABEL[tc]}</span>`, rs.filter((r) => r.timeClass === tc))).join('');
   const rating = ratingChart(rs);
+  const perDay = gamesPerDayChart(rs);
+  const days = bestWorstDays(rs);
   return kpis + `<div class="meta-grid">
     <div class="meta-overview-row">
       ${card('Sieg, Remis, Niederlage', 'fast', resultPie(rs))}
@@ -560,6 +676,9 @@ function overview(rs, ctx) {
       ${card('Die letzten 5 Partien', '', recentGames(chrono.slice(-5).reverse(), ctx), { note: 'Die 5 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
     </div>
     ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
+    ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend })}
+    ${card('Beste Tage', 'fast', days.best, { cls: 'w6', note: DAYS_NOTE })}
+    ${card('Schlechteste Tage', 'fast', days.worst, { cls: 'w6', note: DAYS_NOTE })}
   </div>`;
 }
 
@@ -1194,8 +1313,10 @@ function gamesTab(rs, ctx) {
   const list = rs
     .map((r) => ({ r, v: sortValue(r) }))
     .sort((a, b) => (a.v == null) - (b.v == null) || (sort.dir === 'asc' ? a.v - b.v : b.v - a.v) || b.r.endTime - a.r.endTime)
-    .slice(0, GAMES_LIMIT)
     .map((x) => x.r);
+  // A marked streak (metaController, from the overview) is always shown in full, even past the limit.
+  const lastMarked = ctx.marked ? list.findLastIndex((r) => ctx.marked.has(r.url)) : -1;
+  list.length = Math.min(list.length, Math.max(GAMES_LIMIT, lastMarked + 1));
   const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
   const body = rs.length
     ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
@@ -1203,7 +1324,7 @@ function gamesTab(rs, ctx) {
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
         })
         .join('')}
       </tbody></table></div>`

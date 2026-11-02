@@ -954,12 +954,16 @@ fetchGamesBtn.addEventListener('click', async () => {
     const customTo = isCustomRange && customDateToEl.value ? new Date(customDateToEl.value) : null;
     if (customTo) customTo.setHours(23, 59, 59, 999); // include the whole "to" day, not just its midnight
 
-    // "Heute" only needs the current month's archive (today is always in it).
+    const isLast30Days = monthsBackValue === LAST_30_DAYS;
+    // "Heute" only needs the current month's archive (today is always in it),
+    // the last 30 days at most this month's and last month's.
     const monthsBack =
       monthsBackValue === 'all'
         ? Infinity
         : isTodayFilter
         ? 1
+        : isLast30Days
+        ? 2
         : isCustomRange
         ? (customFrom ? monthsBetween(customFrom, new Date()) : Infinity)
         : Number(monthsBackValue);
@@ -986,6 +990,7 @@ fetchGamesBtn.addEventListener('click', async () => {
       .map(summarizeGame)
       .filter((game) => selectedGameTypes.has(game.timeClass))
       .filter((game) => !isTodayFilter || isSameCalendarDay(game.endDate, today))
+      .filter((game) => !isLast30Days || game.endDate >= last30DaysStart())
       .filter((game) => !isCustomRange || !customFrom || game.endDate >= customFrom)
       .filter((game) => !isCustomRange || !customTo || game.endDate <= customTo)
       .filter((game) => {
@@ -1108,14 +1113,25 @@ function buildGameOptions(gameList, username) {
   });
 }
 
+// "Letzte 30 Tage" - its option value '1' predates it meaning days, not one month.
+const LAST_30_DAYS = '1';
+
+/** Midnight 29 days ago - with today, the last 30 calendar days. */
+function last30DaysStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+}
+
 /** The time filter as concrete bounds - the same months the archive download
- *  covers ("Letzte 6 Monate" = the current month and the 5 before it). Used
- *  by the Meta-Analyse to filter already-loaded games live. */
+ *  covers ("Letzte 6 Monate" = the current month and the 5 before it), except
+ *  "Letzte 30 Tage", which really is 30 days. Used by the Meta-Analyse to
+ *  filter already-loaded games live. */
 function currentDateBounds() {
   const value = timeRangeSelect.value;
   const now = new Date();
   if (value === 'all') return { from: null, to: null };
   if (value === 'today') return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate()), to: null };
+  if (value === LAST_30_DAYS) return { from: last30DaysStart(), to: null };
   if (value === 'custom') {
     const from = customDateFromEl.value ? new Date(customDateFromEl.value) : null;
     const to = customDateToEl.value ? new Date(customDateToEl.value) : null;
