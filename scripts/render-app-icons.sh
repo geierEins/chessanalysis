@@ -16,9 +16,10 @@ render() { # size outfile
   # The SVG inlined as an <img> at exactly the target size, so Edge (not a
   # later downscale) does the anti-aliasing for small sizes like 16x16.
   cat > "$tmp/page.html" <<EOF
-<!doctype html><body style="margin:0"><img src="file:///$root/icons/app/logo.svg" width="$1" height="$1" style="display:block"></body>
+<!doctype html><body style="margin:0;background:transparent"><img src="file:///$root/icons/app/logo.svg" width="$1" height="$1" style="display:block"></body>
 EOF
   "$edge" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+    --default-background-color=00000000 \
     --window-size="$1,$1" --screenshot="$root/icons/app/$2" "file:///$tmp/page.html" >/dev/null 2>&1
   echo "icons/app/$2 (${1}x$1)"
 }
