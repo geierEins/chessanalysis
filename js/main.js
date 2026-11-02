@@ -52,6 +52,8 @@ import {
   saveSoundEnabled,
   loadBestMoveTiming,
   saveBestMoveTiming,
+  loadHideFutureMoves,
+  saveHideFutureMoves,
   loadAppMode,
   saveAppMode,
 } from './persistence.js';
@@ -430,6 +432,7 @@ const board = new BoardView('board', 'board-arrow-paths', 'board-user-arrow-path
 const evalBar = new EvalBar('eval-bar-white', 'eval-bar-black', 'eval-bar-label');
 const evalGraph = new EvalGraph('eval-graph', (ply) => goToPly(ply));
 const moveList = new MoveList('move-list', (node) => goToNode(node), 'move-strip', (node) => deleteVariationAndNavigate(node));
+moveList.setHideFuture(loadHideFutureMoves());
 const dashboard = new Dashboard('accuracy-white', 'accuracy-black', 'classification-table');
 const timeManagementChart = new TimeManagementChart('time-management-chart', (ply) => goToPly(ply));
 
@@ -2044,6 +2047,7 @@ function applyAppMode() {
   // Same for the gear menu's board sounds and best-move arrow.
   el('settings-sound-row').classList.toggle('hidden', isMeta);
   el('settings-best-move-row').classList.toggle('hidden', isMeta);
+  el('settings-future-moves-row').classList.toggle('hidden', isMeta);
   meta.setActive(isMeta);
   el('game-empty').classList.toggle('hidden', isMeta || Boolean(analysis));
   if (isMeta) {
@@ -2110,6 +2114,11 @@ initSettingsPanel({
     bestMoveTiming = timing;
     saveBestMoveTiming(timing);
     updateBestMoveArrow();
+  },
+  hideFutureMoves: loadHideFutureMoves(),
+  onHideFutureMovesChange: (hide) => {
+    saveHideFutureMoves(hide);
+    moveList.setHideFuture(hide);
   },
 });
 

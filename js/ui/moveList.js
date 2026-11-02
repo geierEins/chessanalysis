@@ -8,6 +8,15 @@ export class MoveList {
   #onDeleteVariation;
   #itemsByNodeId = new Map();
   #stripItemsByNodeId = new Map();
+  // "Kommende Züge verbergen" (gear menu): the main line's moves after the
+  // current position keep their place in the list but show a placeholder
+  // instead of move, icon and category color; variations branching off them
+  // are hidden. Each main-line move's index, plus the elements that go with one.
+  #hideFuture = false;
+  #activeNode = null;
+  #mainIndexByNodeId = new Map();
+  #mainIndex = -1; // the main-line move being rendered (-1: before the first)
+  #futureEls = []; // [{el, index, mask}] - masked (mask) or hidden while index > the current main-line index
   #avatarEl = {
     w: document.getElementById('move-list-avatar-white'),
     b: document.getElementById('move-list-avatar-black'),
@@ -58,12 +67,20 @@ export class MoveList {
   #createMoveItem(node, className, iconClassName) {
     const item = document.createElement(className === 'move-strip-item' ? 'li' : 'span');
     item.className = className;
-    item.style.color = node.category?.color ?? '';
-    item.title = node.category?.label ?? '';
+    item.dataset.title = node.category?.label ?? '';
+    item.title = item.dataset.title;
     const icon = node.category
       ? `<img src="${node.category.icon}" alt="${node.category.label}" class="${iconClassName}"> `
       : '';
-    item.innerHTML = `${icon}${node.san}`;
+    // The real move, and the placeholder shown instead while it's a hidden future move.
+    const real = document.createElement('span');
+    real.className = 'move-real';
+    real.style.color = node.category?.color ?? '';
+    real.innerHTML = `${icon}${node.san}`;
+    const mask = document.createElement('span');
+    mask.className = 'move-mask';
+    mask.innerHTML = `<span class="${iconClassName} move-mask-icon">?</span><span class="move-mask-bar"></span>`;
+    item.append(real, mask);
     item.addEventListener('click', () => this.#onSelect(node));
     return item;
   }
@@ -86,25 +103,30 @@ export class MoveList {
   #renderLineRows(container, startNode) {
     let node = startNode;
     let currentRow = null;
+    const isMain = container === this.#container;
     while (node) {
-      if (node.color === 'w') {
-        currentRow = this.#newRow(container, `${node.moveNumber}.`, false);
-        if (container === this.#container) this.#appendStripNumber(`${node.moveNumber}.`);
-      } else if (!currentRow) {
+      if (isMain) {
+        this.#mainIndex++;
+        this.#mainIndexByNodeId.set(node.id, this.#mainIndex);
+      }
+      if (node.color === 'w' || !currentRow) {
         // Line starts with Black to move (custom position, or a variation
         // that itself starts on Black) - the white column stays empty.
-        currentRow = this.#newRow(container, `${node.moveNumber}…`, true);
-        if (container === this.#container) this.#appendStripNumber(`${node.moveNumber}…`);
+        const number = node.color === 'w' ? `${node.moveNumber}.` : `${node.moveNumber}…`;
+        currentRow = this.#newRow(container, number, node.color !== 'w');
+        if (isMain) this.#appendStripNumber(number);
       }
 
       const item = this.#createMoveItem(node, 'move-list-item', 'move-list-icon');
       currentRow.appendChild(item);
       this.#itemsByNodeId.set(node.id, item);
+      if (isMain) this.#futureEls.push({ el: item, index: this.#mainIndex, mask: true });
 
-      if (container === this.#container && this.#strip) {
+      if (isMain && this.#strip) {
         const stripItem = this.#createMoveItem(node, 'move-strip-item', 'move-strip-icon');
         this.#strip.appendChild(stripItem);
         this.#stripItemsByNodeId.set(node.id, stripItem);
+        this.#futureEls.push({ el: stripItem, index: this.#mainIndex, mask: true });
       }
 
       const next = continuationChild(node);
@@ -175,6 +197,8 @@ export class MoveList {
     });
     applyCollapsed();
 
+    // Branches off the main-line move being rendered (nested ones too - they're rendered meanwhile).
+    this.#futureEls.push({ el: wrapper, index: this.#mainIndex });
     this.#container.appendChild(wrapper);
   }
 
@@ -182,6 +206,9 @@ export class MoveList {
   render(rootNode) {
     this.#container.innerHTML = '';
     this.#itemsByNodeId.clear();
+    this.#mainIndexByNodeId.clear();
+    this.#mainIndex = -1;
+    this.#futureEls = [];
     if (this.#strip) {
       this.#strip.innerHTML = '';
       this.#stripItemsByNodeId.clear();
@@ -202,8 +229,39 @@ export class MoveList {
     }
   }
 
+  /** @param {boolean} hide - hide the main line's moves after the current position */
+  setHideFuture(hide) {
+    this.#hideFuture = hide;
+    this.#applyHideFuture();
+  }
+
+  /** Hides what comes after the current position's main-line move - from a
+   *  variation, after the main-line move it branches off. */
+  #applyHideFuture() {
+    let cutoff = -1;
+    for (let n = this.#activeNode; n; n = n.parent) {
+      const i = this.#mainIndexByNodeId.get(n.id);
+      if (i != null) {
+        cutoff = i;
+        break;
+      }
+    }
+    for (const { el, index, mask } of this.#futureEls) {
+      const future = this.#hideFuture && index > cutoff;
+      if (!mask) {
+        el.classList.toggle('move-future-hidden', future);
+        continue;
+      }
+      el.classList.toggle('move-future-masked', future);
+      el.classList.toggle('move-next', future && index === cutoff + 1);
+      el.title = future ? 'Noch nicht gespielt' : el.dataset.title; // the category's name would give it away
+    }
+  }
+
   /** @param {object|null} node - the currently-active MoveNode, or null/root for the start position */
   setActive(node) {
+    this.#activeNode = node;
+    this.#applyHideFuture();
     for (const item of this.#itemsByNodeId.values()) item.classList.remove('active');
     const active = node && this.#itemsByNodeId.get(node.id);
     if (active) {

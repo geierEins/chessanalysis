@@ -19,18 +19,21 @@ const SOUND_TITLE_OFF = 'Brettgeräusche aus - klicken zum Einschalten';
  *   bestMoveTiming: 'before'|'after'|'off',
  *   onSoundChange: (enabled: boolean) => void,
  *   onBestMoveTimingChange: (timing: 'before'|'after'|'off') => void,
+ *   hideFutureMoves: boolean,
+ *   onHideFutureMovesChange: (hide: boolean) => void,
  *   appMode: 'game'|'meta',
  *   onAppModeChange: (mode: 'game'|'meta') => boolean,
  * }} options onAppModeChange returns false to refuse the switch (e.g. while an analysis runs)
  * @returns {{setAppMode: (mode: 'game'|'meta') => void}} for switches made elsewhere (e.g. opening a game from the Meta-Analyse)
  */
-export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange, onBestMoveTimingChange, appMode, onAppModeChange }) {
+export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange, onBestMoveTimingChange, hideFutureMoves, onHideFutureMovesChange, appMode, onAppModeChange }) {
   const picker = document.getElementById('settings-picker');
   const btn = document.getElementById('settings-btn');
   const menu = document.getElementById('settings-menu');
   const soundToggle = document.getElementById('settings-sound-toggle');
   const timingButtons = [...menu.querySelectorAll('[data-best-move-timing]')];
   const modeButtons = [...menu.querySelectorAll('[data-app-mode]')];
+  const futureButtons = [...menu.querySelectorAll('[data-future-moves]')];
 
   const isOpen = () => !menu.classList.contains('hidden');
 
@@ -112,6 +115,24 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
     });
   }
 
+  function renderFutureMoves() {
+    for (const b of futureButtons) {
+      const active = (b.dataset.futureMoves === 'hide') === hideFutureMoves;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', String(active));
+    }
+  }
+
+  for (const b of futureButtons) {
+    b.addEventListener('click', () => {
+      const hide = b.dataset.futureMoves === 'hide';
+      if (hide === hideFutureMoves) return;
+      hideFutureMoves = hide;
+      renderFutureMoves();
+      onHideFutureMovesChange(hideFutureMoves);
+    });
+  }
+
   function renderMode() {
     for (const b of modeButtons) {
       const active = b.dataset.appMode === appMode;
@@ -159,6 +180,7 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
 
   renderSound();
   renderTiming();
+  renderFutureMoves();
   renderMode();
   renderTheme();
 

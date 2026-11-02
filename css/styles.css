@@ -1143,6 +1143,59 @@ body {
    this one), so indentation never compounds. Each move pair inside gets its
    own row (#renderLineRows, the same grid-row mechanism the main line uses),
    per the reference layout. */
+/* "Kommende Züge: Verbergen" (gear menu, js/ui/moveList.js): a move after the
+   current position keeps its place but shows a placeholder - a "?" where the
+   category icon sits and a short bar instead of the move, the same width for
+   every move so not even its length gives anything away. Variations branching
+   off such a move are hidden altogether. */
+.move-future-hidden {
+  display: none !important;
+}
+
+.move-mask,
+.move-future-masked .move-real {
+  display: none;
+}
+
+.move-future-masked .move-mask {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: -3px;
+}
+
+.move-mask .move-mask-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px dashed rgb(var(--n-600));
+  color: rgb(var(--n-500));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.move-mask-bar {
+  display: inline-block;
+  width: 2.2em;
+  height: 0.55em;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--n-700)), rgb(var(--n-600)), rgb(var(--n-700)));
+  background-size: 200% 100%;
+  opacity: 0.8;
+}
+
+/* A soft shimmer across the next move only - "this is what comes next". */
+.move-future-masked.move-next .move-mask-bar {
+  animation: move-mask-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes move-mask-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
 .move-variation {
   margin: 2px 0;
   padding: 3px 6px 4px 24px;

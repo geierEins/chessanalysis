@@ -13,6 +13,7 @@ const COLOR_FILTER_KEY = 'chessreview.colorFilter';
 const PIECE_THEME_KEY = 'chessreview.pieceTheme';
 const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
 const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
+const HIDE_FUTURE_MOVES_KEY = 'chessreview.hideFutureMoves';
 const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
 const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
@@ -112,6 +113,16 @@ export function loadSoundEnabled() {
 /** @param {boolean} enabled */
 export function saveSoundEnabled(enabled) {
   safeSet(SOUND_ENABLED_KEY, String(enabled));
+}
+
+/** @returns {boolean} the move list hides the moves after the current position (off by default) */
+export function loadHideFutureMoves() {
+  return safeGet(HIDE_FUTURE_MOVES_KEY) === 'true';
+}
+
+/** @param {boolean} hide */
+export function saveHideFutureMoves(hide) {
+  safeSet(HIDE_FUTURE_MOVES_KEY, String(hide));
 }
 
 /** @returns {'before'|'after'|'off'} when the best-move arrow is shown relative to
