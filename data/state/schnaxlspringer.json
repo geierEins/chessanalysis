@@ -1,0 +1,11 @@
+{
+  "engine": "sf19full|16|phases",
+  "initialized": false,
+  "complete": false,
+  "etags": {},
+  "skipped": [
+    "https://www.chess.com/game/live/173730345172",
+    "https://www.chess.com/game/live/173266210218",
+    "https://www.chess.com/game/live/172544048118"
+  ]
+}
