@@ -643,6 +643,24 @@ function recentGames(list, ctx) {
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
 
+/** Games per calendar day on average, days without a game included: from the
+ *  first game's day to today (or to the time filter's end, if earlier). */
+function gamesPerDayKpi(chrono, ctx) {
+  const dayStart = (ms) => {
+    const d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+  const first = dayStart(chrono[0].endTime);
+  const last = dayStart(Math.min(Date.now(), ctx.filterTo ? +ctx.filterTo : Infinity));
+  // Calendar-date difference via UTC, so a DST change doesn't shift the count.
+  const utc = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.max(1, Math.round((utc(last) - utc(first)) / 86400000) + 1);
+  const perDay = chrono.length / days;
+  return kpi('📅 Partien pro Tag', perDay.toLocaleString('de-DE', { maximumFractionDigits: perDay < 1 ? 2 : 1 }),
+    `<span title="über ${days.toLocaleString('de-DE')} ${days === 1 ? 'Tag' : 'Tage'}">seit ${fmtDate(chrono[0].endTime)}</span>`, '', '#4a9fe2');
+}
+
 function overview(rs, ctx) {
   if (!rs.length) return card('Übersicht', '', EMPTY, { cls: 'w12' });
   const c = wdl(rs);
@@ -653,10 +671,11 @@ function overview(rs, ctx) {
   const promotions = promoted.reduce((a, r) => a + r.promotions, 0);
   const kpis = `<div class="meta-kpis">
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
-    ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
+    ${gamesPerDayKpi(chrono, ctx)}
+    ${kpi('🧠 Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
     ${kpi('🔥 Längste Siegesserie', streakLink(longestStreakGames(chrono, 'W')), 'Partien in Folge', '', '#f08a3c')}
-    ${kpi('💔 Längste Niederlagenserie', streakLink(longestStreakGames(chrono, 'L')), 'Partien in Folge', '', 'var(--meta-loss)')}
+    ${kpi('💔 Niederlagen in Folge', streakLink(longestStreakGames(chrono, 'L')), 'längste Serie', '', 'var(--meta-loss)')}
     ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
   </div>`;
   const row = (label, list) =>

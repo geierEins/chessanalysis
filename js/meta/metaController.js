@@ -133,6 +133,7 @@ export function initMetaMode(host) {
         return code && code !== 'XX' ? code : null;
       },
       opponent,
+      filterTo: host.getFilters().to, // the time filter's upper bound (null = up to now)
       sorts,
       countryLimit,
       endings,

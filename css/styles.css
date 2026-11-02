@@ -1912,7 +1912,8 @@ button.field-error {
    images' outset paints them past the page edges (ink only - no horizontal
    scrolling). */
 .meta-tabs-wrap {
-  --piece-x: calc(100% - var(--piece-w, 44px)); /* the piece's left edge */
+  --piece-shift: 48px; /* how far the piece(s) stand left of the content's right edge */
+  --piece-x: calc(100% - var(--piece-w, 44px) - var(--piece-shift)); /* the piece's left edge */
   position: relative;
 }
 
@@ -1933,7 +1934,7 @@ button.field-error {
 
 .meta-tabs-wrap::after {
   /* 1px over the piece's last baseline pixel - a 0-wide box might not paint its border image at all. */
-  left: calc(100% - 1px);
+  left: calc(100% - var(--piece-shift) - 1px);
   width: 1px;
   border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 100vmax 0 0;
 }
@@ -2538,9 +2539,9 @@ html .settings-segmented > button[data-app-mode].active { color: #fff; text-shad
 html .settings-segmented > button[data-app-mode="game"].active { background: linear-gradient(to bottom, #9CC859, #5A8A43); }
 html .settings-segmented > button[data-app-mode="meta"].active { background: linear-gradient(to bottom, #a98cf7, #6b4fcf); }
 
-/* Overview row: "Sieg, Remis, Niederlage" : "Nach Farbe und Spielart" : "Die letzten 5 Partien" = 3 : 4 : 3.
-   In the narrow first card the pie's legend wraps below the pie. */
-.meta-overview-row { grid-column: span 12; display: grid; gap: 12px; grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 3fr); }
+/* Overview row: "Sieg, Remis, Niederlage" : "Nach Farbe und Spielart" : "Die letzten 5 Partien" = 6 : 7 : 7
+   (the last two share the rest equally). In the narrow first card the pie's legend wraps below the pie. */
+.meta-overview-row { grid-column: span 12; display: grid; gap: 12px; grid-template-columns: minmax(0, 6fr) minmax(0, 7fr) minmax(0, 7fr); }
 .meta-overview-row > .meta-card { grid-column: auto; }
 /* space-evenly plus a gap the size of the card padding: card edge to pie = pie to legend. */
 .meta-overview-row .meta-pie { justify-content: space-evenly; gap: 14px; }
