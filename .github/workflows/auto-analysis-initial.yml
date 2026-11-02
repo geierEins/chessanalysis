@@ -1,8 +1,11 @@
 # One-time initial analysis of every game of the players in
-# scripts/auto-analysis/config.json - started by hand (Actions -> "Run
-# workflow"). One engine per CPU core; if the backlog doesn't fit into one
-# run, the run commits what it has and starts itself again until every player
-# is done. Only then does the scheduled workflow (auto-analysis.yml) take over.
+# scripts/auto-analysis/config.json that aren't initialized yet (e.g. one just
+# added there) - started by hand (Actions -> "Run workflow"). One engine per
+# CPU core; if the backlog doesn't fit into one run, the run commits what it
+# has and starts itself again until every player is done. Only then does the
+# scheduled workflow (auto-analysis.yml) take over that player. Both may run at
+# the same time: they never handle the same player, and each player has their
+# own master and state file (data/<user>.json, data/state/<user>.json).
 name: 'Auto-Analyse: Erstanalyse'
 
 on:

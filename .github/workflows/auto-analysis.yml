@@ -32,6 +32,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/auto-analysis
+            data/state/
             data/state.json
           sparse-checkout-cone-mode: false
       - id: check

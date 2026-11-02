@@ -5,15 +5,15 @@
 //
 // Two modes:
 //  - INITIAL=1 (.github/workflows/auto-analysis-initial.yml, started by hand):
-//    the one-time backlog of every configured player. A player counts as
-//    "initialized" once all their games are done - only then does the scheduled
-//    check look at them at all;
+//    the one-time backlog of every configured player not initialized yet (e.g.
+//    one just added to config.json). A player counts as "initialized" once all
+//    their games are done - from then on only the scheduled run handles them;
 //  - otherwise (four times a day, .github/workflows/auto-analysis.yml): only the
 //    initialized players, i.e. just their new games.
 //
 // Newest games first, across all players, on one engine process per CPU
 // core. Stops starting new games after TIME_BUDGET_MINUTES; whatever is left
-// stays "not complete" in data/state.json and the next run continues. The
+// stays "not complete" in data/state/<user>.json and the next run continues. The
 // master file is written after every game.
 //
 // Local run: INITIAL=1 node scripts/auto-analysis/analyze.mjs   (Node 22+)
@@ -27,7 +27,7 @@ import { appendFile } from 'node:fs/promises';
 import {
   config,
   ENGINE_KEY,
-  STATE_FILE,
+  saveState,
   loadState,
   recentArchiveUrls,
   chessFetch,
@@ -162,7 +162,10 @@ async function analyzeOne(engine, p, rec) {
 }
 
 const state = await loadState();
-const users = initial ? config.users : config.users.filter((u) => state[u.toLowerCase()]?.initialized && state[u.toLowerCase()].engine === ENGINE_KEY);
+// The two modes never share a player, so both workflows may run at once
+// without touching the same files.
+const isInitialized = (u) => state[u.toLowerCase()]?.initialized && state[u.toLowerCase()].engine === ENGINE_KEY;
+const users = config.users.filter((u) => (initial ? !isInitialized(u) : isInitialized(u)));
 const players = [];
 for (const user of users) players.push(await preparePlayer(user, state));
 const byUser = new Map(players.map((p) => [p.user, p]));
@@ -199,7 +202,7 @@ async function finish() {
     // Only a finished player gets the ETags - check.mjs then sees 304 until a new game appears.
     p.s.etags = p.s.complete ? p.etags : {};
   }
-  await writeJson(STATE_FILE, state, { pretty: true });
+  await saveState(state, players.map((p) => p.user));
   await Promise.all(players.map((p) => p.saving));
 
   const allDone = players.every((p) => p.s.complete);
