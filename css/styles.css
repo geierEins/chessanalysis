@@ -1899,12 +1899,75 @@ button.field-error {
 .meta-tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid transparent;
-  /* The line under the tabs runs edge to edge like the top filter bar, not
-     just as wide as the content: the border image's outset paints it past
-     both sides (ink only - no horizontal scrolling). */
-  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 100vmax;
+  border-bottom: 1px solid transparent; /* room for the line below (.meta-tabs-wrap) */
   overflow-x: auto;
+}
+
+/* The line under the tabs runs edge to edge like the top filter bar, not just
+   as wide as the content - and draws the tab's chess piece on its way
+   (js/meta/tabPieces.js; the overview all six), its right edge on the
+   content's (= the last overview tile's) right edge: ::before is the part left
+   of the piece, ::after the part right of it, the SVG the piece in between.
+   --piece-w is set with the piece (metaController's renderTabs). The border
+   images' outset paints them past the page edges (ink only - no horizontal
+   scrolling). */
+.meta-tabs-wrap {
+  --piece-x: calc(100% - var(--piece-w, 44px)); /* the piece's left edge */
+  position: relative;
+}
+
+.meta-tabs-wrap::before,
+.meta-tabs-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  border-bottom: 1px solid transparent;
+  pointer-events: none;
+}
+
+.meta-tabs-wrap::before {
+  left: 0;
+  width: var(--piece-x);
+  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 0 0 100vmax;
+}
+
+.meta-tabs-wrap::after {
+  /* 1px over the piece's last baseline pixel - a 0-wide box might not paint its border image at all. */
+  left: calc(100% - 1px);
+  width: 1px;
+  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 100vmax 0 0;
+}
+
+.meta-tabs-rook {
+  position: absolute;
+  left: var(--piece-x);
+  bottom: 0;
+  fill: none;
+  stroke: var(--meta-line);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* Too narrow for the piece(s) next to the tabs - just the plain line. The
+   overview's six pieces need more room than a single one. */
+@media (max-width: 1150px) {
+  .meta-tabs-wrap.all-pieces::before {
+    width: 100%;
+    border-image-outset: 0 100vmax 0 100vmax;
+  }
+  .meta-tabs-wrap.all-pieces .meta-tabs-rook,
+  .meta-tabs-wrap.all-pieces::after { display: none; }
+}
+
+@media (max-width: 900px) {
+  .meta-tabs-wrap::before {
+    width: 100%;
+    border-image-outset: 0 100vmax 0 100vmax;
+  }
+  .meta-tabs-rook,
+  .meta-tabs-wrap::after { display: none; }
 }
 
 .meta-tab {

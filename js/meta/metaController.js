@@ -18,6 +18,7 @@ import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.j
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
+import { tabPieceSvg } from './tabPieces.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
 import { loadMetaTab, saveMetaTab, loadCountryLimit, saveCountryLimit, loadHeatmap, saveHeatmap } from '../persistence.js';
@@ -46,6 +47,7 @@ export function initMetaMode(host) {
   const statusEl = el('meta-status-text');
   const typesEl = el('meta-status-types');
   const tabsEl = el('meta-tabs');
+  const tabPieceEl = el('meta-tabs-piece');
   const tabPanelEl = el('meta-tabpanel');
   const tipEl = el('meta-tip');
   const gamesPopEl = el('meta-games-pop');
@@ -147,6 +149,14 @@ export function initMetaMode(host) {
     tabsEl.innerHTML = META_TABS.map(
       (t) => `<button type="button" role="tab" class="meta-tab" data-tab="${t.id}" aria-selected="${t.id === tab}">${t.label}</button>`
     ).join('');
+    // The line under the tabs draws the tab's piece (css/styles.css .meta-tabs-wrap).
+    const piece = tabPieceSvg(tab);
+    tabPieceEl.setAttribute('viewBox', `0 0 ${piece.width} ${piece.height}`);
+    tabPieceEl.setAttribute('width', piece.width);
+    tabPieceEl.setAttribute('height', piece.height);
+    tabPieceEl.innerHTML = piece.body;
+    tabPieceEl.parentElement.style.setProperty('--piece-w', `${piece.width}px`);
+    tabPieceEl.parentElement.classList.toggle('all-pieces', piece.all); // needs more room - hidden earlier on narrow screens
   }
 
   function render() {
