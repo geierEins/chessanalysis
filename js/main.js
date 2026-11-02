@@ -390,7 +390,6 @@ let currentNode = null; // whichever MoveNode (main line or a variation) is curr
 // 'off' = no best-move arrow at all.
 let bestMoveTiming = loadBestMoveTiming();
 setSoundEnabled(loadSoundEnabled());
-let autoPlayTimer = null;
 let players = null; // {white: {username, rating, avatar}, black: {...}}
 let pendingBadge = null; // {square, category} to show once the current move's piece animation ends
 let gameTermination = null; // {type, loserColor} - how the REAL game ended, from summarizeGame() - only applies at the real final main-line node; see computeLiveTermination() for branch endpoints
@@ -1189,7 +1188,6 @@ async function startAnalysis() {
   const game = games[index];
   if (!game) return;
 
-  stopAutoPlay();
   setAnalyzing(true);
   fetchGamesBtn.disabled = true;
 
@@ -1620,7 +1618,7 @@ function updateBestMoveArrow() {
 /**
  * The shared rendering function for "the board now shows this node" -
  * used by every navigation path (nav buttons, keyboard, move list clicks,
- * eval graph clicks, autoplay, and a completed drag/promotion).
+ * eval graph clicks and a completed drag/promotion).
  * @param {object} node - a MoveNode (js/analysis/moveTree.js)
  * @param {{fromDrop?: boolean}} [options] - fromDrop skips the board.setPosition()
  *   call (chessboard.js is already animating that piece into place from its
@@ -1924,13 +1922,6 @@ function showPendingBadge() {
   else if (pendingBadge?.loading) board.showLoadingBadge(pendingBadge.square);
 }
 
-function stopAutoPlay() {
-  if (autoPlayTimer) {
-    clearInterval(autoPlayTimer);
-    autoPlayTimer = null;
-    el('btn-play').textContent = '▶';
-  }
-}
 
 loaderToggleBtn.addEventListener('click', () => {
   const collapsed = loaderPanel.classList.toggle('collapsed');
@@ -1948,35 +1939,21 @@ function lastNodeOfCurrentLine() {
   return node;
 }
 
-el('btn-first').addEventListener('click', () => { stopAutoPlay(); goToNode(rootNode); });
-el('btn-prev').addEventListener('click', () => { stopAutoPlay(); goToNode(currentNode?.parent ?? currentNode); });
-el('btn-next').addEventListener('click', () => { stopAutoPlay(); goToNode(currentNode?.children[0] ?? currentNode); });
-el('btn-last').addEventListener('click', () => { stopAutoPlay(); goToNode(lastNodeOfCurrentLine()); });
+el('btn-first').addEventListener('click', () => { goToNode(rootNode); });
+el('btn-prev').addEventListener('click', () => { goToNode(currentNode?.parent ?? currentNode); });
+el('btn-next').addEventListener('click', () => { goToNode(currentNode?.children[0] ?? currentNode); });
+el('btn-last').addEventListener('click', () => { goToNode(lastNodeOfCurrentLine()); });
 el('btn-flip').addEventListener('click', () => {
   board.flip();
   updateBoardPlayerLabels();
   updateMaterialDisplay();
   updatePlayerClocks();
 });
-el('btn-play').addEventListener('click', () => {
-  if (autoPlayTimer) {
-    stopAutoPlay();
-    return;
-  }
-  el('btn-play').textContent = '⏸';
-  autoPlayTimer = setInterval(() => {
-    if (!currentNode?.children[0]) {
-      stopAutoPlay();
-      return;
-    }
-    goToNode(currentNode.children[0]);
-  }, 900);
-});
 
 document.addEventListener('keydown', (e) => {
   if (!analysis || reviewPanel.classList.contains('hidden')) return;
-  if (e.key === 'ArrowLeft') { stopAutoPlay(); goToNode(currentNode?.parent ?? currentNode); }
-  if (e.key === 'ArrowRight') { stopAutoPlay(); goToNode(currentNode?.children[0] ?? currentNode); }
+  if (e.key === 'ArrowLeft') { goToNode(currentNode?.parent ?? currentNode); }
+  if (e.key === 'ArrowRight') { goToNode(currentNode?.children[0] ?? currentNode); }
 });
 
 backToMainlineBtn.addEventListener('click', () => {

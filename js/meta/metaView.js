@@ -1157,7 +1157,8 @@ function heatmapTab(rs, ctx) {
  *  stores ratings, so it comes from the previous game (metaController). */
 function eloDelta(v) {
   if (v == null) return '';
-  return `<span class="meta-elo-delta ${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${signed(v)}</span>`;
+  // A diagonal arrow instead of the sign: ↗ won rating, ↘ lost it.
+  return `<span class="meta-elo-delta ${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '↗ ' : v < 0 ? '↘ ' : ''}${Math.abs(v)}</span>`;
 }
 
 const MAGNIFIER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15.5" y2="15.5"/></svg>';
@@ -1174,7 +1175,7 @@ function analyzeCell(r, ctx) {
   const state = ctx.queueState(r);
   if (state === 'running') return '<td class="r"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>';
   if (state === 'queued') return `<td class="r"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
-  return `<td class="r"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren - mehrere werden nacheinander abgearbeitet">${MAGNIFIER}</button></td>`;
+  return `<td class="r"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
 }
 
 function gamesTab(rs, ctx) {
@@ -1197,12 +1198,12 @@ function gamesTab(rs, ctx) {
     .map((x) => x.r);
   const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
   const body = rs.length
-    ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th class="r">Elo +/-</th><th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
+    ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
       ${list
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td class="r"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}>${eloDelta(r.ratingDelta) || '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>${analyzeCell(r, ctx)}</tr>`;
+          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
         })
         .join('')}
       </tbody></table></div>`

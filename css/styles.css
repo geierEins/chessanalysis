@@ -529,7 +529,7 @@ body {
   background-color: rgb(var(--n-700));
 }
 
-/* Visually distinct from the timeline controls (first/prev/play/next/last) -
+/* Visually distinct from the timeline controls (first/prev/next/last) -
    this button doesn't move through the game, it flips the board. */
 .nav-btn-flip {
   background-color: #52525b;
@@ -763,13 +763,20 @@ body {
   height: 32px;
 }
 
+/* Prev/next share the top row, first/last/flip the bottom one (6 columns: 3+3 and 2+2+2). */
 #nav-wrap {
   align-self: start;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 3px;
 }
+
+#btn-prev,
+#btn-next { grid-column: span 3; }
+#btn-first,
+#btn-last,
+#btn-flip { grid-column: span 2; }
 
 #eval-graph-wrap {
   height: 40px;
@@ -1403,10 +1410,17 @@ body {
     padding: 0.4rem 0.5rem;
   }
 
+  /* One row: prev/next together as wide as three buttons, then first/last/flip. */
   #nav-wrap {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr;
     grid-template-rows: 1fr;
   }
+
+  #btn-prev,
+  #btn-next,
+  #btn-first,
+  #btn-last,
+  #btn-flip { grid-column: auto; }
 
   /* Not enough width left for avatar + username together - keep just the
      avatar, centered above its column's numbers (the label column shrinks to
@@ -1805,18 +1819,21 @@ button.field-error {
 
 /* A stack that takes its height from the row instead of setting it ("Zeit
    pro Zug" + "Dauer der Partien" follow "Uhr" + "Quote nach Partielänge"):
-   size containment keeps its content out of the row's height, and the
-   charts scale down (keeping their proportions) to fit. Desktop only - in
-   the one-column layout there is no neighbor to take the height from. */
+   the charts stretch to fill the row, but never below their min-height -
+   then the stack makes the row taller instead of clipping the x-axis labels.
+   Desktop only - in the one-column layout there is no neighbor to take the
+   height from. */
 /* Box of a chart drawn at its own pixel size (metaView's fitChart) - the
    usual chart proportions, except where a .fit stack hands it the height. */
 .meta-fit { aspect-ratio: 640 / 200; min-width: 0; }
 .meta-fit > svg { width: 100%; height: 100%; }
 
 @media (min-width: 901px) {
-  .meta-stack.fit { contain: size; }
-  .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
+  /* min-content: overflow:hidden would otherwise let the card shrink to 0. */
+  .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: min-content; overflow: hidden; }
   .meta-stack.fit .meta-fit { aspect-ratio: auto; flex: 1 1 0; min-height: 90px; }
+  /* "Dauer der Partien": tall enough for its bars and the minute labels below. */
+  .meta-stack.fit > .meta-card .meta-fit { min-height: 150px; }
   /* As tall as the king-moves top 5 needs (no scrolling); "Dauer der Partien" below gets the rest. */
   .meta-stack.fit > .meta-side-by-side { flex: none; }
   .meta-stack.fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; }
@@ -1990,8 +2007,10 @@ button.meta-analyze:hover { color: #fff; background: linear-gradient(to bottom, 
 .meta-analyze.queued:hover .undo { display: block; }
 button.meta-analyze.queued:hover { background: var(--meta-loss); }
 
-/* "Partien" tab: a game's rating change */
-.meta-elo-delta { color: var(--meta-muted); }
+/* "Partien" tab: result, then the game's rating change and the new rating right behind it */
+.meta-res-elo { white-space: nowrap; }
+.meta-elo-delta { margin-left: 6px; color: var(--meta-muted); font-variant-numeric: tabular-nums; }
+.meta-elo-new { margin-left: 4px; color: var(--meta-faint); font-variant-numeric: tabular-nums; }
 .meta-elo-delta.up { color: var(--meta-win); }
 .meta-elo-delta.down { color: #ef6b5e; }
 
