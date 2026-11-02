@@ -59,6 +59,9 @@ const groupBy = (rs, f) => {
 const byCountDesc = (a, b) => b[1].length - a[1].length;
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 const flag = (code) => (code ? flagHtml(code).trim() : '');
+// The opponent's flag behind their name in game lists - renderMetaTab points it at the render's ctx.countryOf.
+let oppFlag = () => '';
+const withFlag = (name) => `${esc(name)} ${oppFlag(name)}`;
 
 function wdlBar(rs) {
   const c = wdl(rs);
@@ -92,7 +95,7 @@ const CARD_ICONS = {
   'Sieg, Remis, Niederlage': '📊',
   'Nach Farbe und Spielart': '🎨',
   'Die letzten 5 Partien': '🕑',
-  'Wertungsverlauf': '📈',
+  'Elo-Verlauf': '📈',
   'Eröffnungen': '📖',
   'Mit Weiß': 'piece:wP',
   'Mit Schwarz': 'piece:bP',
@@ -202,7 +205,7 @@ export function gameListHtml(list, shown) {
   const items = list.slice(0, shown).map((r) => {
     const style = timeClassStyle(r.timeClass);
     const elo = r.oppRating ? ` (${r.oppRating})` : '';
-    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.icon} vs ${esc(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. <span class="outcome-badge ${RES_BADGE[r.result]}">${RES_LETTER[r.result]}</span></button>`;
+    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. <span class="outcome-badge ${RES_BADGE[r.result]}">${RES_LETTER[r.result]}</span></button>`;
   });
   const n = Math.min(shown, list.length);
   const left = list.length - n;
@@ -423,7 +426,7 @@ function ratingChart(rs) {
   for (; +d <= x1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d));
   const lines = series.map(([tc, list]) => [tc, [...list].sort((a, b) => a.endTime - b.endTime)]);
   const legend = lines
-    .map(([tc, sorted]) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]} ${sorted[0].ownRating} → ${sorted[sorted.length - 1].ownRating}</span>`)
+    .map(([tc, sorted]) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]} ${sorted[0].ownRating} → <b style="color:${timeClassStyle(tc).color}">${sorted[sorted.length - 1].ownRating}</b></span>`)
     .join('');
   // Drawn at the box's pixel size (fitChart), so text and lines keep their size on a wide card.
   const draw = (W, H) => {
@@ -450,9 +453,9 @@ function ratingChart(rs) {
       const last = sorted[sorted.length - 1];
       s += `<circle cx="${X(last.endTime)}" cy="${Y(last.ownRating)}" r="3" fill="${col}" stroke="var(--meta-panel)" stroke-width="1.5"/>`;
     }
-    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wertungsverlauf">${s}</svg>`;
+    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo-Verlauf">${s}</svg>`;
   };
-  return { legend: `<div class="meta-legend">${legend}</div>`, body: fitChart(draw, { height: 180 }) };
+  return { legend: `<div class="meta-legend spaced">${legend}</div>`, body: fitChart(draw, { height: 180 }) };
 }
 
 function longestStreak(rs, result) {
@@ -471,7 +474,7 @@ function longestStreak(rs, result) {
 function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
-    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${esc(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
@@ -519,7 +522,7 @@ function recentGames(list, ctx) {
     return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen">`
       + `<td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>`
       + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
-      + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${esc(r.opponent)}</td>`
+      + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${withFlag(r.opponent)}</td>`
       + `<td class="r">${r.moves} Zg.</td>`
       + `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`
       + `<td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
@@ -532,12 +535,6 @@ function overview(rs, ctx) {
   const c = wdl(rs);
   const chrono = [...rs].sort((a, b) => a.endTime - b.endTime);
   const withEngine = rs.filter((r) => ctx.engineOf(r));
-  const [mainTc, mainList] = [...groupBy(chrono.filter(hasRealRating), (r) => r.timeClass)].sort(byCountDesc)[0] ?? [];
-  let ratingKpi = kpi('📈 Wertung', '–', '', '', 'var(--meta-s1)');
-  if (mainList?.length) {
-    const delta = mainList[mainList.length - 1].ownRating - mainList[0].ownRating;
-    ratingKpi = kpi(`📈 Wertung ${TC_LABEL[mainTc] ?? mainTc}`, `${delta >= 0 ? '+' : ''}${delta}`, `${mainList[0].ownRating} → ${mainList[mainList.length - 1].ownRating}`, delta >= 0 ? 'up' : 'down', delta >= 0 ? 'var(--meta-win)' : 'var(--meta-loss)');
-  }
   const wdlDetail = `<span class="meta-wdl-nums"><b class="w">${c.W} S</b><b class="d">${c.D} R</b><b class="l">${c.L} N</b></span>`;
   const promoted = rs.filter((r) => r.promotions);
   const promotions = promoted.reduce((a, r) => a + r.promotions, 0);
@@ -545,7 +542,6 @@ function overview(rs, ctx) {
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
     ${kpi('🧠 Ø Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
     ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
-    ${ratingKpi}
     ${kpi('🔥 Längste Siegesserie', longestStreak(chrono, 'W'), 'Partien in Folge', '', '#f08a3c')}
     ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
   </div>`;
@@ -563,7 +559,7 @@ function overview(rs, ctx) {
       ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
       ${card('Die letzten 5 Partien', '', recentGames(chrono.slice(-5).reverse(), ctx), { note: 'Die 5 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
     </div>
-    ${card('Wertungsverlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
+    ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
   </div>`;
 }
 
@@ -1157,6 +1153,30 @@ function heatmapTab(rs, ctx) {
   </div>`;
 }
 
+/** A game's rating change, green/red - '' without one. Chess.com only
+ *  stores ratings, so it comes from the previous game (metaController). */
+function eloDelta(v) {
+  if (v == null) return '';
+  return `<span class="meta-elo-delta ${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${signed(v)}</span>`;
+}
+
+const MAGNIFIER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15.5" y2="15.5"/></svg>';
+
+// Two glass bulbs meeting in the middle, sand at the bottom.
+const HOURGLASS = '<svg class="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12M6 21h12"/><path d="M8 3v3l4 6 4-6V3M8 21v-3l4-6 4 6v3"/><path d="M9.5 19.5h5L12 16z" fill="currentColor" stroke-width="1"/></svg>';
+const CROSS = '<svg class="undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
+
+/** The "Partien" tab's last cell: a magnifier on a game without engine values
+ *  (metaController queues it), a spinner while it's analyzed, an hourglass while
+ *  it waits - which turns into an X on hover and takes it back out of the queue. */
+function analyzeCell(r, ctx) {
+  if (ctx.engineOf(r)) return '<td></td>';
+  const state = ctx.queueState(r);
+  if (state === 'running') return '<td class="r"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>';
+  if (state === 'queued') return `<td class="r"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
+  return `<td class="r"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren - mehrere werden nacheinander abgearbeitet">${MAGNIFIER}</button></td>`;
+}
+
 function gamesTab(rs, ctx) {
   const sort = ctx.sorts.games;
   const sortValue = {
@@ -1177,18 +1197,18 @@ function gamesTab(rs, ctx) {
     .map((x) => x.r);
   const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
   const body = rs.length
-    ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Elo', 'r')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th></tr></thead><tbody>
+    ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th class="r">Elo +/-</th><th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
       ${list
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${flag(ctx.countryOf(r.opponent))} ${esc(r.opponent)}</td><td class="r">${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td></tr>`;
+          return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td class="r"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}>${eloDelta(r.ratingDelta) || '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>${analyzeCell(r, ctx)}</tr>`;
         })
         .join('')}
       </tbody></table></div>`
     : EMPTY;
   const more = rs.length > GAMES_LIMIT ? ` Gezeigt werden die ersten ${GAMES_LIMIT} von ${rs.length} in dieser Sortierung.` : '';
-  return card(`Partien (${rs.length})`, 'fast', body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren.${more}` });
+  return card(`Partien (${rs.length})`, 'fast', body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
 }
 
 const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, games: gamesTab };
@@ -1202,5 +1222,6 @@ const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab,
 export function renderMetaTab(tab, records, ctx) {
   fitDraws.clear(); // the previous render's charts are about to be replaced
   gameLists.clear(); // ... and so are its counts
+  oppFlag = (name) => flag(ctx.countryOf(name));
   return (RENDERERS[tab] ?? overview)(records, ctx);
 }

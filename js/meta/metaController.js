@@ -118,6 +118,11 @@ export function initMetaMode(host) {
     const { label } = host.getEngineSettings();
     return {
       engineOf: (r) => engineCache.get(r.url) ?? null,
+      // 'running' / 'queued' while the run still has the game ahead of it, else null.
+      queueState: (r) => {
+        const i = run ? run.targets.indexOf(r) : -1;
+        return i < 0 || i < run.index ? null : i === run.index ? 'running' : 'queued';
+      },
       // "XX" is Chess.com's "International" - no real country to count.
       countryOf: (name) => {
         const code = countries.get(name.toLowerCase());
@@ -296,6 +301,16 @@ export function initMetaMode(host) {
       render();
       return;
     }
+    const analyzeBtn = e.target.closest('[data-analyze]');
+    if (analyzeBtn) {
+      enqueueGame(analyzeBtn.dataset.analyze);
+      return;
+    }
+    const unqueueBtn = e.target.closest('[data-unqueue]');
+    if (unqueueBtn) {
+      dequeueGame(unqueueBtn.dataset.unqueue);
+      return;
+    }
     const gameRow = e.target.closest('tr[data-game]');
     if (gameRow) {
       openGame(gameRow.dataset.game);
@@ -427,6 +442,16 @@ export function initMetaMode(host) {
       if (i % 40 === 39) await yieldToUi(); // PGN parsing - keep the page responsive for big loads
     }
     built.sort((a, b) => b.endTime - a.endTime);
+    // Rating change per game: Chess.com only stores the rating after a game, so it's
+    // the difference to the previous rated game of the same type (null for the first loaded one).
+    const lastRating = new Map();
+    for (let i = built.length - 1; i >= 0; i--) {
+      const r = built[i];
+      if (!r.rated || r.ownRating == null) continue;
+      const prev = lastRating.get(r.timeClass);
+      r.ratingDelta = prev == null ? null : r.ownRating - prev;
+      lastRating.set(r.timeClass, r.ownRating);
+    }
     records = built;
     await reloadEngineCache();
     render();
@@ -541,11 +566,13 @@ export function initMetaMode(host) {
     updateProgress();
   }
 
-  async function startRun() {
+  /** only: just these games (the "Partien" tab's magnifiers) instead of every filtered one. */
+  async function startRun(only = null) {
     if (run) return;
-    const rs = filtered();
+    const rs = only ?? filtered();
     const targets = rs.filter((r) => !engineCache.has(r.url));
     const { engineId, depth, label } = host.getEngineSettings();
+    if (only && !targets.length) return;
     if (!rs.length) {
       showToast('Keine Partien für diese Filter.', 'error');
       return;
@@ -556,7 +583,7 @@ export function initMetaMode(host) {
     }
     run = {
       targets,
-      cached: rs.length - targets.length,
+      cached: only ? 0 : rs.length - targets.length,
       index: 0,
       plyDone: 0,
       plyTotal: targets[0].plies,
@@ -628,6 +655,33 @@ export function initMetaMode(host) {
     if (error) showToast(`Analyse abgebrochen: ${error.message ?? error}`, 'error', 6000);
     else if (cancelled) showToast(`Analyse abgebrochen. ${done} Partien sind gespeichert.`, 'info');
     else showToast(`Analyse fertig: ${done} Partien neu analysiert.`, 'success');
+  }
+
+  /** A game's magnifier in the "Partien" tab: analyzes just that game - queued
+   *  behind the running run's games if one is going (its loop re-reads targets.length). */
+  function enqueueGame(url) {
+    const r = records.find((x) => x.url === url);
+    if (!r || engineCache.has(url)) return;
+    if (!run) {
+      startRun([r]);
+      return;
+    }
+    if (run.targets.includes(r)) return;
+    run.targets.push(r);
+    run.totalPlies += r.plies;
+    updateProgress();
+    render();
+  }
+
+  /** Takes a waiting game back out of the run - never the one being analyzed. */
+  function dequeueGame(url) {
+    if (!run) return;
+    const i = run.targets.findIndex((r) => r.url === url);
+    if (i <= run.index) return;
+    run.totalPlies -= run.targets[i].plies;
+    run.targets.splice(i, 1);
+    updateProgress();
+    render();
   }
 
   function warnBeforeUnload(e) {

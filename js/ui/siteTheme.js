@@ -9,7 +9,6 @@ import { loadSiteTheme, saveSiteTheme } from '../persistence.js';
 // themeColor: the browser/PWA chrome color (<meta name="theme-color">) - each theme's --n-900.
 export const SITE_THEMES = [
   { id: 'standard', label: 'Standard', title: 'Standard: schlichtes Dunkelgrau mit blauem Akzent', themeColor: '#171717' },
-  { id: 'cyberpunk', label: 'Cyberpunk', title: 'Cyberpunk: 8-Bit-Neon in Violett, Cyan und Magenta', themeColor: '#14082a' },
   { id: 'nordlicht', label: 'Nordlicht', title: 'Nordlicht: kühles Schiefergrau mit Polarlicht-Schimmer', themeColor: '#181f2d' },
 ];
 

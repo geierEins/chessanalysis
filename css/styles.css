@@ -1978,6 +1978,22 @@ button.field-error {
 
 .meta-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--meta-muted); }
 .meta-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.meta-legend.spaced { column-gap: 44px; }
+
+/* "Partien" tab: the last column's magnifier / spinner / hourglass (metaView's analyzeCell) */
+.meta-analyze { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; border-radius: 5px; color: var(--meta-muted); vertical-align: middle; }
+.meta-analyze svg { width: 14px; height: 14px; }
+button.meta-analyze:hover { color: #fff; background: linear-gradient(to bottom, #a98cf7, #6b4fcf); }
+.meta-analyze.queued { color: var(--meta-muted); }
+.meta-analyze.queued .undo,
+.meta-analyze.queued:hover .wait { display: none; }
+.meta-analyze.queued:hover .undo { display: block; }
+button.meta-analyze.queued:hover { background: var(--meta-loss); }
+
+/* "Partien" tab: a game's rating change */
+.meta-elo-delta { color: var(--meta-muted); }
+.meta-elo-delta.up { color: var(--meta-win); }
+.meta-elo-delta.down { color: #ef6b5e; }
 
 .meta-rows { display: grid; gap: 8px; }
 .meta-total { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--meta-line); font-weight: 600; }
@@ -2010,6 +2026,7 @@ button.field-error {
 .meta-tbl tr.click:hover td { background: #ffffff0a; }
 
 #meta-panel .player-flag,
+#meta-games-pop .player-flag,
 #opponent-menu .player-flag {
   height: 11px;
   vertical-align: -1px;
@@ -2217,83 +2234,6 @@ button.field-error {
    "Standard" is :root above. Each theme re-points the neutral ramp and the
    accent, which Tailwind's classes follow too (tailwind.config in
    index.html); the rules below only add what a palette alone can't. */
-
-/* Cyberpunk: 8-bit neon - violet night, cyan text, magenta accent, pixel
-   fonts, hard square corners and a faint CRT scanline overlay. */
-html[data-site-theme="cyberpunk"] {
-  --n-50: 240 255 255;
-  --n-100: 225 252 255;
-  --n-200: 190 245 255;
-  --n-300: 140 225 245;
-  --n-400: 110 180 220;
-  --n-500: 125 95 190;
-  --n-600: 95 55 160;
-  --n-700: 70 30 125;
-  --n-800: 36 14 70;
-  --n-900: 20 8 42;
-  --n-950: 9 4 22;
-  --accent-400: 255 110 230;
-  --accent-500: 255 40 200;
-  --accent-600: 215 0 165;
-  --font-body: "Pixelify Sans", ui-monospace, monospace;
-  --font-display: "Press Start 2P", ui-monospace, monospace;
-}
-
-html[data-site-theme="cyberpunk"] body {
-  background-image:
-    linear-gradient(rgb(255 40 200 / 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(0 230 255 / 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
-  background-attachment: fixed;
-}
-
-html[data-site-theme="cyberpunk"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px);
-}
-
-html[data-site-theme="cyberpunk"] *,
-html[data-site-theme="cyberpunk"] *::before,
-html[data-site-theme="cyberpunk"] *::after {
-  border-radius: 0 !important;
-}
-
-/* Press Start 2P is very wide - only for short headings, and smaller. */
-html[data-site-theme="cyberpunk"] .settings-heading,
-html[data-site-theme="cyberpunk"] h2,
-html[data-site-theme="cyberpunk"] h3 {
-  font-family: var(--font-display), sans-serif;
-  font-size: 9px !important;
-  line-height: 1.6;
-  letter-spacing: 0.02em;
-  color: rgb(var(--n-200));
-  text-shadow: 0 0 6px rgb(0 230 255 / 0.6);
-}
-
-html[data-site-theme="cyberpunk"] .bg-blue-600,
-html[data-site-theme="cyberpunk"] .settings-segmented > button.active,
-html[data-site-theme="cyberpunk"] .meta-seg button.on {
-  background: rgb(var(--accent-600));
-  color: #fff;
-  box-shadow: 0 0 10px rgb(var(--accent-500) / 0.65);
-  text-shadow: 0 0 4px rgb(255 255 255 / 0.6);
-}
-
-/* 8-bit drop shadows on the floating menus and cards. */
-html[data-site-theme="cyberpunk"] #settings-menu,
-html[data-site-theme="cyberpunk"] [role="menu"],
-html[data-site-theme="cyberpunk"] .meta-card {
-  box-shadow: 4px 4px 0 rgb(var(--accent-600) / 0.55), 0 0 0 1px rgb(0 230 255 / 0.25);
-}
-
-html[data-site-theme="cyberpunk"] #loader-panel {
-  border-bottom: 2px solid rgb(var(--accent-500));
-  box-shadow: 0 2px 14px rgb(var(--accent-500) / 0.35);
-}
 
 /* Nordlicht: cool nordic slate with an aurora glow - teal-green accent,
    a violet counter-tone and frosted-glass top bar. */
