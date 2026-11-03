@@ -1,12 +1,17 @@
 {
   "engine": "sf19full|16|phases",
-  "initialized": false,
-  "complete": false,
-  "etags": {},
+  "initialized": true,
+  "complete": true,
+  "etags": {
+    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/10": "W/\"f371e977406567049b47d061eb2c361a\"",
+    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/11": "W/\"6b2fef0954b0db4f7037731303364983\""
+  },
   "skipped": [
     "https://www.chess.com/game/live/173730345172",
     "https://www.chess.com/game/live/173266210218",
     "https://www.chess.com/game/live/172544048118",
-    "https://www.chess.com/game/live/169500516184"
+    "https://www.chess.com/game/live/169500516184",
+    "https://www.chess.com/game/live/167743586332",
+    "https://www.chess.com/game/live/167742705642"
   ]
 }
