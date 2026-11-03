@@ -1,0 +1,13 @@
+{
+  "engine": "sf19full|16|phases",
+  "initialized": true,
+  "complete": true,
+  "etags": {
+    "https://api.chess.com/pub/player/pawnhubde/games/2026/11": "W/\"8cc77809afa5664d63ece02db7690f76\"",
+    "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"a31b86ce22ff91343ccd141808dad644\""
+  },
+  "skipped": [
+    "https://www.chess.com/game/live/185941785972",
+    "https://www.chess.com/game/live/174550664944"
+  ]
+}
