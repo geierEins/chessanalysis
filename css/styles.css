@@ -2384,6 +2384,16 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
   background: none; cursor: pointer;
 }
 .meta-pop-more:hover { color: rgb(var(--n-100)); }
+/* Accuracy cell of a game without moves (metaView's NO_MOVES). */
+.meta-nomoves { display: inline-flex; vertical-align: middle; color: var(--meta-muted); cursor: help; }
+.meta-nomoves svg { width: 14px; height: 14px; }
+/* Under the "Partien" table: the next GAMES_STEP rows (metaView's gamesTab). */
+.meta-games-more {
+  display: block; width: 100%; margin-top: 6px; padding: 8px;
+  font-size: 12px; color: var(--meta-muted);
+  background: none; border: 1px dashed var(--meta-line); border-radius: 6px; cursor: pointer;
+}
+.meta-games-more:hover { color: rgb(var(--n-100)); border-color: currentColor; }
 
 #meta-tip {
   position: fixed;

@@ -7,7 +7,7 @@
 import { timeClassStyle } from '../timeClassStyle.js';
 import { flagHtml, countryName } from '../ui/playerLabel.js';
 import { metaIcon, iconLabel } from './metaIcons.js';
-import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame } from './metaRecords.js';
+import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame, hasMoves } from './metaRecords.js';
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { pieceUrl } from './openingBoard.js';
 
@@ -47,6 +47,10 @@ const avg = (rs, f) => {
 const pc = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 const f1 = (x) => (x == null ? '–' : x.toFixed(1).replace('.', ','));
 const f0 = (x) => (x == null ? '–' : String(Math.round(x)));
+// Accuracy of a game without a single move (see hasMoves): a crossed-out circle
+// instead of the "not analyzed yet" dash, the reason in the shared tooltip.
+const NO_MOVES_TIP = 'Partie ohne Züge (vor dem ersten Zug beendet) – es gibt nichts zu analysieren, daher keine Genauigkeit.';
+const NO_MOVES = `<span class="meta-nomoves" data-tip="${NO_MOVES_TIP}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Keine Züge"><circle cx="12" cy="12" r="8"/><line x1="6.5" y1="17.5" x2="17.5" y2="6.5"/></svg></span>`;
 const groupBy = (rs, f) => {
   const m = new Map();
   for (const r of rs) {
@@ -58,6 +62,11 @@ const groupBy = (rs, f) => {
 };
 const byCountDesc = (a, b) => b[1].length - a[1].length;
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+// When the game ended, e.g. "Mi., 12.11.2026, 14:37 Uhr" - the "Partien" table's date tooltip.
+const fmtDateTime = (ms) => {
+  const d = new Date(ms);
+  return `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+};
 const flag = (code) => (code ? flagHtml(code).trim() : '');
 // The opponent's flag behind their name in game lists - renderMetaTab points it at the render's ctx.countryOf.
 let oppFlag = () => '';
@@ -637,7 +646,9 @@ function recentGames(list, ctx) {
       + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
       + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${withFlag(r.opponent)}</td>`
       + `<td class="r">${r.moves} Zg.</td>`
-      + `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`
+      + (!hasMoves(r)
+        ? `<td class="r">${NO_MOVES}</td>`
+        : `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`)
       + `<td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
@@ -946,7 +957,7 @@ function quality(rs, ctx) {
   const es = rs.filter((r) => ctx.engineOf(r));
   if (!es.length) return `<div class="meta-grid">${noEngineCard(ctx)}</div>`;
   const E = (r) => ctx.engineOf(r);
-  const note = coverageNote(ctx, es.length, rs.length);
+  const note = coverageNote(ctx, es.length, rs.filter(hasMoves).length);
   const kpis = `<div class="meta-kpis quality">
     ${accuracyGauge(avg(es, (r) => E(r).accuracy), avg(es, (r) => E(r).oppAccuracy))}
     ${categoryMix(es, E)}
@@ -1122,7 +1133,8 @@ function timeTab(rs, ctx) {
   </div>`;
 }
 
-const GAMES_LIMIT = 200;
+// Rows of the "Partien" table shown at first - the button under it adds this many more (ctx.gamesShown).
+export const GAMES_STEP = 200;
 
 // ---------- Heatmap tab ----------
 
@@ -1310,6 +1322,7 @@ const CROSS = '<svg class="undo" viewBox="0 0 24 24" fill="none" stroke="current
  *  it waits - which turns into an X on hover and takes it back out of the queue. */
 function analyzeCell(r, ctx) {
   if (ctx.engineOf(r)) return '<td></td>';
+  if (!hasMoves(r)) return '<td></td>'; // nothing to analyze - the accuracy cell says why (NO_MOVES)
   const state = ctx.queueState(r);
   if (state === 'running') return '<td class="r"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>';
   if (state === 'queued') return `<td class="r"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
@@ -1335,7 +1348,8 @@ function gamesTab(rs, ctx) {
     .map((x) => x.r);
   // A marked streak (metaController, from the overview) is always shown in full, even past the limit.
   const lastMarked = ctx.marked ? list.findLastIndex((r) => ctx.marked.has(r.url)) : -1;
-  list.length = Math.min(list.length, Math.max(GAMES_LIMIT, lastMarked + 1));
+  list.length = Math.min(list.length, Math.max(ctx.gamesShown, lastMarked + 1));
+  const left = rs.length - list.length;
   const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
   const body = rs.length
     ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
@@ -1343,12 +1357,12 @@ function gamesTab(rs, ctx) {
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td>${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td><td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td><td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td>${hasMoves(r) ? `<td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r">${NO_MOVES}</td><td class="r meta-faint">–</td>`}<td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
         })
         .join('')}
-      </tbody></table></div>`
+      </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`
     : EMPTY;
-  const more = rs.length > GAMES_LIMIT ? ` Gezeigt werden die ersten ${GAMES_LIMIT} von ${rs.length} in dieser Sortierung.` : '';
+  const more = left > 0 ? ` Gezeigt werden die ersten ${list.length} von ${rs.length} in dieser Sortierung.` : '';
   return card(`Partien (${rs.length})`, 'fast', body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
 }
 

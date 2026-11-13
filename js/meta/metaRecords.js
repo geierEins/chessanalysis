@@ -36,6 +36,9 @@ export const PIECE_LABEL = { p: 'Bauer', n: 'Springer', b: 'Läufer', r: 'Turm',
 /** Games against Chess.com's coach bots (Coach-Dante, Coach-Nadia, ...) - left
  *  out of the meta mode entirely: no stats, no engine analysis. */
 export const isCoachGame = (r) => /^coach-/i.test(r.opponent);
+// A game ended before the first move (aborted, resigned at once) has nothing an
+// engine could evaluate - it never counts as "missing engine values".
+export const hasMoves = (r) => r.plies > 0;
 
 /** Only the parts of a Chess.com game object the meta mode needs - also what
  *  the auto-analysis master files store, so they run through the exact same

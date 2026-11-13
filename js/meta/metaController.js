@@ -14,9 +14,9 @@ import { timeClassStyle } from '../timeClassStyle.js';
 
 // The status line's game-type counts, in the Spielart dropdown's order.
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
-import { buildFastRecord, buildEngineRecord, isCoachGame } from './metaRecords.js';
+import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, layoutFitCharts } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
@@ -85,6 +85,7 @@ export function initMetaMode(host) {
   let marked = null; // urls of a streak opened from the overview, highlighted in the "Partien" tab (showStreak)
   // Sorted column per sortable table (metaView's sortHead) - Eröffnungen, Quote nach Land, Partien.
   const sorts = { openings: { key: 'games', dir: 'desc' }, countries: { key: 'score', dir: 'desc' }, games: { key: 'date', dir: 'desc' } };
+  let gamesShown = GAMES_STEP; // rows of the "Partien" table - grows by GAMES_STEP per "weitere laden", back to it on a new sort or tab
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
@@ -99,6 +100,9 @@ export function initMetaMode(host) {
   let lastRender = 0;
 
   // ---------- filtering ----------
+
+  /** Still without engine values although it could have them (see hasMoves). */
+  const needsEngine = (r) => hasMoves(r) && !engineCache.has(r.url);
 
   function matchesFilters(r, f, { ignoreOpponent = false } = {}) {
     if (f.from && r.endTime < +f.from) return false;
@@ -135,6 +139,7 @@ export function initMetaMode(host) {
       opponent,
       filterTo: host.getFilters().to, // the time filter's upper bound (null = up to now)
       sorts,
+      gamesShown,
       countryLimit,
       endings,
       heatmap,
@@ -189,13 +194,13 @@ export function initMetaMode(host) {
   function renderStatus(rs) {
     const { label } = host.getEngineSettings();
     const have = rs.filter((r) => engineCache.has(r.url)).length;
-    const missing = rs.length - have;
+    const missing = rs.filter(needsEngine).length;
     const f = host.getFilters();
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
     let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
     if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
     else if (have === 0) text += `Für <b>${esc(label)}</b> ist noch nichts analysiert, Tabs ohne Engine sind trotzdem fertig.`;
-    else text += `<b>${esc(label)}</b>: ${have} von ${rs.length} mit Engine-Werten.${missing ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Alles analysiert.'}`;
+    else text += `<b>${esc(label)}</b>: ${have} von ${have + missing} mit Engine-Werten.${missing ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Alles analysiert.'}`;
     if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
     statusEl.innerHTML = text;
     // Right-aligned: all loaded games per game type (not just the filtered ones).
@@ -209,6 +214,7 @@ export function initMetaMode(host) {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
     marked = null;
+    gamesShown = GAMES_STEP;
     tab = b.dataset.tab;
     saveMetaTab(tab);
     renderTabs();
@@ -302,6 +308,14 @@ export function initMetaMode(host) {
       const { sortTable, sort: key } = sortTh.dataset;
       const current = sorts[sortTable];
       sorts[sortTable] = { key, dir: current.key === key && current.dir === 'desc' ? 'asc' : 'desc' };
+      if (sortTable === 'games') gamesShown = GAMES_STEP;
+      render();
+      return;
+    }
+    // Under the "Partien" table: the next GAMES_STEP games in the same sorting; the scroll position stays.
+    const gamesMoreBtn = e.target.closest('[data-games-more]');
+    if (gamesMoreBtn) {
+      gamesShown = Number(gamesMoreBtn.dataset.gamesMore) + GAMES_STEP;
       render();
       return;
     }
@@ -604,7 +618,7 @@ export function initMetaMode(host) {
   async function startRun(only = null) {
     if (run) return;
     const rs = only ?? filtered();
-    const targets = rs.filter((r) => !engineCache.has(r.url));
+    const targets = rs.filter(needsEngine);
     const { engineId, depth, label } = host.getEngineSettings();
     if (only && !targets.length) return;
     if (!rs.length) {
@@ -695,7 +709,7 @@ export function initMetaMode(host) {
    *  behind the running run's games if one is going (its loop re-reads targets.length). */
   function enqueueGame(url) {
     const r = records.find((x) => x.url === url);
-    if (!r || engineCache.has(url)) return;
+    if (!r || !needsEngine(r)) return;
     if (!run) {
       startRun([r]);
       return;
@@ -772,7 +786,7 @@ export function initMetaMode(host) {
     },
     /** Every game under the current filters already has engine values - nothing for a run to do. */
     get allAnalyzed() {
-      return filtered().every((r) => engineCache.has(r.url));
+      return !filtered().some(needsEngine);
     },
     setActive(isActive) {
       active = isActive;
