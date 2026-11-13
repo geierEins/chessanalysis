@@ -627,19 +627,25 @@
         </div>
       </section>
 
-      <div class="meta-status">
-        <span id="meta-status-text"></span>
-        <!-- All loaded games per game type, in the Spielart dropdown's colors (metaController renderStatus). -->
-        <span id="meta-status-types" class="meta-status-types"></span>
-      </div>
+      <!-- Marks the sticky head's normal place (metaController's initStickyTabs). -->
+      <div id="meta-sticky-mark" class="meta-sticky-mark" aria-hidden="true"></div>
+      <!-- Status line + tabs: stick under the top filter bar, away while scrolling
+           down, back on scrolling up (css/styles.css .meta-sticky). -->
+      <div id="meta-sticky" class="meta-sticky">
+        <div class="meta-status">
+          <span id="meta-status-text"></span>
+          <!-- All loaded games per game type, in the Spielart dropdown's colors (metaController renderStatus). -->
+          <span id="meta-status-types" class="meta-status-types"></span>
+        </div>
 
-      <!-- The line under the tabs draws the tab's chess piece on its way (css/styles.css .meta-tabs-wrap):
-           one stroke from the line's left part up the piece's left side, clockwise
-           over its top and down its right side into the line's right part. -->
-      <div class="meta-tabs-wrap">
-        <div id="meta-tabs" class="meta-tabs" role="tablist" aria-label="Meta-Analyse"></div>
-        <!-- The current tab's piece (js/meta/tabPieces.js, drawn by metaController's renderTabs). -->
-        <svg id="meta-tabs-piece" class="meta-tabs-rook" aria-hidden="true"></svg>
+        <!-- The line under the tabs draws the tab's chess piece on its way (css/styles.css .meta-tabs-wrap):
+             one stroke from the line's left part up the piece's left side, clockwise
+             over its top and down its right side into the line's right part. -->
+        <div class="meta-tabs-wrap">
+          <div id="meta-tabs" class="meta-tabs" role="tablist" aria-label="Meta-Analyse"></div>
+          <!-- The current tab's piece (js/meta/tabPieces.js, drawn by metaController's renderTabs). -->
+          <svg id="meta-tabs-piece" class="meta-tabs-rook" aria-hidden="true"></svg>
+        </div>
       </div>
       <div id="meta-tabpanel" role="tabpanel"></div>
     </div>

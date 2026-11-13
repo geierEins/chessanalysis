@@ -1917,6 +1917,31 @@ button.field-error {
   position: relative;
 }
 
+/* Status line + tabs stick under the top filter bar (--bar-h, measured by
+   metaController's initStickyTabs); scrolling down slides them away behind the
+   bar (.tabs-away), the first bit of scrolling up brings them right back. The
+   page background runs edge to edge behind them, so content scrolls under it;
+   the padding (taken back by the margin, same layout in place) is the room
+   above the status line while stuck. */
+.meta-sticky {
+  display: grid;
+  gap: 12px;
+  position: sticky;
+  top: var(--bar-h, 0px);
+  z-index: 15;
+  margin-top: -10px;
+  padding-top: 10px;
+  background: rgb(var(--n-950));
+  /* Two sideways copies of the background, exactly as tall as the head (a
+     spread would cover what's above it) - shadows never cause scrolling. */
+  box-shadow: -100vmax 0 0 rgb(var(--n-950)), 100vmax 0 0 rgb(var(--n-950));
+  transition: transform 220ms ease;
+}
+.meta-sticky.tabs-away { transform: translateY(calc(-100% - 1px)); }
+@media (prefers-reduced-motion: reduce) { .meta-sticky { transition: none; } }
+/* Zero-height marker right above it - takes back #meta-content's grid gap. */
+.meta-sticky-mark { height: 0; margin-bottom: -12px; }
+
 .meta-tabs-wrap::before,
 .meta-tabs-wrap::after {
   content: '';

@@ -151,6 +151,28 @@ export function initMetaMode(host) {
     };
   }
 
+  /** Status line + tabs stick under the top filter bar (css/styles.css .meta-sticky):
+   *  hidden while scrolling down, back on the first scroll up - long tabs keep
+   *  the other tabs one flick away. Only once actually stuck: in their normal
+   *  place they never slide away. */
+  function initStickyTabs() {
+    const wrap = el('meta-sticky');
+    const bar = document.getElementById('loader-panel');
+    const before = el('meta-sticky-mark'); // zero-height, right above - the head's normal place
+    const setBarH = () => wrap.style.setProperty('--bar-h', `${bar.offsetHeight}px`);
+    setBarH();
+    new ResizeObserver(setBarH).observe(bar);
+    let lastY = window.scrollY;
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      const stuck = before.getBoundingClientRect().bottom < bar.offsetHeight;
+      if (!stuck || y < lastY - 2) wrap.classList.remove('tabs-away');
+      else if (y > lastY + 2) wrap.classList.add('tabs-away');
+      if (Math.abs(y - lastY) > 2) lastY = y;
+    }, { passive: true });
+  }
+  initStickyTabs();
+
   function renderTabs() {
     tabsEl.innerHTML = META_TABS.map(
       (t) => `<button type="button" role="tab" class="meta-tab" data-tab="${t.id}" aria-selected="${t.id === tab}">${t.label}</button>`
@@ -219,6 +241,8 @@ export function initMetaMode(host) {
     saveMetaTab(tab);
     renderTabs();
     render();
+    // A new tab always starts at its top - not wherever the last one was scrolled to.
+    window.scrollTo({ top: 0, behavior: 'instant' });
   });
 
   /** The overview's longest-streak counts: the "Partien" tab, newest first, with the
