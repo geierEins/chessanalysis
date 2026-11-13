@@ -103,7 +103,7 @@ const CARD_ICONS = {
   'Übersicht': '🧾',
   'Sieg, Remis, Niederlage': '📊',
   'Nach Farbe und Spielart': '🎨',
-  'Die letzten 5 Partien': '🕑',
+  'Die letzten 7 Partien': '🕑',
   'Elo-Verlauf': '📈',
   'Partien pro Tag': '📅',
   'Beste Tage': '🏆',
@@ -596,7 +596,7 @@ function streakLink(games) {
 function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
-    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
@@ -649,7 +649,7 @@ function recentGames(list, ctx) {
       + (!hasMoves(r)
         ? `<td class="r">${NO_MOVES}</td>`
         : `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`)
-      + `<td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
+      + `<td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
@@ -703,7 +703,7 @@ function overview(rs, ctx) {
     <div class="meta-overview-row">
       ${card('Sieg, Remis, Niederlage', 'fast', resultPie(rs))}
       ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
-      ${card('Die letzten 5 Partien', '', recentGames(chrono.slice(-5).reverse(), ctx), { note: 'Die 5 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
+      ${card('Die letzten 7 Partien', '', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
     </div>
     ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
     ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend })}
