@@ -1,0 +1,10 @@
+{
+  "engine": "sf19full|16|phases",
+  "initialized": true,
+  "complete": true,
+  "etags": {
+    "https://api.chess.com/pub/player/joeyfinanzen/games/2026/10": "W/\"93653c0ec8c50af401ae47eec9a31d88\"",
+    "https://api.chess.com/pub/player/joeyfinanzen/games/2026/11": "W/\"a15f994822073784f0e667388443081b\""
+  },
+  "skipped": []
+}
