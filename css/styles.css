@@ -2524,6 +2524,11 @@ html[data-site-theme="nordlicht"] .settings-heading {
 }
 #loader-panel[data-mode="meta"] { --t-new: var(--tint-meta); }
 #loader-panel[data-prev-mode="meta"] { --t-old: var(--tint-meta); }
+/* Boot mode: until js/main.js's applyAppMode runs, index.html's <head> script
+   marks a saved Meta mode - violet bar, no game-mode start page or game picker. */
+html[data-boot-mode="meta"] #loader-panel { --t-old: var(--tint-meta); }
+html[data-boot-mode="meta"] #game-empty,
+html[data-boot-mode="meta"] #game-picker { display: none; }
 #loader-panel::before,
 #loader-panel::after {
   content: '';

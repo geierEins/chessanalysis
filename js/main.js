@@ -2056,6 +2056,7 @@ loaderPanel.addEventListener('animationend', (e) => {
 
 function applyAppMode() {
   const isMeta = appMode === 'meta';
+  delete document.documentElement.dataset.bootMode; // index.html's pre-paint guess - from here on the classes below decide
   markModeInBar();
   gamePickerEl.classList.toggle('hidden', isMeta);
   // Board color and piece style only matter next to a board - the Meta mode gets just the theme.

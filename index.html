@@ -44,6 +44,14 @@
       const theme = localStorage.getItem('chessreview.siteTheme');
       if (theme && theme !== 'standard') document.documentElement.dataset.siteTheme = theme;
     } catch {}
+    // Same for the last mode (js/persistence.js's loadAppMode): js/main.js only
+    // runs after the page is drawn - without this, a Meta user first sees the
+    // game mode's start page. A deep link (?game=&user=) always opens the game
+    // mode. main.js's applyAppMode removes the attribute again (css/styles.css "Boot mode").
+    try {
+      const q = new URLSearchParams(location.search);
+      if (!(q.get('game') && q.get('user')) && localStorage.getItem('chessreview.appMode') === 'meta') document.documentElement.dataset.bootMode = 'meta';
+    } catch {}
   }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
