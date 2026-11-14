@@ -3,8 +3,8 @@
   "initialized": true,
   "complete": true,
   "etags": {
-    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/10": "W/\"f371e977406567049b47d061eb2c361a\"",
-    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/11": "W/\"36dfdf5de7621fbf6793d9fbbc87db7a\""
+    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/11": "W/\"9701f010e9de836ad5502614e3696ea0\"",
+    "https://api.chess.com/pub/player/schnaxlspringer/games/2026/10": "W/\"f371e977406567049b47d061eb2c361a\""
   },
   "skipped": [
     "https://www.chess.com/game/live/167743586332",
