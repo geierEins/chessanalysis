@@ -5,7 +5,7 @@
 // initMetaMode(); only the opponent picker (in the game picker's slot) and
 // #meta-panel below the bar belong to this module.
 
-import { fetchPlayerProfile } from '../api/chesscom.js';
+import { PLATFORMS, platformOfUrl } from '../api/platform.js';
 import { StockfishEngine } from '../engine/stockfishEngine.js';
 import { analyzeGame } from '../analysis/gameAnalyzer.js';
 import { showToast } from '../ui/toast.js';
@@ -74,6 +74,9 @@ export function initMetaMode(host) {
 
   let active = false;
   let username = '';
+  let site = 'chesscom'; // the site the loaded games come from - never mixed (js/api/platform.js)
+  // IndexedDB's country cache: Chess.com names as they are, Lichess ones prefixed.
+  const countryKey = (name) => (site === 'chesscom' ? name : `${site}:${name}`);
   let records = []; // fast records of every loaded game, newest first
   let loadedFrom = null; // the time filter's lower bound when these games were loaded (null = all time)
   let engineCache = new Map(); // url -> engine record, for the CURRENT engine + depth
@@ -505,6 +508,9 @@ export function initMetaMode(host) {
   async function setRecordsFrom(rawGames, user, from) {
     username = user;
     loadedFrom = from;
+    const newSite = platformOfUrl(rawGames[0]?.url);
+    if (newSite !== site) countries.clear(); // the same name is someone else on the other site
+    site = newSite;
     opponent = null;
     const built = [];
     for (let i = 0; i < rawGames.length; i++) {
@@ -537,7 +543,7 @@ export function initMetaMode(host) {
     if (!result) return;
     const newCountries = result.countries.filter(([k]) => !countries.has(k.toLowerCase()));
     for (const [k, v] of newCountries) countries.set(k.toLowerCase(), v);
-    await saveCountries(newCountries);
+    await saveCountries(newCountries.map(([k, v]) => [countryKey(k), v]));
     if (!result.added) return;
     if (username !== user || run) return; // another player loaded meanwhile, or a run owns the cache
     await reloadEngineCache();
@@ -557,9 +563,11 @@ export function initMetaMode(host) {
    *  time (Chess.com rate-limits bursts) and saved for next time. */
   async function loadCountriesInBackground() {
     const generation = ++countryJob.generation;
+    const jobSite = site;
+    const prefix = countryKey('');
     const names = [...new Set(records.map((r) => r.opponent.toLowerCase()))];
-    const cached = await loadCountries(names);
-    for (const [k, v] of cached) countries.set(k, v);
+    const cached = await loadCountries(names.map(countryKey));
+    for (const [k, v] of cached) countries.set(k.slice(prefix.length), v);
     const todo = names.filter((n) => !countries.has(n));
     countryJob = { generation, done: 0, total: todo.length, running: todo.length > 0 };
     render();
@@ -569,16 +577,18 @@ export function initMetaMode(host) {
     async function worker() {
       while (next < todo.length && countryJob.generation === generation) {
         const name = todo[next++];
-        const { country } = await fetchPlayerProfile(name);
+        const { country } = await PLATFORMS[jobSite].api.fetchPlayerProfile(name);
         if (countryJob.generation !== generation) return;
         countries.set(name, country ?? null);
-        pendingSave.push([name, country ?? null]);
+        pendingSave.push([prefix + name, country ?? null]);
         countryJob.done++;
         if (pendingSave.length >= 20) saveCountries(pendingSave.splice(0));
         scheduleRender();
       }
     }
-    await Promise.all(Array.from({ length: COUNTRY_FETCH_CONCURRENCY }, worker));
+    // js/api/lichess.js bundles lookups into one request - many at once are fine there.
+    const concurrency = jobSite === 'chesscom' ? COUNTRY_FETCH_CONCURRENCY : 100;
+    await Promise.all(Array.from({ length: concurrency }, worker));
     if (countryJob.generation !== generation) return;
     saveCountries(pendingSave.splice(0));
     countryJob.running = false;
@@ -795,6 +805,7 @@ export function initMetaMode(host) {
     const r = records.find((x) => x.url === url);
     if (!r) return;
     const params = new URLSearchParams({ user: username, game: url, end: String(Math.round(r.endTime / 1000)) });
+    if (site !== 'chesscom') params.set('site', site);
     window.open(`${location.pathname}?${params}`, '_blank', 'noopener');
   }
 
@@ -820,6 +831,15 @@ export function initMetaMode(host) {
         closeOpponentMenu();
         tipEl.classList.add('hidden');
       }
+      render();
+    },
+    /** The site toggle switched - drops the loaded games, so the other site's never mix in. */
+    clear() {
+      if (run) return;
+      records = [];
+      opponent = null;
+      countryJob.generation++;
+      countryJob.running = false;
       render();
     },
     /** Called by js/main.js's "Spiele laden" in meta mode with the raw Chess.com games. */

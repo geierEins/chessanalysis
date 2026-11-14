@@ -14,12 +14,14 @@ const PIECE_THEME_KEY = 'chessreview.pieceTheme';
 const SOUND_ENABLED_KEY = 'chessreview.soundEnabled';
 const BEST_MOVE_TIMING_KEY = 'chessreview.bestMoveTiming';
 const HIDE_FUTURE_MOVES_KEY = 'chessreview.hideFutureMoves';
-const APP_MODE_KEY = 'chessreview.appMode';
 const META_TAB_KEY = 'chessreview.metaTab';
 const COUNTRY_LIMIT_KEY = 'chessreview.countryLimit';
 const HEATMAP_KEY = 'chessreview.heatmap';
 const SAVED_USERNAMES_KEY = 'chessreview.savedUsernames'; // older: only the added users, read once for USERNAME_LIST_KEY
 const USERNAME_LIST_KEY = 'chessreview.usernameList';
+const PLATFORM_KEY = 'chessreview.platform';
+// Chess.com keeps the original keys; Lichess gets its own (".lichess" suffix).
+const forPlatform = (key, platform) => (platform && platform !== 'chesscom' ? `${key}.${platform}` : key);
 // Also read by the inline script in index.html's <head> (before first paint).
 const SITE_THEME_KEY = 'chessreview.siteTheme';
 
@@ -42,13 +44,22 @@ function safeSet(key, value) {
 }
 
 /** @returns {string|null} */
-export function loadLastUsername() {
-  return safeGet(USERNAME_KEY);
+export function loadLastUsername(platform) {
+  return safeGet(forPlatform(USERNAME_KEY, platform));
 }
 
 /** @param {string} username */
-export function saveLastUsername(username) {
-  if (username) safeSet(USERNAME_KEY, username);
+export function saveLastUsername(username, platform) {
+  if (username) safeSet(forPlatform(USERNAME_KEY, platform), username);
+}
+
+/** @returns {'chesscom'|'lichess'} the site games are loaded from */
+export function loadPlatform() {
+  return safeGet(PLATFORM_KEY) === 'lichess' ? 'lichess' : 'chesscom';
+}
+
+export function savePlatform(platform) {
+  safeSet(PLATFORM_KEY, platform);
 }
 
 /** @returns {{light: string, dark: string, isWood?: boolean}|null} */
@@ -137,15 +148,6 @@ export function saveBestMoveTiming(timing) {
   safeSet(BEST_MOVE_TIMING_KEY, timing);
 }
 
-/** @returns {'game'|'meta'} which area is shown: single-game analysis (the default) or Meta-Analyse */
-export function loadAppMode() {
-  return safeGet(APP_MODE_KEY) === 'meta' ? 'meta' : 'game';
-}
-
-/** @param {'game'|'meta'} mode */
-export function saveAppMode(mode) {
-  safeSet(APP_MODE_KEY, mode);
-}
 
 /** @returns {string|null} the site theme's id (js/ui/siteTheme.js), null = never chosen */
 export function loadSiteTheme() {
@@ -182,17 +184,18 @@ const nameList = (xs) => xs.filter((u) => typeof u === 'string' && u.trim());
 
 /** @param {string[]} defaults - the dropdown's entries until it is first changed (index.html's presets)
  *  @returns {string[]} the username dropdown's entries */
-export function loadSavedUsernames(defaults) {
-  const list = loadList(USERNAME_LIST_KEY);
+export function loadSavedUsernames(defaults, platform) {
+  const list = loadList(forPlatform(USERNAME_LIST_KEY, platform));
   if (list) return nameList(list);
+  if (platform && platform !== 'chesscom') return defaults;
   // Before the list held the presets too, it kept only the users added to them.
   const added = nameList(loadList(SAVED_USERNAMES_KEY) ?? []);
   return [...defaults, ...added.filter((u) => !defaults.some((d) => d.toLowerCase() === u.toLowerCase()))];
 }
 
 /** @param {string[]} usernames */
-export function saveSavedUsernames(usernames) {
-  safeSet(USERNAME_LIST_KEY, JSON.stringify(usernames));
+export function saveSavedUsernames(usernames, platform) {
+  safeSet(forPlatform(USERNAME_LIST_KEY, platform), JSON.stringify(usernames));
 }
 
 /** @returns {string[]|null} selected game types ("bullet", "blitz", ...) */

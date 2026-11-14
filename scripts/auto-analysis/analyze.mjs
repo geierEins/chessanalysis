@@ -3,6 +3,11 @@
 // (gameAnalyzer.js, metaRecords.js, stockfishEngine.js), so the results equal
 // a Meta-Analyse run in the browser with the same engine and depth.
 //
+// Chess.com players come from the monthly archives, Lichess players (config.json
+// {"name": ..., "site": "lichess"}) from the app's js/api/lichess.js, which
+// returns the same Chess.com-shaped game objects. Each player's master file
+// holds only their own site's games.
+//
 // Two modes:
 //  - INITIAL=1 (.github/workflows/auto-analysis-initial.yml, started by hand):
 //    the one-time backlog of every configured player not initialized yet (e.g.
@@ -26,6 +31,8 @@ import { availableParallelism } from 'node:os';
 import { appendFile } from 'node:fs/promises';
 import {
   config,
+  players as configuredPlayers,
+  lichessGameCount,
   ENGINE_KEY,
   saveState,
   loadState,
@@ -46,7 +53,9 @@ const { StockfishEngine } = await import('../../js/engine/stockfishEngine.js');
 const { analyzeGame } = await import('../../js/analysis/gameAnalyzer.js');
 const { buildFastRecord, buildEngineRecord, isCoachGame, ENGINE_RECORD_VERSION } = await import('../../js/meta/metaRecords.js');
 const { recordingEngine } = await import('../../js/analysis/evalLog.js');
-const { fetchPlayerProfile } = await import('../../js/api/chesscom.js');
+const chesscomApi = await import('../../js/api/chesscom.js');
+const lichessApi = await import('../../js/api/lichess.js');
+const apiFor = (player) => (player.site === 'lichess' ? lichessApi : chesscomApi);
 
 const initial = Boolean(process.env.INITIAL);
 const deadline = Date.now() + Number(process.env.TIME_BUDGET_MINUTES ?? 50) * 60_000;
@@ -65,9 +74,9 @@ const monthOfGame = (endTimeSeconds) => {
 };
 
 /** Loads one player's master file and state and lists the games still to analyze. */
-async function preparePlayer(user, state) {
-  const key = user.toLowerCase();
-  let master = await readJson(masterFile(user));
+async function preparePlayer(player, state) {
+  const { name: user, key } = player;
+  let master = await readJson(masterFile(player));
   if (master?.engine?.id !== config.engine || Number(master?.engine?.depth) !== config.depth) {
     master = {
       format: 'chessanalysis-meta',
@@ -82,31 +91,45 @@ async function preparePlayer(user, state) {
   let s = state[key];
   if (s?.engine !== ENGINE_KEY) s = state[key] = { engine: ENGINE_KEY, initialized: false, complete: false, etags: {}, skipped: [] };
 
-  // Once everything was analyzed, only the months since the newest analyzed
-  // game can hold new ones; until then (backlog) every archive.
-  const { data } = await getJson(`https://api.chess.com/pub/player/${key}/games/archives`);
-  const archives = data.archives ?? [];
-  const newest = master.games.reduce((m, g) => Math.max(m, g.game.end_time ?? 0), 0);
-  const since = newest ? monthOfGame(newest) : '';
-  const recent = recentArchiveUrls(user);
-  const urls = [...new Set([...(s.complete ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
-
   // Records without the engine log or of an older ENGINE_RECORD_VERSION
   // (older runs) count as not done and get replaced.
   const done = new Set(master.games.filter((g) => g.engine?.evals && (g.engine.v ?? 1) >= ENGINE_RECORD_VERSION).map((g) => g.game.url));
   const skipped = new Set(s.skipped);
+  const newest = master.games.reduce((m, g) => Math.max(m, g.game.end_time ?? 0), 0);
   const etags = {};
-  const targets = [];
-  for (const url of urls) {
-    const { data: month, etag } = await getJson(url);
-    if (recent.includes(url)) etags[url] = etag;
-    for (const raw of month.games ?? []) {
-      if (done.has(raw.url) || skipped.has(raw.url)) continue;
-      const rec = buildFastRecord(raw, user);
-      if (rec && !isCoachGame(rec)) targets.push({ user, rec });
+  let gameCount = null;
+  const rawGames = [];
+
+  if (player.site === 'lichess') {
+    // Counted before loading, so a game finished meanwhile still makes check.mjs
+    // start the next run. Once everything was analyzed, only games started up
+    // to 30 days before the newest analyzed one (Lichess filters by start, and
+    // correspondence games run long); until then (backlog) every game.
+    gameCount = await lichessGameCount(user);
+    const since = s.complete && newest ? newest * 1000 - 30 * 86_400_000 : null;
+    rawGames.push(...(await lichessApi.fetchGamesSince(user, since)));
+  } else {
+    // Once everything was analyzed, only the months since the newest analyzed
+    // game can hold new ones; until then (backlog) every archive.
+    const { data } = await getJson(`https://api.chess.com/pub/player/${key}/games/archives`);
+    const archives = data.archives ?? [];
+    const since = newest ? monthOfGame(newest) : '';
+    const recent = recentArchiveUrls(user);
+    const urls = [...new Set([...(s.complete ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
+    for (const url of urls) {
+      const { data: month, etag } = await getJson(url);
+      if (recent.includes(url)) etags[url] = etag;
+      rawGames.push(...(month.games ?? []));
     }
   }
-  return { user, master, s, etags, open: targets.length, targets, analyzed: 0, failed: 0, saving: Promise.resolve() };
+
+  const targets = [];
+  for (const raw of rawGames) {
+    if (done.has(raw.url) || skipped.has(raw.url)) continue;
+    const rec = buildFastRecord(raw, user);
+    if (rec && !isCoachGame(rec)) targets.push({ key, rec });
+  }
+  return { player, user, master, s, etags, gameCount, open: targets.length, targets, analyzed: 0, failed: 0, saving: Promise.resolve() };
 }
 
 /** Serialized per player - several engines may finish games of the same player at once. */
@@ -114,7 +137,7 @@ function saveMaster(p) {
   p.saving = p.saving.then(() => {
     p.master.exportedAt = new Date().toISOString();
     p.master.games.sort((a, b) => b.game.end_time - a.game.end_time);
-    return writeJson(masterFile(p.user), p.master);
+    return writeJson(masterFile(p.player), p.master);
   });
   return p.saving;
 }
@@ -144,7 +167,7 @@ async function analyzeOne(engine, p, rec) {
     p.master.games = p.master.games.filter((g) => g.game.url !== rec.url);
     p.master.games.push({ game: rec.raw, engine: record });
     const opp = rec.opponent.toLowerCase();
-    if (!(opp in p.master.countries)) p.master.countries[opp] = (await fetchPlayerProfile(rec.opponent)).country ?? null;
+    if (!(opp in p.master.countries)) p.master.countries[opp] = (await apiFor(p.player).fetchPlayerProfile(rec.opponent)).country ?? null;
     p.analyzed++;
     await saveMaster(p);
   } catch (err) {
@@ -164,11 +187,11 @@ async function analyzeOne(engine, p, rec) {
 const state = await loadState();
 // The two modes never share a player, so both workflows may run at once
 // without touching the same files.
-const isInitialized = (u) => state[u.toLowerCase()]?.initialized && state[u.toLowerCase()].engine === ENGINE_KEY;
-const users = config.users.filter((u) => (initial ? !isInitialized(u) : isInitialized(u)));
+const isInitialized = (pl) => state[pl.key]?.initialized && state[pl.key].engine === ENGINE_KEY;
+const selected = configuredPlayers.filter((pl) => (initial ? !isInitialized(pl) : isInitialized(pl)));
 const players = [];
-for (const user of users) players.push(await preparePlayer(user, state));
-const byUser = new Map(players.map((p) => [p.user, p]));
+for (const player of selected) players.push(await preparePlayer(player, state));
+const byKey = new Map(players.map((p) => [p.player.key, p]));
 const queue = players.flatMap((p) => p.targets).sort((a, b) => b.rec.endTime - a.rec.endTime);
 const engineCount = Math.max(1, Math.min(Number(process.env.ENGINES ?? availableParallelism()), queue.length, maxGames));
 console.log(`${initial ? 'Erstanalyse' : 'Planmäßig'}: ${queue.length} Partien (${players.map((p) => `${p.user}: ${p.targets.length}`).join(', ') || 'keine Spieler'}), ${engineCount} Engines.`);
@@ -178,13 +201,13 @@ async function engineWorker() {
   let engine = null;
   try {
     while (next < queue.length && next < maxGames && Date.now() < deadline) {
-      const { user, rec } = queue[next++];
+      const { key, rec } = queue[next++];
       if (!engine?.isReady) {
         engine = new StockfishEngine();
         engines.add(engine);
         await engine.init(undefined, config.engine);
       }
-      await analyzeOne(engine, byUser.get(user), rec);
+      await analyzeOne(engine, byKey.get(key), rec);
     }
   } finally {
     engine?.terminate();
@@ -201,15 +224,17 @@ async function finish() {
     if (p.s.complete) p.s.initialized = true;
     // Only a finished player gets the ETags - check.mjs then sees 304 until a new game appears.
     p.s.etags = p.s.complete ? p.etags : {};
+    // Lichess: the game count of a complete run - check.mjs compares against it.
+    if (p.player.site === 'lichess') p.s.gameCount = p.s.complete ? p.gameCount : null;
   }
-  await saveState(state, players.map((p) => p.user));
+  await saveState(state, players.map((p) => p.player));
   await Promise.all(players.map((p) => p.saving));
 
   const allDone = players.every((p) => p.s.complete);
   const table = [
     '| Spieler | neu analysiert | übersprungen | noch offen | gesamt |',
     '|---|---|---|---|---|',
-    ...players.map((p) => `| ${p.user} | ${p.analyzed} | ${p.failed} | ${p.open} | ${p.master.games.length} |`),
+    ...players.map((p) => `| ${p.user}${p.player.site === 'lichess' ? ' (Lichess)' : ''} | ${p.analyzed} | ${p.failed} | ${p.open} | ${p.master.games.length} |`),
   ].join('\n');
   console.log(table);
   if (process.env.GITHUB_STEP_SUMMARY) {

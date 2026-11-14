@@ -523,6 +523,18 @@ html {
   padding-left: 26px;
 }
 
+/* #platform-toggle-btn - Chess.com/Lichess, only the active site's icon shows. */
+#platform-toggle-btn .platform-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+#platform-toggle-btn .platform-icon-chesscom { color: #81b64c; }
+#platform-toggle-btn .platform-icon-lichess { color: rgb(var(--n-100)); }
+#platform-toggle-btn[data-platform="chesscom"] .platform-icon-lichess,
+#platform-toggle-btn[data-platform="lichess"] .platform-icon-chesscom {
+  display: none;
+}
+
 body {
   font-family: var(--font-body), sans-serif;
 }
@@ -2550,10 +2562,11 @@ html[data-site-theme="nordlicht"] .settings-heading {
 #loader-panel[data-mode="meta"] { --t-new: var(--tint-meta); }
 #loader-panel[data-prev-mode="meta"] { --t-old: var(--tint-meta); }
 /* Boot mode: until js/main.js's applyAppMode runs, index.html's <head> script
-   marks a saved Meta mode - violet bar, no game-mode start page or game picker. */
+   marks the Meta mode (every tab without a deep link) - violet bar, no game-mode start page or game picker. */
 html[data-boot-mode="meta"] #loader-panel { --t-old: var(--tint-meta); }
 html[data-boot-mode="meta"] #game-empty,
-html[data-boot-mode="meta"] #game-picker { display: none; }
+html[data-boot-mode="meta"] #game-picker,
+html[data-boot-mode="meta"] #settings-picker { display: none; }
 #loader-panel::before,
 #loader-panel::after {
   content: '';
@@ -2573,11 +2586,6 @@ html[data-boot-mode="meta"] #game-picker { display: none; }
   #loader-panel.mode-sweep::after { animation-duration: 1ms; }
 }
 
-/* The gear menu's "Modus" switch in the same colors as the mode tint and the
-   analyze button: green for Spiel, violet for Meta (after the themes, so it wins there too). */
-html .settings-segmented > button[data-app-mode].active { color: #fff; text-shadow: none; box-shadow: none; }
-html .settings-segmented > button[data-app-mode="game"].active { background: linear-gradient(to bottom, #9CC859, #5A8A43); }
-html .settings-segmented > button[data-app-mode="meta"].active { background: linear-gradient(to bottom, #a98cf7, #6b4fcf); }
 
 /* Overview row: "Sieg, Remis, Niederlage" : "Nach Farbe und Spielart" : "Die letzten 7 Partien" = 6 : 7 : 7
    (the last two share the rest equally). In the narrow first card the pie's legend wraps below the pie. */

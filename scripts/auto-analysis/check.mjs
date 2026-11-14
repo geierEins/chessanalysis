@@ -1,24 +1,31 @@
 // The scheduled gate of the auto-analysis: decides whether analyze.mjs has
 // anything to do, without the engine, the app code or the master files. Per
-// player it sends two conditional requests for the newest monthly archives;
-// Chess.com answers 304 (no body) while nothing changed. Players whose
-// one-time initial analysis (auto-analysis-initial.yml) isn't finished are
-// left alone. Prints the result as the step output `todo=true|false`.
+// Chess.com player it sends two conditional requests for the newest monthly
+// archives; Chess.com answers 304 (no body) while nothing changed. Per Lichess
+// player it compares the game count with the one of the last complete run.
+// Players whose one-time initial analysis (auto-analysis-initial.yml) isn't
+// finished are left alone. Prints the result as the step output `todo=true|false`.
 
 import { appendFile } from 'node:fs/promises';
-import { config, ENGINE_KEY, loadState, recentArchiveUrls, chessFetch } from './common.mjs';
+import { players, ENGINE_KEY, loadState, recentArchiveUrls, chessFetch, lichessGameCount } from './common.mjs';
 
 const state = await loadState();
 const reasons = [];
 
-for (const user of config.users) {
-  const s = state[user.toLowerCase()];
+for (const player of players) {
+  const user = player.name;
+  const s = state[player.key];
   if (!s?.initialized || s.engine !== ENGINE_KEY) {
     console.log(`${user}: wartet auf die Erstanalyse (Workflow „Auto-Analyse: Erstanalyse“).`);
     continue;
   }
   if (!s.complete) {
     reasons.push(`${user}: Rückstand aus dem letzten Lauf`);
+    continue;
+  }
+  if (player.site === 'lichess') {
+    const count = await lichessGameCount(user);
+    if (count !== s.gameCount) reasons.push(`${user} (Lichess): Partienzahl ${s.gameCount ?? '?'} → ${count}`);
     continue;
   }
   for (const url of recentArchiveUrls(user)) {

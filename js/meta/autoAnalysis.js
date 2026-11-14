@@ -5,11 +5,15 @@
 // Meta-Analyse and the single-game mode both only ever look there.
 
 import { loadEngineRecords, saveEngineRecords } from './metaStore.js';
+import { getPlatform } from '../api/platform.js';
 
 const BASE = 'https://raw.githubusercontent.com/geierEins/chessanalysis/main/data';
 const FILE_FORMAT = 'chessanalysis-meta';
 
-const engineByUser = new Map(); // lowercased username -> {engineId, depth, label} of their master file
+const engineByUser = new Map(); // player file key -> {engineId, depth, label} of their master file
+// Chess.com players at data/<name>.json, Lichess ones at data/lichess/<name>.json
+// (scripts/auto-analysis/ writes them) - the same name on both sites never mixes.
+const playerPath = (user) => (getPlatform() === 'chesscom' ? '' : `${getPlatform()}/`) + encodeURIComponent(user.toLowerCase());
 
 /**
  * Stores every engine record of the player's master file that the browser
@@ -21,7 +25,7 @@ const engineByUser = new Map(); // lowercased username -> {engineId, depth, labe
 export async function syncAutoAnalysis(user) {
   let data;
   try {
-    const res = await fetch(`${BASE}/${encodeURIComponent(user.toLowerCase())}.json`, { cache: 'no-cache' });
+    const res = await fetch(`${BASE}/${playerPath(user)}.json`, { cache: 'no-cache' });
     if (!res.ok) return null;
     data = await res.json();
   } catch {
@@ -29,7 +33,7 @@ export async function syncAutoAnalysis(user) {
   }
   if (data?.format !== FILE_FORMAT || !Array.isArray(data.games) || !data.engine?.id) return null;
   const engine = { engineId: data.engine.id, depth: Number(data.engine.depth), label: data.engine.label };
-  engineByUser.set(user.toLowerCase(), engine);
+  engineByUser.set(playerPath(user), engine);
   const entries = data.games.filter((g) => g.engine && g.game?.url).map((g) => [g.game.url, g.engine]);
   const have = await loadEngineRecords(engine.engineId, engine.depth, entries.map(([url]) => url));
   const newer = (rec, old) => (rec.evals && !old.evals) || (rec.v ?? 1) > (old.v ?? 1);
@@ -40,5 +44,5 @@ export async function syncAutoAnalysis(user) {
 
 /** Engine + depth of the player's master file, once syncAutoAnalysis() found one - else null. */
 export function autoAnalysisEngine(user) {
-  return engineByUser.get(user.toLowerCase()) ?? null;
+  return engineByUser.get(playerPath(user)) ?? null;
 }

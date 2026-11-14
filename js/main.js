@@ -1,4 +1,5 @@
-import { fetchRecentGames, fetchPlayerProfile, fetchGame, summarizeGame } from './api/chesscom.js';
+import { fetchRecentGames, fetchPlayerProfile, fetchGame, fetchPlayerProfileFor, getPlatform, setPlatform, platformLabel } from './api/platform.js';
+import { summarizeGame } from './api/chesscom.js';
 import { timeClassStyle } from './timeClassStyle.js';
 import { StockfishEngine } from './engine/stockfishEngine.js';
 import { analyzeGame } from './analysis/gameAnalyzer.js';
@@ -54,8 +55,8 @@ import {
   saveBestMoveTiming,
   loadHideFutureMoves,
   saveHideFutureMoves,
-  loadAppMode,
-  saveAppMode,
+  loadPlatform,
+  savePlatform,
 } from './persistence.js';
 import { initMetaMode } from './meta/metaController.js';
 import { computeTerminationMarkers } from './analysis/termination.js';
@@ -75,48 +76,54 @@ if ('serviceWorker' in navigator) {
 
 const el = (id) => document.getElementById(id);
 
-// 'game' = the single-game analysis, 'meta' = Meta-Analyse (js/meta/) - picked
-// in the gear menu. `meta` is the Meta-Analyse controller, created at the very
+// 'game' = the single-game analysis, 'meta' = Meta-Analyse (js/meta/). A tab always
+// opens in the Meta-Analyse; the game mode only via a deep link (a game clicked
+// there opens in its own tab) - there's no switching back and forth.
+// `meta` is the Meta-Analyse controller, created at the very
 // end once every top-bar control it reads from exists; every call site uses
 // `meta?.` since some filter callbacks can fire before that.
 // A game the Meta-Analyse opened in its own tab (metaController's openGame):
-// ?user=…&game=<Chess.com URL>&end=<end_time> - opens straight into the
-// single-game mode, without changing the saved area for other tabs.
+// ?user=…&game=<game URL>&end=<end_time>[&site=lichess] - opens straight into
+// the single-game mode, without changing the saved area (or site) for other tabs.
 const deepLink = (() => {
   const params = new URLSearchParams(location.search);
   const game = params.get('game');
   const user = params.get('user');
-  return game && user ? { game, user, end: Number(params.get('end')) } : null;
+  return game && user ? { game, user, end: Number(params.get('end')), site: params.get('site') } : null;
 })();
-let appMode = deepLink ? 'game' : loadAppMode();
+const appMode = deepLink ? 'game' : 'meta';
 let meta = null;
+
+// The site games are loaded from (Chess.com/Lichess) - the toggle left of the username field.
+setPlatform(deepLink ? deepLink.site ?? 'chesscom' : loadPlatform());
 
 const usernameInput = el('username-input');
 const usernameAvatarEl = el('username-avatar');
-usernameInput.value = deepLink?.user ?? loadLastUsername() ?? '';
+usernameInput.value = deepLink?.user ?? loadLastUsername(getPlatform()) ?? '';
 
-// Caches avatarUrl (possibly null - no picture set) per lowercased username,
-// so re-selecting a preset (or reloading the last-used name) never re-fetches
-// one already looked up this session.
+// Caches avatarUrl (possibly null - no picture set) per site + lowercased
+// username, so re-selecting a preset (or reloading the last-used name) never
+// re-fetches one already looked up this session.
 const usernameAvatarCache = new Map();
+const avatarKey = (name) => `${getPlatform()}:${name.trim().toLowerCase()}`;
 
 /** Keeps #username-avatar (left of the field, shown collapsed too) in sync
  *  with whatever username is now current - checks the cache first, and only
  *  hits the network for one never looked up yet. Guards against a stale
  *  response landing after the field's value has already changed again. */
 async function updateUsernameAvatar(username) {
-  const key = username?.trim().toLowerCase();
-  if (!key) {
+  if (!username?.trim()) {
     usernameAvatarEl.classList.add('hidden');
     return;
   }
+  const key = avatarKey(username);
   if (usernameAvatarCache.has(key)) {
     setAvatar(usernameAvatarEl, usernameAvatarCache.get(key));
     return;
   }
-  const { avatar } = await fetchPlayerProfile(key);
+  const { avatar } = await fetchPlayerProfile(username.trim());
   usernameAvatarCache.set(key, avatar);
-  if (usernameInput.value.trim().toLowerCase() === key) setAvatar(usernameAvatarEl, avatar);
+  if (avatarKey(usernameInput.value) === key) setAvatar(usernameAvatarEl, avatar);
 }
 updateUsernameAvatar(usernameInput.value);
 // Hides the avatar the moment the field is edited away from whatever
@@ -140,7 +147,9 @@ usernameInput.addEventListener('input', () => {
 const usernamePresetsBtn = el('username-presets-btn');
 const usernamePresetsMenu = el('username-presets-menu');
 const usernamePicker = el('username-picker');
-let savedUsernames = loadSavedUsernames([...document.querySelectorAll('#username-presets option')].map((o) => o.value));
+// Chess.com starts with index.html's presets, Lichess with an empty list.
+const presetDefaults = () => (getPlatform() === 'chesscom' ? [...document.querySelectorAll('#username-presets option')].map((o) => o.value) : []);
+let savedUsernames = loadSavedUsernames(presetDefaults(), getPlatform());
 const sameUser = (a, b) => a.toLowerCase() === b.toLowerCase();
 
 function closeUsernamePresets() {
@@ -178,7 +187,7 @@ function renderUsernamePresets() {
     remove.addEventListener('click', (e) => {
       e.stopPropagation(); // not a pick of this user
       savedUsernames = savedUsernames.filter((u) => !sameUser(u, name));
-      saveSavedUsernames(savedUsernames);
+      saveSavedUsernames(savedUsernames, getPlatform());
       renderUsernamePresets();
     });
     item.appendChild(remove);
@@ -198,7 +207,7 @@ function renderUsernamePresets() {
     usernamePresetsMenu.appendChild(item);
     // Every preset's avatar up front (not just on click), so the menu shows
     // each one's picture right away - fetched once, then from the cache.
-    const key = name.toLowerCase();
+    const key = avatarKey(name);
     if (usernameAvatarCache.has(key)) setAvatar(avatarImg, usernameAvatarCache.get(key));
     else {
       fetchPlayerProfile(name).then(({ avatar }) => {
@@ -210,16 +219,44 @@ function renderUsernamePresets() {
 }
 renderUsernamePresets();
 
-/** Adds a user "Spiele laden" was pressed for to the dropdown, if chess.com knows them. */
+/** Adds a user "Spiele laden" was pressed for to the dropdown, if the current site knows them. */
 async function rememberUsername(username) {
   if (savedUsernames.some((u) => sameUser(u, username))) return;
+  const platform = getPlatform();
   const { exists, avatar } = await fetchPlayerProfile(username);
+  if (platform !== getPlatform()) return; // switched sites meanwhile
   if (!exists || savedUsernames.some((u) => sameUser(u, username))) return;
-  usernameAvatarCache.set(username.toLowerCase(), avatar);
+  usernameAvatarCache.set(avatarKey(username), avatar);
   savedUsernames = [...savedUsernames, username];
-  saveSavedUsernames(savedUsernames);
+  saveSavedUsernames(savedUsernames, platform);
   renderUsernamePresets();
 }
+
+// Site toggle (Chess.com/Lichess) left of the username field: one click
+// switches; every site keeps its own last username and dropdown list.
+const platformToggleBtn = el('platform-toggle-btn');
+function renderPlatformToggle() {
+  platformToggleBtn.dataset.platform = getPlatform();
+  const other = getPlatform() === 'chesscom' ? 'Lichess' : 'Chess.com';
+  platformToggleBtn.title = `Partien von ${platformLabel()} - klicken für ${other}`;
+  platformToggleBtn.setAttribute('aria-label', platformToggleBtn.title);
+  usernameInput.placeholder = `${platformLabel()} user`;
+}
+renderPlatformToggle();
+platformToggleBtn.addEventListener('click', () => {
+  setPlatform(getPlatform() === 'chesscom' ? 'lichess' : 'chesscom');
+  if (!deepLink) savePlatform(getPlatform());
+  savedUsernames = loadSavedUsernames(presetDefaults(), getPlatform());
+  usernameInput.value = loadLastUsername(getPlatform()) ?? '';
+  closeUsernamePresets();
+  renderUsernamePresets();
+  renderPlatformToggle();
+  updateUsernameAvatar(usernameInput.value);
+  // A Meta-Analyse is always one site's games only - the other site's are dropped
+  // and, in meta mode, this site's last user is loaded right away.
+  meta?.clear();
+  if (appMode === 'meta' && usernameInput.value.trim()) fetchGamesBtn.click();
+});
 usernamePresetsBtn.addEventListener('click', () => {
   if (usernamePresetsMenu.classList.contains('hidden')) {
     const rect = usernamePresetsBtn.getBoundingClientRect();
@@ -916,6 +953,7 @@ let fetchGamesAbortController = null;
 
 function setFetchGamesLoading(isLoading) {
   fetchGamesBtnLabel.textContent = isLoading ? '✕' : 'Spiele laden';
+  platformToggleBtn.disabled = isLoading;
   if (!isLoading) fetchGamesBtnFill.style.width = '0%';
 }
 
@@ -929,12 +967,12 @@ fetchGamesBtn.addEventListener('click', async () => {
   }
   const username = usernameInput.value.trim();
   if (!username) {
-    showToast('Bitte einen Chess.com-Benutzernamen eingeben.', 'error');
+    showToast(`Bitte einen ${platformLabel()}-Benutzernamen eingeben.`, 'error');
     flashFieldError(usernameInput);
     return;
   }
 
-  saveLastUsername(username);
+  saveLastUsername(username, getPlatform());
   updateUsernameAvatar(username);
   rememberUsername(username);
   setFetchGamesLoading(true);
@@ -1213,8 +1251,8 @@ async function startAnalysis() {
 
   try {
     const playersPromise = Promise.all([
-      fetchPlayerProfile(game.white),
-      fetchPlayerProfile(game.black),
+      fetchPlayerProfileFor(game.url, game.white),
+      fetchPlayerProfileFor(game.url, game.black),
     ]);
 
     gameTermination = game.termination;
@@ -2012,10 +2050,9 @@ removeVariationBtn.addEventListener('click', () => {
   moveList.setActive(currentNode);
 });
 
-// ---------- Meta-Analyse and switching between the two areas ----------
+// ---------- Meta-Analyse vs. game mode ----------
 
 const gamePickerEl = el('game-picker');
-let metaScrollY = 0; // restored when switching back to the Meta-Analyse
 
 /** The analyze button is shared: in game mode it analyzes the picked game,
  *  in meta mode it starts the Meta-Analyse run (js/meta/metaController.js). */
@@ -2061,7 +2098,8 @@ function applyAppMode() {
   gamePickerEl.classList.toggle('hidden', isMeta);
   // Board color and piece style only matter next to a board - the Meta mode gets just the theme.
   appearance.setMetaMode(isMeta);
-  // Same for the gear menu's board sounds and best-move arrow.
+  // The gear menu only holds board settings (sounds, best-move arrow, move list) - gone in meta mode.
+  el('settings-picker').classList.toggle('hidden', isMeta);
   el('settings-sound-row').classList.toggle('hidden', isMeta);
   el('settings-best-move-row').classList.toggle('hidden', isMeta);
   el('settings-future-moves-row').classList.toggle('hidden', isMeta);
@@ -2082,21 +2120,6 @@ function applyAppMode() {
   if (isMeta && !meta.hasData && usernameInput.value.trim() && !fetchGamesAbortController) fetchGamesBtn.click();
 }
 
-/** @returns {boolean} false if refused (something is still running). */
-function switchAppMode(mode) {
-  if (mode === appMode) return true;
-  if (isAnalyzing || meta.isRunning || fetchGamesAbortController) {
-    showToast('Bitte erst die laufende Analyse bzw. das Laden abwarten oder abbrechen.', 'info');
-    return false;
-  }
-  if (appMode === 'meta') metaScrollY = window.scrollY;
-  appMode = mode;
-  saveAppMode(mode);
-  applyAppMode();
-  if (mode === 'meta') requestAnimationFrame(() => window.scrollTo(0, metaScrollY));
-  return true;
-}
-
 meta = initMetaMode({
   getFilters: () => ({
     ...currentDateBounds(),
@@ -2109,6 +2132,7 @@ meta = initMetaMode({
     setAnalyzing(busy);
     fetchGamesBtn.disabled = busy;
     usernameInput.disabled = busy;
+    platformToggleBtn.disabled = busy;
     if (busy) analyzeToggleBtn.title = 'Meta-Analyse abbrechen';
     else updateAnalyzeButtonForMode();
   },
@@ -2120,8 +2144,6 @@ initBoardThemePicker();
 initPieceThemePicker(board);
 const appearance = initAppearancePicker();
 initSettingsPanel({
-  appMode,
-  onAppModeChange: (mode) => switchAppMode(mode),
   soundEnabled: loadSoundEnabled(),
   bestMoveTiming,
   onSoundChange: (enabled) => {
@@ -2140,7 +2162,7 @@ initSettingsPanel({
   },
 });
 
-// Restores whichever area was open last (gear menu "Modus").
+// Meta-Analyse, or the game mode for a deep link.
 applyAppMode();
 if (deepLink) openDeepLinkedGame(deepLink);
 
@@ -2149,7 +2171,7 @@ async function openDeepLinkedGame({ user, game, end }) {
   try {
     const [raw] = await Promise.all([fetchGame(user, game, end), syncAutoAnalysis(user)]);
     if (!raw) {
-      showToast('Die Partie wurde bei Chess.com nicht gefunden.', 'error');
+      showToast(`Die Partie wurde bei ${platformLabel()} nicht gefunden.`, 'error');
       return;
     }
     games = [summarizeGame(raw)];

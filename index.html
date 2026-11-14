@@ -44,13 +44,13 @@
       const theme = localStorage.getItem('chessreview.siteTheme');
       if (theme && theme !== 'standard') document.documentElement.dataset.siteTheme = theme;
     } catch {}
-    // Same for the last mode (js/persistence.js's loadAppMode): js/main.js only
-    // runs after the page is drawn - without this, a Meta user first sees the
-    // game mode's start page. A deep link (?game=&user=) always opens the game
-    // mode. main.js's applyAppMode removes the attribute again (css/styles.css "Boot mode").
+    // Same for the mode: every tab opens in the Meta-Analyse, only a deep link
+    // (?game=&user=, a game clicked there) in the game mode. js/main.js only
+    // runs after the page is drawn - without this, the game mode's start page
+    // flashes first. main.js's applyAppMode removes the attribute again (css/styles.css "Boot mode").
     try {
       const q = new URLSearchParams(location.search);
-      if (!(q.get('game') && q.get('user')) && localStorage.getItem('chessreview.appMode') === 'meta') document.documentElement.dataset.bootMode = 'meta';
+      if (!(q.get('game') && q.get('user'))) document.documentElement.dataset.bootMode = 'meta';
     } catch {}
   }
 </script>
@@ -72,6 +72,13 @@
 <section id="loader-panel" class="sticky top-0 z-20 bg-neutral-900 border-b border-neutral-800">
   <div class="max-w-[1400px] mx-auto px-4 py-2">
     <div id="filter-row" class="flex items-center gap-2">
+      <!-- Site toggle: Chess.com (default) / Lichess - js/main.js switches
+           data-platform on click, css/styles.css shows the matching icon. -->
+      <button id="platform-toggle-btn" type="button" data-platform="chesscom"
+              class="bg-neutral-800 border border-neutral-700 rounded px-1.5 hover:border-neutral-500 disabled:opacity-50">
+        <span class="platform-icon platform-icon-chesscom" aria-hidden="true">♟</span>
+        <span class="platform-icon platform-icon-lichess" aria-hidden="true">♞</span>
+      </button>
       <div id="username-picker" class="relative">
         <!-- Overlaid on the input's own left edge (like the dropdown
              triangle on its right edge below), not a separate element beside
@@ -312,15 +319,6 @@
         <div id="settings-menu" role="dialog" aria-label="Einstellungen"
              class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
           <div class="settings-heading">Einstellungen</div>
-          <div class="settings-row">
-            <span class="settings-label" title="Spiel: eine Partie Zug für Zug analysieren. Meta: viele Partien gemeinsam auswerten.">Modus</span>
-            <div class="settings-segmented" role="radiogroup" aria-label="Modus">
-              <button type="button" role="radio" data-app-mode="game"
-                      title="Spiel-Analyse: eine Partie auf dem Brett durchgehen">Spiel</button>
-              <button type="button" role="radio" data-app-mode="meta"
-                      title="Meta-Analyse: Statistiken über viele Partien">Meta</button>
-            </div>
-          </div>
           <div id="settings-sound-row" class="settings-row">
             <span class="settings-label">Brettgeräusche</span>
             <button id="settings-sound-toggle" type="button" class="settings-icon-toggle">
