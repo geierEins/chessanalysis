@@ -2247,17 +2247,12 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 .meta-tbl th { text-align: left; font-weight: 600; color: var(--meta-muted); padding: 6px 8px; border-bottom: 1px solid var(--meta-line); white-space: nowrap; }
 .meta-tbl th.wide { min-width: 120px; }
 .meta-tbl th.c { text-align: center; }
-/* "Matt" tab's right column (.mate-fit): it never makes the row taller than
-   "Gesetzt und kassiert" next to it (height 0, stretched to the row) - the
-   king board shrinks to whatever height is left. Stacked on narrow screens. */
-@media (min-width: 901px) {
-  .meta-stack.mate-fit { height: 0; min-height: 100%; }
-  .mate-fit > .meta-card { flex: none; }
-  .mate-fit > .meta-side-by-side { flex: 1 1 0; min-height: 0; }
-  .mate-fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; min-height: 0; }
-  .mate-fit .meta-mate-board-wrap { flex: 1 1 0; min-height: 0; container-type: size; display: flex; justify-content: center; }
-  .mate-fit .meta-mate-board { width: min(100cqw, 100cqh); margin: 0; }
-}
+/* "Matt" tab's king board: a fixed size - it must not follow the height of
+   "Gesetzt und kassiert", which changes with the filters. 244px fills the
+   half-width card next to "Wann das Matt fällt" with every pattern listed. */
+.mate-fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; }
+.mate-fit .meta-mate-board-wrap { flex: 1 1 auto; display: flex; justify-content: center; align-items: center; }
+.mate-fit .meta-mate-board { width: min(100%, 244px); margin: 0; }
 /* "Wo der König mattgesetzt wird": gesetzt/kassiert centered under the board. */
 .meta-mate-toggle { display: flex; justify-content: center; margin-top: 10px; }
 /* A card title with an explanation on hover (card()'s tip). */
