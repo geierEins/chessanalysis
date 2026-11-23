@@ -13,6 +13,8 @@ import { flagHtml } from '../ui/playerLabel.js';
 import { timeClassStyle } from '../timeClassStyle.js';
 
 // The status line's game-type counts, in the Spielart dropdown's order.
+// Phones - the same breakpoint as css/styles.css "PHONES".
+const PHONE_QUERY = '(max-width: 640px)';
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
@@ -225,7 +227,7 @@ export function initMetaMode(host) {
     tabPieceEl.parentElement.style.setProperty('--piece-w', `${piece.width}px`);
     tabPieceEl.parentElement.classList.toggle('all-pieces', piece.all); // needs more room - hidden earlier on narrow screens
     // Phones swipe the tab strip - keep the current tab in view.
-    if (window.matchMedia('(max-width: 640px)').matches) tabsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    if (window.matchMedia(PHONE_QUERY).matches) tabsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   function render() {
@@ -272,19 +274,25 @@ export function initMetaMode(host) {
     const f = host.getFilters();
     updateFilterCount(f);
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
-    let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
-    // Phones (css/styles.css .meta-status-short): just the counts - "411/411 Partien · [404/411] Engine".
-    let short = `<b>${rs.length}</b>/${records.length} Partien`;
-    if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
-    else {
-      // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
-      const state = !missing ? 'full' : have ? 'part' : 'none';
-      const hint = !missing ? ' Alles analysiert.' : have ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Tabs ohne Engine sind trotzdem fertig.';
-      text += `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${have + missing} Partien</span> mit Engine-Werten.${hint}`;
-      short += ` · <span class="meta-cov ${state}" title="${esc(label)}: ${have} von ${have + missing} Partien mit Engine-Werten">${have}/${have + missing}</span> Engine`;
-    }
-    if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
-    statusEl.innerHTML = `<span class="meta-status-long">${text}</span><span class="meta-status-short">${short}${wider ? ' <span class="meta-warn" title="Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.">· ältere fehlen</span>' : ''}</span>`;
+    // One set of facts, said twice: in full (desktop) and as just the counts
+    // (phones, css/styles.css .meta-status-short: "411/411 Partien · [404/411] Engine").
+    const total = have + missing;
+    // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
+    const state = !missing ? 'full' : have ? 'part' : 'none';
+    const coverage = `${esc(label)}: ${have} von ${total} Partien mit Engine-Werten`;
+    const hint = !missing ? 'Alles analysiert.' : have ? `Die Lupe analysiert die ${missing} fehlenden.` : 'Tabs ohne Engine sind trotzdem fertig.';
+    const olderMissing = 'Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.';
+    const long = [
+      rs.length ? `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern.` : `Keine der ${records.length} geladenen Partien passt zu den Filtern.`,
+      rs.length ? `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${total} Partien</span> mit Engine-Werten. ${hint}` : '',
+      wider ? `<span class="meta-warn">${olderMissing}</span>` : '',
+    ];
+    const short = [
+      `<b>${rs.length}</b>/${records.length} Partien`,
+      rs.length ? `<span class="meta-cov ${state}" title="${coverage}">${have}/${total}</span> Engine` : '',
+      wider ? `<span class="meta-warn" title="${olderMissing}">ältere fehlen</span>` : '',
+    ];
+    statusEl.innerHTML = `<span class="meta-status-long">${long.filter(Boolean).join(' ')}</span><span class="meta-status-short">${short.filter(Boolean).join(' · ')}</span>`;
     // Right-aligned: all loaded games per game type (not just the filtered ones).
     typesEl.innerHTML = TYPE_ORDER.map(([tc, label]) => {
       const n = records.filter((r) => r.timeClass === tc).length;
@@ -565,12 +573,13 @@ export function initMetaMode(host) {
     }
     const base = filtered({ ignoreOpponent: true });
     if (!opponent) {
-      oppBtnLabel.textContent = `👥 Alle Gegner · ${base.length} Partien`;
+      // Icon and text apart - phones show just the icon while no opponent is picked (css/styles.css "PHONES").
+      oppBtnLabel.innerHTML = `<span class="opp-ico">👥</span><span class="opp-all"> Alle Gegner · ${base.length} Partien</span>`;
       return;
     }
     const mine = base.filter((r) => r.opponent.toLowerCase() === opponent);
     const name = mine[0]?.opponent ?? records.find((r) => r.opponent.toLowerCase() === opponent)?.opponent ?? opponent;
-    oppBtnLabel.textContent = `⚔️ ${name} · ${mine.length} Partien`;
+    oppBtnLabel.innerHTML = `<span class="opp-ico">⚔️</span> <span class="opp-name">${esc(name)}</span><span class="opp-count"> · ${mine.length} Partien</span>`;
   }
 
   function closeOpponentMenu() {

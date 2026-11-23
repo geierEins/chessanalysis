@@ -1564,12 +1564,13 @@ function analyzeCell(r, ctx, cls = 'r') {
   return `<td class="${cls}"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
 }
 
-// The "Partien" table's sort keys - phones (no table head there) pick them in gamesSortSelect.
-const GAMES_SORTS = [['date', 'Datum'], ['elo', 'Gegner Elo'], ['moves', 'Züge'], ['acc', 'Genauigkeit'], ['blunders', 'Patzer']];
+// The "Partien" table's sortable columns: [key, head label, head class, label in the phones' sort select].
+// The table head (gamesTab) and the phones' select (gamesSortSelect) both come from here.
+const GAMES_SORTS = [['date', 'Datum', '', 'Datum'], ['elo', 'Gegner Elo', '', 'Gegner Elo'], ['moves', 'Züge', 'r', 'Züge'], ['acc', 'Gen.', 'r', 'Genauigkeit'], ['blunders', 'Patzer', 'r', 'Patzer']];
 
 /** Phones only (css/styles.css): the table head's sorting as one select - metaController handles data-games-sort. */
 function gamesSortSelect(sort) {
-  const opts = GAMES_SORTS.flatMap(([key, label]) => [['desc', '↓'], ['asc', '↑']].map(([dir, arrow]) => {
+  const opts = GAMES_SORTS.flatMap(([key, , , label]) => [['desc', '↓'], ['asc', '↑']].map(([dir, arrow]) => {
     const on = sort.key === key && sort.dir === dir;
     return `<option value="${key}:${dir}"${on ? ' selected' : ''}>${label} ${arrow}</option>`;
   }));
@@ -1603,9 +1604,12 @@ function gamesTab(all, ctx) {
   const lastMarked = ctx.marked ? list.findLastIndex((r) => ctx.marked.has(r.url)) : -1;
   list.length = Math.min(list.length, Math.max(ctx.gamesShown, lastMarked + 1));
   const left = rs.length - list.length;
-  const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
+  const sortTh = (key) => {
+    const [, label, cls] = GAMES_SORTS.find(([k]) => k === key);
+    return sortHead('games', sort, key, label, cls);
+  };
   const body = rs.length
-    ? `${gamesSortSelect(sort)}<div class="meta-tbl"><table class="meta-games"><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
+    ? `${gamesSortSelect(sort)}<div class="meta-tbl"><table class="meta-games"><thead><tr>${sortTh('date')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo')}<th>Eröffnung</th>${sortTh('moves')}${sortTh('acc')}${sortTh('blunders')}<th></th><th></th></tr></thead><tbody>
       ${list
         .map((r) => {
           const e = ctx.engineOf(r);

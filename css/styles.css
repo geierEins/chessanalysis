@@ -2702,126 +2702,118 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   .meta-card-head.has-mid .meta-card-mid { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
 }
 
-/* ---------- Mobile filter panel (phones, Meta-Analyse) ----------
-   docs/superpowers/specs/2026-11-23-mobile-design.md: the top bar keeps site,
-   user, a "Filter" button, appearance and the analyze button in one line; the
-   filters themselves (time range, game types, result, color, opponent, "Spiele
-   laden") only show while the panel is open (#loader-panel.filters-open,
-   js/meta/metaController.js initFilterPanel) - wrapped onto the lines below. */
+/* ==========================================================================
+   PHONES (max-width: 640px) - docs/superpowers/specs/2026-11-23-mobile-design.md
+   --------------------------------------------------------------------------
+   Desktop and phone share one markup; everything phone-specific lives in this
+   section (the breakpoint is also PHONE_QUERY in js/meta/metaController.js).
+   New elements only need a hook where they'd otherwise land in the wrong place:
+   - a filter control in the top bar: class "filter-ctl" (index.html) - it then
+     goes into the phones' filter panel instead of the first line;
+   - a cell in the "Partien" table: a g-* class (metaView's gamesTab) - cells
+     without one go to the row's second line, which is usually right;
+   - a sortable "Partien" column: an entry in metaView's GAMES_SORTS - head
+     and the phones' sort select both come from it;
+   - a table column phones can do without: class "ph-hide" on th and td.
+   New cards, charts and tabs need nothing - they size to the width.
+   Check with: powershell -File scripts/mobile-check.ps1 -Width 360 -Out <dir>
+   ========================================================================== */
+
+/* Phone-only elements, hidden on wider screens. */
 #filter-row > #filter-toggle-btn, /* beats "#filter-row > button { display: flex }" */
-#filter-break { display: none; }
+#filter-break,
+.meta-status-short,
+.meta-games-sort { display: none; }
 .filter-count {
   min-width: 16px; padding: 0 4px; border-radius: 999px; text-align: center;
   font-size: 10px; font-weight: 700; line-height: 16px;
   background: var(--meta-accent, rgb(var(--accent-600))); color: #fff;
 }
 .filter-count.hidden { display: none; }
+
 @media (max-width: 640px) {
+  /* ---- Top bar, Meta-Analyse: one line (site, user, filter button,
+     appearance, "Spiele laden", magnifier); the .filter-ctl controls only
+     while the panel is open (#loader-panel.filters-open, metaController's
+     setFiltersOpen), wrapped onto the lines below. */
   #loader-panel[data-mode="meta"] #filter-row { flex-wrap: wrap; row-gap: 8px; column-gap: 6px; }
-  #loader-panel[data-mode="meta"] #filter-toggle-btn { display: inline-flex; }
-  #loader-panel[data-mode="meta"] #filter-toggle-btn[aria-expanded="true"] { border-color: rgb(var(--n-500)); background: rgb(var(--n-700)); }
-  /* First line in this order, the filters after the break. */
   #loader-panel[data-mode="meta"] #platform-toggle-btn { order: 1; }
-  #loader-panel[data-mode="meta"] #username-picker { order: 2; }
-  #loader-panel[data-mode="meta"] #filter-toggle-btn { order: 3; }
+  #loader-panel[data-mode="meta"] #username-picker { order: 2; flex: 1 1 0; min-width: 0; }
+  #loader-panel[data-mode="meta"] #username-input { width: 100% !important; min-width: 0; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn { order: 3; display: inline-flex; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn > span:not(.filter-count) { display: none; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn[aria-expanded="true"] { border-color: rgb(var(--n-500)); background: rgb(var(--n-700)); }
   #loader-panel[data-mode="meta"] #appearance-picker { order: 4; }
   #loader-panel[data-mode="meta"] #fetch-games-btn { order: 5; }
-  /* The magnifier holds just an icon - narrower, so "Spiele laden" fits in the first line. */
+  /* The magnifier holds just an icon - narrower, so "Spiele laden" fits. */
   #loader-panel[data-mode="meta"] #analyze-toggle-btn { order: 6; margin-left: auto; min-width: 40px; padding-left: 0.5rem; padding-right: 0.5rem; }
-  #loader-panel[data-mode="meta"] #username-picker { flex: 1 1 0; min-width: 0; }
-  #loader-panel[data-mode="meta"] #username-input { width: 100% !important; min-width: 0; }
-  #loader-panel[data-mode="meta"] #filter-toggle-btn > span:not(.filter-count) { display: none; }
   #loader-panel[data-mode="meta"] #filter-break { order: 7; flex-basis: 100%; height: 0; }
-  #loader-panel[data-mode="meta"] #time-range-picker,
-  #loader-panel[data-mode="meta"] #game-type-picker,
-  #loader-panel[data-mode="meta"] #outcome-filter-picker,
-  #loader-panel[data-mode="meta"] #color-filter-picker { order: 8; }
-  #loader-panel[data-mode="meta"] #opponent-picker { order: 9; flex-basis: 100%; }
-  #loader-panel[data-mode="meta"] #opponent-btn { width: 100%; max-width: none; }
   #loader-panel[data-mode="meta"].filters-open #filter-break { display: block; }
-  #loader-panel[data-mode="meta"]:not(.filters-open) #time-range-picker,
-  #loader-panel[data-mode="meta"]:not(.filters-open) #game-type-picker,
-  #loader-panel[data-mode="meta"]:not(.filters-open) #outcome-filter-picker,
-  #loader-panel[data-mode="meta"]:not(.filters-open) #color-filter-picker,
-  #loader-panel[data-mode="meta"]:not(.filters-open) #opponent-picker { display: none; }
-}
-/* The smallest phones: the button shows just its icon (and the count). */
-@media (max-width: 380px) {
-  #filter-toggle-btn > span:not(.filter-count) { display: none; }
-}
+  #loader-panel[data-mode="meta"] .filter-ctl { order: 8; }
+  #loader-panel[data-mode="meta"]:not(.filters-open) .filter-ctl { display: none; }
+  /* The opponent filter, rarely used (all opponents by default): narrow, in the
+     same line - just the icon, or the picked name cut short. */
+  #loader-panel[data-mode="meta"] #opponent-picker { flex: none; width: auto; }
+  #loader-panel[data-mode="meta"] #filter-row #opponent-btn { width: auto; max-width: 110px; }
+  #loader-panel[data-mode="meta"] #opponent-btn-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #loader-panel[data-mode="meta"] #opponent-btn .opp-all,
+  #loader-panel[data-mode="meta"] #opponent-btn .opp-count { display: none; }
 
-/* ---------- Phones: status line and tabs (docs/superpowers/plans/2026-11-23-mobile.md Task 3) ---------- */
-.meta-status-short { display: none; }
-@media (max-width: 640px) {
+  /* ---- Top bar, single-game view: one line - the game label takes what's
+     left (cut with an ellipsis), the best-move switch shows just its arrow and
+     caret (its value is in the menu, "Aus" greys the arrow). */
+  #loader-panel[data-mode="game"] #filter-row { flex-wrap: nowrap; overflow: visible; column-gap: 6px; }
+  #loader-panel[data-mode="game"] #game-picker { flex: 1 1 0; min-width: 0; width: auto; }
+  #loader-panel[data-mode="game"] #filter-row #game-btn { width: 100%; max-width: none; overflow: hidden; white-space: nowrap; }
+  #loader-panel[data-mode="game"] #game-btn-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #loader-panel[data-mode="game"] #settings-picker { flex: none; gap: 6px; }
+  #loader-panel[data-mode="game"] #best-move-btn-label { display: none; }
+  #loader-panel[data-mode="game"] #appearance-picker { flex: none; }
+
+  /* ---- Status line (metaController's renderStatus: long and short form). */
   .meta-status-long { display: none; }
   .meta-status-short { display: inline; }
   .meta-status { row-gap: 4px; }
-  /* The tab strip: one line, swiped sideways, no scrollbar. */
+
+  /* ---- Tab strip: one line, swiped sideways, no scrollbar. */
   .meta-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .meta-tabs::-webkit-scrollbar { display: none; }
   .meta-tab { flex: none; padding: 8px 10px; }
-}
 
-/* ---------- Phones: game list (Task 4) ----------
-   The "Partien" table as two lines per game, from the same cells (metaView's
-   g-* classes): date, type, color, opponent, Elo, result - then opening,
-   moves, accuracy, blunders, magnifier. Sorting via .meta-games-sort. */
-.meta-games-sort { display: none; }
-@media (max-width: 640px) {
-  .meta-games-sort { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; color: var(--meta-muted); }
-  .meta-games-sort select { flex: 1; height: 28px; padding: 0 6px; background: rgb(var(--n-900)); border: 1px solid rgb(var(--n-700)); border-radius: 4px; color: rgb(var(--n-200)); font-size: 12px; }
-  table.meta-games, table.meta-games tbody { display: block; }
-  table.meta-games thead { display: none; }
-  table.meta-games tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; padding: 8px 2px; border-bottom: 1px solid rgb(var(--n-800)); }
-  table.meta-games tr::after { content: ''; order: 2; flex-basis: 100%; height: 0; }
-  table.meta-games td { padding: 0; border: 0; white-space: nowrap; }
-  table.meta-games .g-date, table.meta-games .g-type, table.meta-games .g-color,
-  table.meta-games .g-opp, table.meta-games .g-elo, table.meta-games .g-res { order: 1; }
-  table.meta-games .g-open, table.meta-games .g-moves, table.meta-games .g-acc,
-  table.meta-games .g-blund, table.meta-games .g-an { order: 3; font-size: 12px; color: var(--meta-muted); }
-  table.meta-games .g-type-l { display: none; }
-  table.meta-games .g-opp { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-  table.meta-games .g-elo { color: var(--meta-muted); font-size: 12px; }
-  table.meta-games .g-open { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  table.meta-games .g-moves::after { content: ' Zg.'; }
-  table.meta-games .g-acc::before { content: 'Gen. '; color: var(--meta-faint); }
-  table.meta-games .g-blund::before { content: 'Patzer '; color: var(--meta-faint); }
-  table.meta-games .g-an:empty { display: none; }
-}
-
-/* ---------- Phones: tables and charts (Task 5) ----------
-   Tables fit the card instead of scrolling: tighter cells, the result bar may
-   shrink to 40px, labels keep flag and name on one line (ellipsis). */
-@media (max-width: 640px) {
+  /* ---- Tables fit the card: tighter cells, the result bar may shrink to
+     40px, flag and name stay on one line; .ph-hide columns are left out. */
   .meta-tbl th, .meta-tbl td { padding-left: 4px; padding-right: 4px; }
   .meta-tbl th.wide, .meta-tbl.compact th.wide { min-width: 40px; }
   .meta-tbl th { white-space: normal; }
   .meta-tbl .meta-country { white-space: nowrap; }
   .meta-tbl td:first-child { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }
   .meta-tbl td:has(> .meta-country) { white-space: nowrap; }
-}
-/* Columns phones leave out (metaView: "Ø Theoriezüge", "gesamt" next to gesetzt/kassiert). */
-@media (max-width: 640px) {
   .meta-tbl .ph-hide { display: none; }
-}
-/* Static charts drawn in a 640-wide viewBox (metaView's columns()) shrink as a
-   whole on phones - their labels get a bigger font to stay readable (~10px). */
-@media (max-width: 640px) {
+
+  /* ---- "Partien": two lines per game from the same cells - date, type,
+     color, opponent, Elo, result; then everything else (opening, moves,
+     accuracy, blunders, magnifier - and any cell without one of these
+     first-line classes). Sorting via .meta-games-sort, the table head is gone. */
+  .meta-games-sort { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; color: var(--meta-muted); }
+  .meta-games-sort select { flex: 1; height: 28px; padding: 0 6px; background: rgb(var(--n-900)); border: 1px solid rgb(var(--n-700)); border-radius: 4px; color: rgb(var(--n-200)); font-size: 12px; }
+  table.meta-games, table.meta-games tbody { display: block; }
+  table.meta-games thead { display: none; }
+  table.meta-games tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; padding: 8px 2px; border-bottom: 1px solid rgb(var(--n-800)); }
+  table.meta-games tr::after { content: ''; order: 2; flex-basis: 100%; height: 0; }
+  table.meta-games td { order: 3; padding: 0; border: 0; white-space: nowrap; font-size: 12px; color: var(--meta-muted); }
+  table.meta-games td.g-date, table.meta-games td.g-type, table.meta-games td.g-color,
+  table.meta-games td.g-opp, table.meta-games td.g-res { order: 1; color: inherit; }
+  table.meta-games td.g-elo { order: 1; }
+  table.meta-games .g-type-l { display: none; }
+  table.meta-games .g-opp { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  table.meta-games .g-open { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  table.meta-games .g-moves::after { content: ' Zg.'; }
+  table.meta-games .g-acc::before { content: 'Gen. '; color: var(--meta-faint); }
+  table.meta-games .g-blund::before { content: 'Patzer '; color: var(--meta-faint); }
+  table.meta-games .g-an:empty { display: none; }
+
+  /* ---- Charts: those drawn in a fixed 640-wide viewBox (metaView's
+     columns()) shrink as a whole - bigger label font keeps them ~10px. */
   #meta-panel svg.meta-cols text { font-size: 19px; }
   .meta-gauge > svg { overflow: visible; } /* the "100" label at the right end */
-}
-
-/* ---------- Phones: single-game view (Task 7) ----------
-   One line: the game label takes what's left (cut with "…"), then the board
-   options - the best-move switch as just its arrow and caret (its value shows
-   in the menu, "Aus" greys the arrow) - and the appearance button. The bar
-   used to scroll sideways and hide the options right of a full-width label. */
-@media (max-width: 640px) {
-  #loader-panel[data-mode="game"] #filter-row { flex-wrap: nowrap; overflow: visible; column-gap: 6px; }
-  #loader-panel[data-mode="game"] #game-picker { flex: 1 1 0; min-width: 0; width: auto; }
-  #loader-panel[data-mode="game"] #filter-row #game-btn { width: 100%; max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #loader-panel[data-mode="game"] #settings-picker { flex: none; gap: 6px; }
-  #loader-panel[data-mode="game"] #game-btn-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #loader-panel[data-mode="game"] #best-move-btn-label { display: none; }
-  #loader-panel[data-mode="game"] #appearance-picker { flex: none; }
 }
