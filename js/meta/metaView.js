@@ -345,7 +345,7 @@ function columns(bins, { color = 'var(--meta-s1)', H = 170, W = 640 } = {}) {
     if (i % labelEvery === 0) s += `<text x="${x + bw / 2 - 1}" y="${H - 6}" text-anchor="middle">${b.label}</text>`;
   });
   s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
-  return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
+  return `<svg class="meta-svg meta-cols" viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
 }
 
 // Charts drawn at their box's real pixel size instead of a fixed viewBox
@@ -893,7 +893,7 @@ function openings(rs, ctx) {
   const table = (list) => {
     const rows = sortRows([...groupBy(list, name)].map(([fam, l]) => ({ fam, l, v: sortValue(l) })), sort.dir);
     if (!rows.length) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
-    return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r">Ø Theoriezüge</th></tr></thead><tbody>
+    return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r ph-hide">Ø Theoriezüge</th></tr></thead><tbody>
       ${rows
         .map(({ fam, l }) => {
           const variants = [...new Set(l.map((r) => r.opening).filter(Boolean))];
@@ -903,7 +903,7 @@ function openings(rs, ctx) {
             ? ` data-opening="${esc(fam)}"${others.length ? ` data-variants="${esc(others.slice(0, 8).join(', '))}${others.length > 8 ? ', …' : ''}"` : ''}`
             : '';
           const acc = avg(l, (r) => ctx.engineOf(r)?.accuracy);
-          return `<tr><td${tip}>${esc(fam)}</td><td class="r">${gamesCount(l)}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
+          return `<tr><td${tip}>${esc(fam)}</td><td class="r">${gamesCount(l)}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r ph-hide">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
         })
         .join('')}
     </tbody></table></div>`;
@@ -1655,12 +1655,12 @@ function mateTab(rs, ctx) {
 
   // Rows of [label, games], most games first: gesetzt | distribution | kassiert | gesamt.
   const zero = '<span class="meta-faint">0</span>';
-  const versusTable = (head, rows, cls = '') => `<div class="meta-tbl${cls ? ` ${cls}` : ''}"><table><thead><tr><th>${head}</th><th class="r">gesetzt</th><th class="wide c">Verteilung</th><th>kassiert</th><th class="r">gesamt</th></tr></thead><tbody>
+  const versusTable = (head, rows, cls = '') => `<div class="meta-tbl${cls ? ` ${cls}` : ''}"><table><thead><tr><th>${head}</th><th class="r">gesetzt</th><th class="wide c">Verteilung</th><th>kassiert</th><th class="r ph-hide">gesamt</th></tr></thead><tbody>
     ${rows
       .map(([label, l, mateType]) => {
         const mine = l.filter((r) => r.mate.byMe);
         const theirs = l.filter((r) => !r.mate.byMe);
-        return `<tr><td${mateType && mateType !== 'other' ? ` data-mate="${mateType}"` : ''}>${label}</td><td class="r">${mine.length ? gamesCount(mine) : zero}</td><td>${wdlBar(l)}</td><td>${theirs.length ? gamesCount(theirs) : zero}</td><td class="r"><b>${gamesCount(l)}</b></td></tr>`;
+        return `<tr><td${mateType && mateType !== 'other' ? ` data-mate="${mateType}"` : ''}>${label}</td><td class="r">${mine.length ? gamesCount(mine) : zero}</td><td>${wdlBar(l)}</td><td>${theirs.length ? gamesCount(theirs) : zero}</td><td class="r ph-hide"><b>${gamesCount(l)}</b></td></tr>`;
       })
       .join('')}
     </tbody></table></div>`;

@@ -2785,3 +2785,25 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   table.meta-games .g-blund::before { content: 'Patzer '; color: var(--meta-faint); }
   table.meta-games .g-an:empty { display: none; }
 }
+
+/* ---------- Phones: tables and charts (Task 5) ----------
+   Tables fit the card instead of scrolling: tighter cells, the result bar may
+   shrink to 40px, labels keep flag and name on one line (ellipsis). */
+@media (max-width: 640px) {
+  .meta-tbl th, .meta-tbl td { padding-left: 4px; padding-right: 4px; }
+  .meta-tbl th.wide, .meta-tbl.compact th.wide { min-width: 40px; }
+  .meta-tbl th { white-space: normal; }
+  .meta-tbl .meta-country { white-space: nowrap; }
+  .meta-tbl td:first-child { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }
+  .meta-tbl td:has(> .meta-country) { white-space: nowrap; }
+}
+/* Columns phones leave out (metaView: "Ø Theoriezüge", "gesamt" next to gesetzt/kassiert). */
+@media (max-width: 640px) {
+  .meta-tbl .ph-hide { display: none; }
+}
+/* Static charts drawn in a 640-wide viewBox (metaView's columns()) shrink as a
+   whole on phones - their labels get a bigger font to stay readable (~10px). */
+@media (max-width: 640px) {
+  #meta-panel svg.meta-cols text { font-size: 19px; }
+  .meta-gauge > svg { overflow: visible; } /* the "100" label at the right end */
+}
