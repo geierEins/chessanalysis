@@ -1875,18 +1875,28 @@ button.field-error {
   position: sticky;
   top: var(--bar-h, 0px);
   z-index: 15;
-  margin-top: -10px;
-  padding-top: 10px;
+  /* Up to the filter bar, so no strip of the page background (Nordlicht's
+     gradient) shows between the two: back over #meta-content's grid gap above
+     (12px, after .meta-sticky-mark) and <main>'s pt-3 (12px). */
+  margin-top: -24px;
+  padding-top: 12px;
   background: rgb(var(--n-950));
-  /* Two sideways copies of the background, exactly as tall as the head (a
-     spread would cover what's above it) - shadows never cause scrolling. */
-  box-shadow: -100vmax 0 0 rgb(var(--n-950)), 100vmax 0 0 rgb(var(--n-950));
+  /* Sideways copies of the background, exactly as tall as the head (a spread
+     would cover what's above it) - shadows never cause scrolling. Steps of
+     25vmax, never wider than the head itself, so they leave no gaps. */
+  --sticky-bg: rgb(var(--n-950));
+  box-shadow:
+    -25vmax 0 0 var(--sticky-bg), 25vmax 0 0 var(--sticky-bg),
+    -50vmax 0 0 var(--sticky-bg), 50vmax 0 0 var(--sticky-bg),
+    -75vmax 0 0 var(--sticky-bg), 75vmax 0 0 var(--sticky-bg),
+    -100vmax 0 0 var(--sticky-bg), 100vmax 0 0 var(--sticky-bg);
   transition: transform 220ms ease;
 }
 .meta-sticky.tabs-away { transform: translateY(calc(-100% - 1px)); }
 @media (prefers-reduced-motion: reduce) { .meta-sticky { transition: none; } }
-/* Zero-height marker right above it - takes back #meta-content's grid gap. */
-.meta-sticky-mark { height: 0; margin-bottom: -12px; }
+/* Zero-height marker right above it (a negative margin can't take back the grid
+   gap after a zero-height grid item - .meta-sticky's margin-top does). */
+.meta-sticky-mark { height: 0; }
 
 .meta-tabs-wrap::before,
 .meta-tabs-wrap::after {

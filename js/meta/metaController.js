@@ -164,7 +164,8 @@ export function initMetaMode(host) {
     const wrap = el('meta-sticky');
     const bar = document.getElementById('loader-panel');
     const before = el('meta-sticky-mark'); // zero-height, right above - the head's normal place
-    const setBarH = () => wrap.style.setProperty('--bar-h', `${bar.offsetHeight}px`);
+    // Exact height - offsetHeight rounds (43.5 → 44) and left a hairline gap under the bar.
+    const setBarH = () => wrap.style.setProperty('--bar-h', `${bar.getBoundingClientRect().height}px`);
     setBarH();
     new ResizeObserver(setBarH).observe(bar);
     let lastY = window.scrollY;
