@@ -62,7 +62,7 @@ function findKing(board, color) {
 }
 
 /**
- * @param {string} fen the final (mated) position
+ * @param {string|Chess} fen the final (mated) position - as FEN, or a chess.js instance already standing on it
  * @param {{from: string, to: string, piece: string, color: string, flags: string, promotion?: string}} move the mating move (chess.js verbose)
  * @param {{standardStart?: boolean, moveNumber?: number}} [opts] standardStart: the game began from the
  *   initial position; moveNumber: the mating side's own move number (both only matter for Schäfermatt)
@@ -72,7 +72,7 @@ function findKing(board, color) {
 export function detectMate(fen, move, opts = {}) {
   let chess;
   try {
-    chess = new Chess(fen);
+    chess = typeof fen === 'string' ? new Chess(fen) : fen;
     if (!chess.in_checkmate()) return null;
   } catch {
     return null;
@@ -86,7 +86,9 @@ export function detectMate(fen, move, opts = {}) {
     result.king = kingSq;
     const checks = checkers(board, kingSq, attacker);
     result.doubleCheck = checks.length > 1;
-    result.discovered = checks.some((sq) => sq !== move.to);
+    // Castling moves the rook too - a check from it is no discovered check.
+    const castledRook = move.flags?.includes('k') ? `f${move.to[1]}` : move.flags?.includes('q') ? `d${move.to[1]}` : null;
+    result.discovered = checks.some((sq) => sq !== move.to && sq !== castledRook);
     const [mf, mr] = coords(result.doubleCheck ? move.to : checks[0]);
     result.piece = at(board, mf, mr).type;
     result.type = classify({ board, chess, defender, attacker, kingSq, checks, move, opts, piece: result.piece }) ?? 'other';

@@ -42,10 +42,10 @@ describe('mateType: Merkmale', () => {
     expectEqual(m.promotion, true);
   });
 
-  test('a castling mate: the rook gives it', () => {
+  test('a castling mate: the castled rook gives it - no discovered mate', () => {
     const m = mate('2rkr3/2p1p3/8/8/8/8/8/2KR4 b - - 0 1', { from: 'e1', to: 'c1', piece: 'k', color: 'w', flags: 'q' });
     expectEqual(m.piece, 'r');
-    expectEqual(m.discovered, true);
+    expectEqual(m.discovered, false);
   });
 
   test('checkers finds every piece giving check', () => {
@@ -169,5 +169,22 @@ describe('mateType: keine Fehltreffer', () => {
 
   test('a heavy piece on the next rank that blocks no flight square makes no Treppenmatt', () => {
     expectEqual(mate('R5k1/2Q2ppp/8/8/8/8/8/6K1 b - - 0 1', { from: 'a1', to: 'a8', piece: 'r', color: 'w', flags: 'n' }).type, 'backrank');
+  });
+});
+
+describe('mateType: Weiß wird mattgesetzt', () => {
+  const black = (fen, from, to, piece, opts, flags = 'n') => mate(fen, { from, to, piece, color: 'b', flags }, opts).type;
+
+  test('Schäfermatt on f2', () => {
+    const fen = 'rnb1k1nr/pppp1ppp/P7/2b1p3/8/8/1PPPPqPP/RNBQKBNR w KQkq - 0 5';
+    expectEqual(black(fen, 'h4', 'f2', 'q', { standardStart: true, moveNumber: 4 }, 'c'), 'scholars');
+  });
+
+  test('Grundreihenmatt on rank 1', () => {
+    expectEqual(black('6k1/8/8/8/8/8/5PPP/r5K1 w - - 0 1', 'a8', 'a1', 'r'), 'backrank');
+  });
+
+  test('Opera-Matt on rank 1', () => {
+    expectEqual(black('4k3/8/8/8/b7/8/4PP2/3rK3 w - - 0 1', 'd8', 'd1', 'r'), 'opera');
   });
 });

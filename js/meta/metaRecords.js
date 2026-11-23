@@ -171,22 +171,23 @@ function captureSquares(verbose, color) {
   return { taken, lost };
 }
 
-/**
- * @param {object} raw a Chess.com game object (or slimRawGame() of one)
- * @param {string} username the searched user
- * @returns {object|null} null if the user didn't play in this game or the PGN is unreadable
- */
 /** The checkmate pattern of a game ending in "#" (js/analysis/mateType.js), plus
  *  byMe: set by the user - from the result, or where that doesn't fit a mate
  *  (bad data), from the mating move's color. null without a mate. */
 function mateOf(parser, verbose, sans, color, result) {
   const last = verbose[verbose.length - 1];
   if (!last || !sans[sans.length - 1].endsWith('#')) return null;
-  const mate = detectMate(parser.fen(), last, { standardStart: !parser.header().FEN, moveNumber: Math.ceil(sans.length / 2) });
+  // The parser already stands on the final position - no second parse of its FEN.
+  const mate = detectMate(parser, last, { standardStart: !parser.header().FEN, moveNumber: Math.ceil(sans.length / 2) });
   if (!mate) return null;
   return { ...mate, byMe: result === 'W' ? true : result === 'L' ? false : last.color === color };
 }
 
+/**
+ * @param {object} raw a Chess.com game object (or slimRawGame() of one)
+ * @param {string} username the searched user
+ * @returns {object|null} null if the user didn't play in this game or the PGN is unreadable
+ */
 export function buildFastRecord(raw, username) {
   const me = username.trim().toLowerCase();
   const color = raw.white?.username?.toLowerCase() === me ? 'w' : raw.black?.username?.toLowerCase() === me ? 'b' : null;
