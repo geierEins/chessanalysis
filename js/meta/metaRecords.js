@@ -13,9 +13,27 @@ import { createBookTracker, openingNameForLine } from '../analysis/openingBook.j
 import { parseClockSeconds, parseInitialClockSeconds, parseIncrementSeconds } from '../analysis/pgnClock.js';
 import { MATE_CP_EQUIVALENT } from '../analysis/gameAnalyzer.js';
 import { computeGameAccuracy } from '../analysis/accuracy.js';
+import { detectMate } from '../analysis/mateType.js';
 
 const LOSS_REASONS = { checkmated: 'checkmate', resigned: 'resign', timeout: 'timeout', abandoned: 'abandon' };
 const DRAW_REASONS = new Set(['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient']);
+
+/** Checkmate patterns (js/analysis/mateType.js's MATE_TYPES) - the "Matt" tab's names. */
+export const MATE_LABEL = {
+  scholars: 'Schäfermatt',
+  smothered: 'Ersticktes Matt',
+  kq: 'Grundmatt K+D gegen K',
+  kr: 'Grundmatt K+T gegen K',
+  arabian: 'Arabisches Matt',
+  anastasia: 'Anastasia-Matt',
+  epaulette: 'Epaulettenmatt',
+  dovetail: 'Schwalbenschwanzmatt',
+  kiss: 'Damenkuss',
+  ladder: 'Treppenmatt',
+  backrank: 'Grundreihenmatt',
+  pawn: 'Bauernmatt',
+  other: 'Sonstiges Matt',
+};
 
 export const TERMINATION_LABEL = {
   checkmate: 'Schachmatt',
@@ -146,6 +164,17 @@ function captureSquares(verbose, color) {
  * @param {string} username the searched user
  * @returns {object|null} null if the user didn't play in this game or the PGN is unreadable
  */
+/** The checkmate pattern of a game ending in "#" (js/analysis/mateType.js), plus
+ *  byMe: set by the user - from the result, or where that doesn't fit a mate
+ *  (bad data), from the mating move's color. null without a mate. */
+function mateOf(parser, verbose, sans, color, result) {
+  const last = verbose[verbose.length - 1];
+  if (!last || !sans[sans.length - 1].endsWith('#')) return null;
+  const mate = detectMate(parser.fen(), last, { standardStart: !parser.header().FEN, moveNumber: Math.ceil(sans.length / 2) });
+  if (!mate) return null;
+  return { ...mate, byMe: result === 'W' ? true : result === 'L' ? false : last.color === color };
+}
+
 export function buildFastRecord(raw, username) {
   const me = username.trim().toLowerCase();
   const color = raw.white?.username?.toLowerCase() === me ? 'w' : raw.black?.username?.toLowerCase() === me ? 'b' : null;
@@ -227,6 +256,7 @@ export function buildFastRecord(raw, username) {
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
     endsInMate: Boolean(sans[sans.length - 1]?.endsWith('#')),
+    mate: mateOf(parser, verbose, sans, color, result),
     raw: slimRawGame(raw),
     summary: summarizeGame(raw),
   };

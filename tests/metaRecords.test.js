@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
-import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne, gameOpenState } from '../js/meta/metaRecords.js';
+import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne, gameOpenState, MATE_LABEL } from '../js/meta/metaRecords.js';
 import { openingLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -205,5 +205,29 @@ describe('metaRecords: gameOpenState', () => {
 
   test('otherwise it still needs an analysis', () => {
     expectEqual(gameOpenState({ plies: 40 }, null, null), 'analyze');
+  });
+});
+
+describe('metaRecords: mate', () => {
+  test('the winner of a Schäfermatt set it', () => {
+    const r = buildFastRecord(rawGame(), 'alice');
+    expectEqual(r.mate.type, 'scholars');
+    expectEqual(r.mate.piece, 'q');
+    expectEqual(r.mate.byMe, true);
+    expectEqual(MATE_LABEL[r.mate.type], 'Schäfermatt');
+  });
+
+  test('the loser took it', () => {
+    expectEqual(buildFastRecord(rawGame(), 'bob').mate.byMe, false);
+  });
+
+  test("a result that doesn't fit the mate: the mating move's color decides", () => {
+    const raw = rawGame({ white: { username: 'Alice', rating: 900, result: 'agreed' }, black: { username: 'Bob', rating: 950, result: 'agreed' } });
+    expectEqual(buildFastRecord(raw, 'alice').mate.byMe, true);
+  });
+
+  test('a game without mate has none', () => {
+    const raw = rawGame({ pgn: '[Result "1-0"]\n\n1. e4 e5 2. Nf3 1-0', black: { username: 'Bob', rating: 950, result: 'resigned' } });
+    expectEqual(buildFastRecord(raw, 'alice').mate, null);
   });
 });
