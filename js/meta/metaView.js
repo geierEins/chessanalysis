@@ -7,8 +7,9 @@
 import { timeClassStyle } from '../timeClassStyle.js';
 import { flagHtml, countryName } from '../ui/playerLabel.js';
 import { metaIcon, iconLabel } from './metaIcons.js';
-import { TERMINATION_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame, hasMoves } from './metaRecords.js';
+import { TERMINATION_LABEL, MATE_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame, hasMoves } from './metaRecords.js';
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
+import { MATE_TYPES } from '../analysis/mateType.js';
 import { pieceUrl } from './openingBoard.js';
 
 export const META_TABS = [
@@ -23,6 +24,7 @@ export const META_TABS = [
   },
   { id: 'heatmap', label: 'Heatmap' },
   { id: 'time', label: 'Zeit & Partieende' },
+  { id: 'mate', label: 'Matt', tip: 'Mit welchen Mattbildern deine Partien enden - gesetzt und kassiert. Erkannt aus der Schlussstellung, ohne Engine.' },
   { id: 'games', label: 'Partien' },
 ];
 
@@ -140,6 +142,10 @@ const CARD_ICONS = {
   'Wie du gewinnst': '🏆',
   'Wie du verlierst': '💔',
   'Wie Remis entstehen': '🤝',
+  'Mattbilder': '♚',
+  'Gesetzt und kassiert': '⚖️',
+  'Sonstiges Matt nach Figur': '♟️',
+  'Keine Mattpartien': '♚',
   'Uhr': '⏰',
   'Zeit pro Zug': '⏱️',
   'Längste Partien': '📏',
@@ -1583,7 +1589,7 @@ function gamesTab(rs, ctx) {
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td>${hasMoves(r) ? `<td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r">${NO_MOVES}</td><td class="r meta-faint">–</td>`}<td class="meta-res-elo"${r.ownRating != null ? ` data-tip="${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td>${hasMoves(r) ? `<td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r">${NO_MOVES}</td><td class="r meta-faint">–</td>`}<td class="meta-res-elo"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
         })
         .join('')}
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`
@@ -1592,7 +1598,63 @@ function gamesTab(rs, ctx) {
   return card(`Partien (${rs.length})`, body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
 }
 
-const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, games: gamesTab };
+/** The "Partien" table's result tooltip: the Elo after the game and, for a mate, its pattern. */
+function resultTip(r) {
+  const elo = r.ownRating != null ? `${TC_LABEL[r.timeClass] ?? r.timeClass}-Elo nach der Partie: ${r.ownRating}${r.ratingDelta != null ? ` (${signed(r.ratingDelta)})` : ''}` : '';
+  const mate = r.mate ? `Matt: ${MATE_LABEL[r.mate.type]} (${r.mate.byMe ? 'gesetzt' : 'kassiert'})` : '';
+  return [elo, mate].filter(Boolean).join(' · ');
+}
+
+/** The "Matt" tab: checkmate patterns of the filtered games (r.mate, js/analysis/mateType.js) - set and taken. */
+function mateTab(rs) {
+  if (!rs.length) return card('Matt', EMPTY, { cls: 'w12' });
+  const mated = rs.filter((r) => r.mate);
+  if (!mated.length) {
+    return `<div class="meta-grid">${card('Keine Mattpartien', '<p class="meta-muted">Keine der gefilterten Partien endet mit Matt.</p>', { cls: 'w12' })}</div>`;
+  }
+  const set = mated.filter((r) => r.mate.byMe);
+  const taken = mated.filter((r) => !r.mate.byMe);
+  const byType = MATE_TYPES.map((t) => [t, mated.filter((r) => r.mate.type === t)]).filter(([, l]) => l.length).sort(byCountDesc);
+  const byPiece = [...groupBy(mated, (r) => r.mate.piece)].sort(byCountDesc);
+  const others = mated.filter((r) => r.mate.type === 'other');
+  const flagged = (key) => mated.filter((r) => r.mate[key]);
+  const doubles = flagged('doubleCheck');
+  const discovered = flagged('discovered');
+  const promoted = flagged('promotion');
+  const n = (l) => `${l.length} ${l.length === 1 ? 'Partie' : 'Partien'}`;
+
+  const kpis = `<div class="meta-kpis">
+    ${kpi('♚ Partien mit Matt', gamesCount(mated), `${pc(mated.length / rs.length)} aller Partien · ${gamesCount(set, `${set.length} gesetzt`)}, ${gamesCount(taken, `${taken.length} kassiert`)}`, '', 'var(--meta-s1)')}
+    ${kpi('♛ Häufigste Mattfigur', PIECE_LABEL[byPiece[0][0]], `${n(byPiece[0][1])} · ${pc(byPiece[0][1].length / mated.length)}`, '', '#9b7fe0')}
+    ${kpi('⏱️ Ø Zug des Matts', f1(avg(mated, (r) => r.moves)), `gesetzt ${f1(avg(set, (r) => r.moves))} · kassiert ${f1(avg(taken, (r) => r.moves))}`, '', '#e2b84a')}
+    ${kpi('⚡ Doppelschach-Matt', gamesCount(doubles), 'zwei Figuren geben Schach', '', '#f08a3c')}
+    ${kpi('🎭 Abzugsmatt', gamesCount(discovered), 'Schach nicht von der gezogenen Figur', '', '#4bc2a3')}
+    ${kpi('♕ Umwandlungsmatt', gamesCount(promoted), 'Matt mit dem Umwandlungszug', '', '#8fb4ff')}
+  </div>`;
+
+  const freq = hbars(byType.map(([t, l]) => ({ label: MATE_LABEL[t], v: l.length, valHtml: gamesCount(l), tip: `${MATE_LABEL[t]}: ${n(l)}, ${pc(l.length / mated.length)}` })));
+  const versus = `<div class="meta-tbl"><table><thead><tr><th>Mattbild</th><th class="r">gesetzt</th><th class="wide">Verteilung</th><th class="r">kassiert</th></tr></thead><tbody>
+    ${byType
+      .map(([t, l]) => {
+        const mine = l.filter((r) => r.mate.byMe);
+        const theirs = l.filter((r) => !r.mate.byMe);
+        return `<tr><td>${MATE_LABEL[t]}</td><td class="r">${mine.length ? gamesCount(mine) : '<span class="meta-faint">0</span>'}</td><td>${wdlBar(l)}</td><td class="r">${theirs.length ? gamesCount(theirs) : '<span class="meta-faint">0</span>'}</td></tr>`;
+      })
+      .join('')}
+    </tbody></table></div>`;
+  const otherPieces = [...groupBy(others, (r) => r.mate.piece)].sort(byCountDesc);
+  const otherBars = others.length
+    ? hbars(otherPieces.map(([p, l]) => ({ label: PIECE_LABEL[p] ?? p, v: l.length, valHtml: gamesCount(l), tip: `${PIECE_LABEL[p] ?? p}: ${n(l)}` })))
+    : '<p class="meta-muted">Jedes Matt passt zu einem der Mattbilder.</p>';
+
+  return kpis + `<div class="meta-grid">
+    ${card('Mattbilder', freq, { note: 'Wie oft jedes Mattbild vorkommt, gesetzt und kassiert zusammen. Zahl anklicken: die Partien.' })}
+    ${card('Gesetzt und kassiert', versus, { note: 'Gesetzt: du hast mattgesetzt (Sieg). Kassiert: du wurdest mattgesetzt (Niederlage).' })}
+    ${card('Sonstiges Matt nach Figur', otherBars, { note: 'Matts, die zu keinem der 12 Mattbilder passen - nach der Figur, die mattsetzt.' })}
+  </div>`;
+}
+
+const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, mate: mateTab, games: gamesTab };
 
 /**
  * @param {string} tab one of META_TABS' ids

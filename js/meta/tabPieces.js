@@ -47,6 +47,13 @@ ROW_W -= GAP;
  *   all: needs the row's room (always - see css/styles.css .meta-tabs-wrap.all-pieces)
  */
 export function tabPieceSvg(tabId) {
+  // "Matt": the king knocked over - turned 90°, lying on the line with its foot
+  // where the standing king's right edge is (its head reaches into the queen's spot).
+  if (tabId === 'mate') {
+    const x = OFFSET.king + PIECES.king.w - H;
+    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${x} ${H}) rotate(-90)"><path d="${PIECES.king.d}"/></g>`;
+    return { width: ROW_W, height: H, body, all: true };
+  }
   const shown = BY_TAB[tabId] ? [BY_TAB[tabId]] : ALL;
   const body = `<path d="M0 55.5H${ROW_W}"/>`
     + shown.map((p) => `<g transform="translate(${OFFSET[p]} 0)"><path d="${PIECES[p].d}"/></g>`).join('');
