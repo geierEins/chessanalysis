@@ -18,6 +18,7 @@ import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenStat
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
+import { mateBoardHtml } from './mateBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
 import { recordingEngine } from '../analysis/evalLog.js';
@@ -427,10 +428,10 @@ export function initMetaMode(host) {
   });
 
   // Shared tooltip for every chart mark carrying data-tip, and for opening
-  // names (data-opening), which get a small board of the defining position.
+  // names (data-opening) and checkmate patterns (data-mate), which get a small board.
   let tipSource = null;
   tabPanelEl.addEventListener('mousemove', (e) => {
-    const t = e.target.closest('[data-opening], [data-tip]');
+    const t = e.target.closest('[data-opening], [data-mate], [data-tip]');
     if (!t) {
       tipEl.classList.add('hidden');
       tipSource = null;
@@ -438,7 +439,7 @@ export function initMetaMode(host) {
     }
     if (t !== tipSource) {
       tipSource = t;
-      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : null;
+      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
       tipEl.classList.toggle('board', Boolean(board));
       if (board) tipEl.innerHTML = board;
       // Plain text, except **...** in a data-tip, which is shown bold.
