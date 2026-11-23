@@ -3,8 +3,8 @@
   "initialized": true,
   "complete": true,
   "etags": {
-    "https://api.chess.com/pub/player/pawnhubde/games/2026/11": "W/\"2a141ec53a1dbf9fcf8d06c7a284143b\"",
-    "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"d4acaad3c93dde35676936e06ec257f8\""
+    "https://api.chess.com/pub/player/pawnhubde/games/2026/11": "W/\"430e2283ea77838d74592779c6943cae\"",
+    "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"fb0ad6ca5d3cafe0ab139927538bd27d\""
   },
   "skipped": [
     "https://www.chess.com/game/live/185941785972",
