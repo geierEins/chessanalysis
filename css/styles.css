@@ -2701,3 +2701,48 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   .meta-card-head.has-mid { grid-template-columns: 1fr auto; }
   .meta-card-head.has-mid .meta-card-mid { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
 }
+
+/* ---------- Mobile filter panel (phones, Meta-Analyse) ----------
+   docs/superpowers/specs/2026-11-23-mobile-design.md: the top bar keeps site,
+   user, a "Filter" button, appearance and the analyze button in one line; the
+   filters themselves (time range, game types, result, color, opponent, "Spiele
+   laden") only show while the panel is open (#loader-panel.filters-open,
+   js/meta/metaController.js initFilterPanel) - wrapped onto the lines below. */
+#filter-row > #filter-toggle-btn, /* beats "#filter-row > button { display: flex }" */
+#filter-break { display: none; }
+.filter-count {
+  min-width: 16px; padding: 0 4px; border-radius: 999px; text-align: center;
+  font-size: 10px; font-weight: 700; line-height: 16px;
+  background: var(--meta-accent, rgb(var(--accent-600))); color: #fff;
+}
+.filter-count.hidden { display: none; }
+@media (max-width: 640px) {
+  #loader-panel[data-mode="meta"] #filter-row { flex-wrap: wrap; row-gap: 8px; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn { display: inline-flex; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn[aria-expanded="true"] { border-color: rgb(var(--n-500)); background: rgb(var(--n-700)); }
+  /* First line in this order, the filters after the break. */
+  #loader-panel[data-mode="meta"] #platform-toggle-btn { order: 1; }
+  #loader-panel[data-mode="meta"] #username-picker { order: 2; }
+  #loader-panel[data-mode="meta"] #filter-toggle-btn { order: 3; }
+  #loader-panel[data-mode="meta"] #appearance-picker { order: 4; }
+  #loader-panel[data-mode="meta"] #analyze-toggle-btn { order: 5; margin-left: auto; }
+  #loader-panel[data-mode="meta"] #filter-break { order: 6; flex-basis: 100%; height: 0; }
+  #loader-panel[data-mode="meta"] #time-range-picker,
+  #loader-panel[data-mode="meta"] #game-type-picker,
+  #loader-panel[data-mode="meta"] #outcome-filter-picker,
+  #loader-panel[data-mode="meta"] #color-filter-picker,
+  #loader-panel[data-mode="meta"] #fetch-games-btn { order: 7; }
+  #loader-panel[data-mode="meta"] #opponent-picker { order: 8; flex-basis: 100%; }
+  #loader-panel[data-mode="meta"] #opponent-btn { width: 100%; max-width: none; }
+  #loader-panel[data-mode="meta"].filters-open #filter-break { display: block; }
+  #loader-panel[data-mode="meta"]:not(.filters-open) #time-range-picker,
+  #loader-panel[data-mode="meta"]:not(.filters-open) #game-type-picker,
+  #loader-panel[data-mode="meta"]:not(.filters-open) #outcome-filter-picker,
+  #loader-panel[data-mode="meta"]:not(.filters-open) #color-filter-picker,
+  #loader-panel[data-mode="meta"]:not(.filters-open) #fetch-games-btn,
+  #loader-panel[data-mode="meta"]:not(.filters-open) #opponent-picker { display: none; }
+}
+/* The smallest phones: the button shows just its icon (and the count). */
+@media (max-width: 380px) {
+  #filter-toggle-btn > span:not(.filter-count) { display: none; }
+}

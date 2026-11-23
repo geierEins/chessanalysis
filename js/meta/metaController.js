@@ -184,6 +184,33 @@ export function initMetaMode(host) {
   }
   initStickyTabs();
 
+  // Phones: the filters sit in a panel under the top bar, opened by #filter-toggle-btn
+  // (css/styles.css "Mobile filter panel"). It closes again after "Spiele laden"
+  // and on a tab change.
+  const loaderPanelEl = document.getElementById('loader-panel');
+  const filterBtn = el('filter-toggle-btn');
+  const filterCountEl = el('filter-toggle-count');
+  function setFiltersOpen(open) {
+    loaderPanelEl.classList.toggle('filters-open', open);
+    filterBtn.setAttribute('aria-expanded', String(open));
+  }
+  filterBtn.addEventListener('click', () => setFiltersOpen(!loaderPanelEl.classList.contains('filters-open')));
+  el('fetch-games-btn').addEventListener('click', () => setFiltersOpen(false));
+
+  /** How many filters differ from "everything": time range, game types, results, colors, opponent. */
+  function updateFilterCount(f) {
+    const n = [
+      f.from != null || f.to != null,
+      f.timeClasses.size < TYPE_ORDER.length,
+      f.outcomes.size < 3,
+      f.colors.size < 2,
+      Boolean(opponent),
+    ].filter(Boolean).length;
+    filterCountEl.textContent = String(n);
+    filterCountEl.classList.toggle('hidden', !n);
+    filterBtn.title = n ? `Filter (${n} aktiv)` : 'Filter';
+  }
+
   /** fromTab: the tab just left - the tab piece can animate the change (tabPieceSvg). */
   function renderTabs(fromTab = null) {
     tabsEl.innerHTML = META_TABS.map(
@@ -240,6 +267,7 @@ export function initMetaMode(host) {
     const have = rs.filter((r) => engineCache.has(r.url)).length;
     const missing = rs.filter(needsEngine).length;
     const f = host.getFilters();
+    updateFilterCount(f);
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
     let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
     if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
@@ -263,6 +291,7 @@ export function initMetaMode(host) {
     if (!b) return;
     marked = null;
     gamesShown = GAMES_STEP;
+    setFiltersOpen(false);
     const fromTab = tab;
     tab = b.dataset.tab;
     saveMetaTab(tab);

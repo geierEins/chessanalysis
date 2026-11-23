@@ -115,6 +115,17 @@
       <!-- Zeitraum-Filter: eigenes Dropdown statt <select>, damit im
            eingeklappten Zustand nur ein kompaktes Icon steht statt des
            vollen Labels (siehe js/main.js's timeRangeSelect.setOptions). -->
+      <!-- Phones, Meta-Analyse only (css/styles.css "Mobile filter panel",
+           js/meta/metaController.js initFilterPanel): opens the filters below. -->
+      <button id="filter-toggle-btn" type="button" aria-expanded="false" title="Filter"
+              class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs items-center gap-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+        <span>Filter</span>
+        <span id="filter-toggle-count" class="filter-count hidden"></span>
+      </button>
+      <!-- Phones: line break before the opened filters. -->
+      <span id="filter-break" aria-hidden="true"></span>
       <div id="time-range-picker" class="relative">
         <button id="time-range-btn" type="button" title="Zeitraum"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
