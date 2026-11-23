@@ -1556,12 +1556,24 @@ const CROSS = '<svg class="undo" viewBox="0 0 24 24" fill="none" stroke="current
  *  (metaController queues it), a spinner while it's analyzed, an hourglass while
  *  it waits - which turns into an X on hover and takes it back out of the queue. */
 function analyzeCell(r, ctx, cls = 'r') {
-  if (ctx.engineOf(r)) return '<td></td>';
-  if (!hasMoves(r)) return '<td></td>'; // nothing to analyze - the accuracy cell says why (NO_MOVES)
+  if (ctx.engineOf(r)) return `<td class="${cls}"></td>`;
+  if (!hasMoves(r)) return `<td class="${cls}"></td>`; // nothing to analyze - the accuracy cell says why (NO_MOVES)
   const state = ctx.queueState(r);
   if (state === 'running') return `<td class="${cls}"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>`;
   if (state === 'queued') return `<td class="${cls}"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
   return `<td class="${cls}"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
+}
+
+// The "Partien" table's sort keys - phones (no table head there) pick them in gamesSortSelect.
+const GAMES_SORTS = [['date', 'Datum'], ['elo', 'Gegner Elo'], ['moves', 'Züge'], ['acc', 'Genauigkeit'], ['blunders', 'Patzer']];
+
+/** Phones only (css/styles.css): the table head's sorting as one select - metaController handles data-games-sort. */
+function gamesSortSelect(sort) {
+  const opts = GAMES_SORTS.flatMap(([key, label]) => [['desc', '↓'], ['asc', '↑']].map(([dir, arrow]) => {
+    const on = sort.key === key && sort.dir === dir;
+    return `<option value="${key}:${dir}"${on ? ' selected' : ''}>${label} ${arrow}</option>`;
+  }));
+  return `<label class="meta-games-sort">Sortieren <select data-games-sort aria-label="Partien sortieren">${opts.join('')}</select></label>`;
 }
 
 function gamesTab(all, ctx) {
@@ -1593,12 +1605,13 @@ function gamesTab(all, ctx) {
   const left = rs.length - list.length;
   const sortTh = (key, label, cls) => sortHead('games', sort, key, label, cls);
   const body = rs.length
-    ? `<div class="meta-tbl"><table><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
+    ? `${gamesSortSelect(sort)}<div class="meta-tbl"><table class="meta-games"><thead><tr>${sortTh('date', 'Datum')}<th>Art</th><th></th><th>Gegner</th>${sortTh('elo', 'Gegner Elo')}<th>Eröffnung</th>${sortTh('moves', 'Züge', 'r')}${sortTh('acc', 'Gen.', 'r')}${sortTh('blunders', 'Patzer', 'r')}<th></th><th></th></tr></thead><tbody>
       ${list
         .map((r) => {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
-          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td style="color:${style.color}">${style.icon} ${TC_LABEL[r.timeClass] ?? r.timeClass}</td><td><span class="meta-colordot ${r.color}"></span></td><td>${withFlag(r.opponent)}</td><td>${r.oppRating ?? '–'}</td><td${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r">${r.moves}</td>${hasMoves(r) ? `<td class="r">${f1(e?.accuracy)}</td><td class="r">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r">${NO_MOVES}</td><td class="r meta-faint">–</td>`}<td class="meta-res-elo"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx)}</tr>`;
+          // g-* classes: phones lay each row out as two lines (css/styles.css "Phones: game list").
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="g-date" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td class="g-type" style="color:${style.color}">${style.icon}<span class="g-type-l"> ${TC_LABEL[r.timeClass] ?? r.timeClass}</span></td><td class="g-color"><span class="meta-colordot ${r.color}"></span></td><td class="g-opp">${withFlag(r.opponent)}</td><td class="g-elo">${r.oppRating ?? '–'}</td><td class="g-open"${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r g-moves">${r.moves}</td>${hasMoves(r) ? `<td class="r g-acc">${f1(e?.accuracy)}</td><td class="r g-blund">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r g-acc">${NO_MOVES}</td><td class="r meta-faint g-blund">–</td>`}<td class="meta-res-elo g-res"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx, 'r g-an')}</tr>`;
         })
         .join('')}
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`

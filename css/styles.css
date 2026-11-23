@@ -2758,3 +2758,30 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   .meta-tabs::-webkit-scrollbar { display: none; }
   .meta-tab { flex: none; padding: 8px 10px; }
 }
+
+/* ---------- Phones: game list (Task 4) ----------
+   The "Partien" table as two lines per game, from the same cells (metaView's
+   g-* classes): date, type, color, opponent, Elo, result - then opening,
+   moves, accuracy, blunders, magnifier. Sorting via .meta-games-sort. */
+.meta-games-sort { display: none; }
+@media (max-width: 640px) {
+  .meta-games-sort { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; color: var(--meta-muted); }
+  .meta-games-sort select { flex: 1; height: 28px; padding: 0 6px; background: rgb(var(--n-900)); border: 1px solid rgb(var(--n-700)); border-radius: 4px; color: rgb(var(--n-200)); font-size: 12px; }
+  table.meta-games, table.meta-games tbody { display: block; }
+  table.meta-games thead { display: none; }
+  table.meta-games tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; padding: 8px 2px; border-bottom: 1px solid rgb(var(--n-800)); }
+  table.meta-games tr::after { content: ''; order: 2; flex-basis: 100%; height: 0; }
+  table.meta-games td { padding: 0; border: 0; white-space: nowrap; }
+  table.meta-games .g-date, table.meta-games .g-type, table.meta-games .g-color,
+  table.meta-games .g-opp, table.meta-games .g-elo, table.meta-games .g-res { order: 1; }
+  table.meta-games .g-open, table.meta-games .g-moves, table.meta-games .g-acc,
+  table.meta-games .g-blund, table.meta-games .g-an { order: 3; font-size: 12px; color: var(--meta-muted); }
+  table.meta-games .g-type-l { display: none; }
+  table.meta-games .g-opp { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  table.meta-games .g-elo { color: var(--meta-muted); font-size: 12px; }
+  table.meta-games .g-open { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  table.meta-games .g-moves::after { content: ' Zg.'; }
+  table.meta-games .g-acc::before { content: 'Gen. '; color: var(--meta-faint); }
+  table.meta-games .g-blund::before { content: 'Patzer '; color: var(--meta-faint); }
+  table.meta-games .g-an:empty { display: none; }
+}

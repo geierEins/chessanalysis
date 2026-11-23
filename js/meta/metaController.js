@@ -472,6 +472,15 @@ export function initMetaMode(host) {
   });
 
   // "Woher kommen deine Gegner?": search text narrows the countries on every keystroke.
+  // Phones: the "Partien" sorting as one select (metaView's gamesSortSelect) instead of the table head.
+  tabPanelEl.addEventListener('change', (e) => {
+    if (!e.target.matches('[data-games-sort]')) return;
+    const [key, dir] = e.target.value.split(':');
+    sorts.games = { key, dir };
+    gamesShown = GAMES_STEP;
+    render();
+  });
+
   // "Partien": the opponent search, the table starts again at its first rows.
   tabPanelEl.addEventListener('input', (e) => {
     if (e.target.matches('[data-country-search]')) countrySearch = e.target.value;
