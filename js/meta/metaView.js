@@ -779,9 +779,13 @@ function recentGames(list, ctx) {
       + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
       + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${withFlag(r.opponent)}</td>`
       + `<td class="r">${r.moves} Zg.</td>`
+      // Accuracy, a fixed-width column - without engine values the "Partien"
+      // tab's magnifier / spinner / hourglass instead (analyzeCell).
       + (!hasMoves(r)
-        ? `<td class="r">${NO_MOVES}</td>`
-        : `<td class="r"${acc == null ? ' title="Noch keine Engine-Werte"' : ''}>${acc == null ? '<span class="meta-faint">–</span>' : `${f1(acc)} %`}</td>`)
+        ? `<td class="r meta-recent-acc">${NO_MOVES}</td>`
+        : acc == null
+          ? analyzeCell(r, ctx, 'r meta-recent-acc')
+          : `<td class="r meta-recent-acc">${f1(acc)} %</td>`)
       + `<td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
@@ -836,7 +840,7 @@ function overview(rs, ctx) {
     <div class="meta-overview-row">
       ${card('Sieg, Remis, Niederlage', 'fast', resultPie(rs))}
       ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
-      ${card('Die letzten 7 Partien', '', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
+      ${card('Die letzten 7 Partien', '', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten, sonst analysiert die Lupe die Partie.' })}
     </div>
     ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend, note: ZOOM_NOTE })}
     ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend, note: ZOOM_NOTE })}
@@ -1538,13 +1542,13 @@ const CROSS = '<svg class="undo" viewBox="0 0 24 24" fill="none" stroke="current
 /** The "Partien" tab's last cell: a magnifier on a game without engine values
  *  (metaController queues it), a spinner while it's analyzed, an hourglass while
  *  it waits - which turns into an X on hover and takes it back out of the queue. */
-function analyzeCell(r, ctx) {
+function analyzeCell(r, ctx, cls = 'r') {
   if (ctx.engineOf(r)) return '<td></td>';
   if (!hasMoves(r)) return '<td></td>'; // nothing to analyze - the accuracy cell says why (NO_MOVES)
   const state = ctx.queueState(r);
-  if (state === 'running') return '<td class="r"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>';
-  if (state === 'queued') return `<td class="r"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
-  return `<td class="r"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
+  if (state === 'running') return `<td class="${cls}"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>`;
+  if (state === 'queued') return `<td class="${cls}"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
+  return `<td class="${cls}"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
 }
 
 function gamesTab(rs, ctx) {
