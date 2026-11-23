@@ -376,16 +376,11 @@
        Liste) und #move-strip-wrap (Mobile, ein horizontal scrollendes Band) -
        js/ui/moveList.js befüllt und synchronisiert beide gemeinsam, CSS zeigt
        je nach Breakpoint nur eine der beiden an. -->
-  <!-- Game mode's start text, until the first game is analyzed (js/main.js's applyAppMode). -->
+  <!-- Game mode (a game opened from the Meta-Analyse): shown until the game is
+       loaded and analyzed (js/main.js's applyAppMode / startAnalysis). -->
   <div id="game-empty" class="meta-empty">
     <h2>Spiel-Analyse</h2>
-    <p>Eine einzelne Partie Zug für Zug mit der Engine durchgehen: Bewertungsverlauf, Genauigkeit, Fehler und der jeweils beste Zug.</p>
-    <ol>
-      <li>Oben deinen <b>chess.com-Benutzernamen</b> eintragen und <b>Spiele laden</b> drücken.</li>
-      <li>Optional über die Filter Zeitraum, Spielart, Farbe, Ergebnis oder Gegner eingrenzen.</li>
-      <li>Im Auswahlfeld daneben eine <b>Partie</b> wählen und mit der <b>Lupe</b> analysieren.</li>
-    </ol>
-    <p>Danach mit den Pfeiltasten oder per Klick in die Zugliste durch die Partie gehen. Brettfarbe, Figuren und weitere Optionen findest du oben rechts und im Zahnrad-Menü.</p>
+    <p>Partie wird geladen …</p>
   </div>
 
   <section id="review-panel" class="hidden">
