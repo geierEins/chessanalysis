@@ -166,4 +166,8 @@ describe('mateType: keine Fehltreffer', () => {
   test('a back-rank mate with a far bishop seeing the rook stays Grundreihenmatt, not Opera-Matt', () => {
     expectEqual(mate('R5k1/5ppp/8/8/8/8/6B1/6K1 b - - 0 1', { from: 'a1', to: 'a8', piece: 'r', color: 'w', flags: 'n' }).type, 'backrank');
   });
+
+  test('a heavy piece on the next rank that blocks no flight square makes no Treppenmatt', () => {
+    expectEqual(mate('R5k1/2Q2ppp/8/8/8/8/8/6K1 b - - 0 1', { from: 'a1', to: 'a8', piece: 'r', color: 'w', flags: 'n' }).type, 'backrank');
+  });
 });

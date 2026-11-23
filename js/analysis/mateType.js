@@ -96,7 +96,7 @@ export function detectMate(fen, move, opts = {}) {
   return result;
 }
 
-/** The 12 patterns in checking order - the first one that fits wins - then 'other'. */
+/** The 24 patterns in checking order - the first one that fits wins - then 'other'. */
 export const MATE_TYPES = [
   'scholars', 'fools', 'smothered', 'kq', 'kr', 'kbn', 'kbb', 'arabian', 'hook', 'corner', 'anastasia', 'morphy',
   'greco', 'boden', 'opera', 'epaulette', 'dovetail', 'gueridon', 'damiano', 'lolli', 'kiss', 'ladder', 'backrank', 'pawn', 'other',
@@ -136,6 +136,8 @@ function classify(c) {
   const nextToEdge = (p) => (edgeFile && p.f === (kf === 0 ? 1 : 6)) || (edgeRank && p.r === (kr === 0 ? 1 : 6));
   const orthogonal = adjacent && !diagonal;
   const pawnGuarded = () => guarded(cf, cr, ['p']);
+  // A helper piece only counts if it really takes the king a flight square (a free neighbour square it attacks).
+  const blocksFlight = (p) => neighbours.some(([f, r]) => onBoard(f, r) && !own(f, r) && attacks(board, p.f, p.r, f, r));
 
   const tests = {
     scholars: () => opts.standardStart && (opts.moveNumber ?? 99) <= 10 && piece === 'q' && move.flags?.includes('c')
@@ -149,8 +151,8 @@ function classify(c) {
     arabian: () => corner && piece === 'r' && orthogonal && guarded(cf, cr, ['n']),
     hook: () => piece === 'r' && orthogonal
       && att.some((p) => p.type === 'n' && attacks(board, p.f, p.r, cf, cr) && guarded(p.f, p.r, ['p'])),
-    corner: () => corner && piece === 'n' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p)),
-    morphy: () => corner && piece === 'b' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p)),
+    corner: () => corner && piece === 'n' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p) && blocksFlight(p)),
+    morphy: () => corner && piece === 'b' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p) && blocksFlight(p)),
     greco: () => {
       if (!corner || !HEAVY.has(piece) || cf !== kf) return false;
       const inner = kf === 0 ? 1 : 6;
@@ -190,7 +192,7 @@ function classify(c) {
     kiss: () => piece === 'q' && adjacent && guarded(cf, cr),
     ladder: () => {
       if (!HEAVY.has(piece)) return false;
-      const helper = (onLine) => att.some((p) => HEAVY.has(p.type) && (p.f !== cf || p.r !== cr) && onLine(p));
+      const helper = (onLine) => att.some((p) => HEAVY.has(p.type) && (p.f !== cf || p.r !== cr) && onLine(p) && blocksFlight(p));
       if (edgeRank && cr === kr) return helper((p) => p.r === (kr === 7 ? 6 : 1));
       if (edgeFile && cf === kf) return helper((p) => p.f === (kf === 7 ? 6 : 1));
       return false;
