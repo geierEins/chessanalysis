@@ -159,7 +159,8 @@ function classify(c) {
     },
     boden: () => piece === 'b'
       && att.some((p) => p.type === 'b' && (p.f !== cf || p.r !== cr) && neighbours.some(([f, r]) => onBoard(f, r) && !own(f, r) && attacks(board, p.f, p.r, f, r))),
-    opera: () => piece === 'r' && kr === (defender === 'w' ? 0 : 7) && cr === kr && guarded(cf, cr, ['b']),
+    // The rook right next to the king - only then does the bishop's cover matter (the king can't take it).
+    opera: () => piece === 'r' && adjacent && kr === (defender === 'w' ? 0 : 7) && cr === kr && guarded(cf, cr, ['b']),
     anastasia: () => {
       if (!edgeFile || !HEAVY.has(piece) || cf !== kf) return false;
       const inner = kf === 0 ? 1 : 6;

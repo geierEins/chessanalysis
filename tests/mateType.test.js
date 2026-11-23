@@ -161,3 +161,9 @@ describe('mateType: weitere Muster', () => {
     expectEqual(type('6k1/6Q1/5P2/8/8/8/8/K7 b - - 0 1', 'g2', 'g7', 'q'), 'lolli');
   });
 });
+
+describe('mateType: keine Fehltreffer', () => {
+  test('a back-rank mate with a far bishop seeing the rook stays Grundreihenmatt, not Opera-Matt', () => {
+    expectEqual(mate('R5k1/5ppp/8/8/8/8/6B1/6K1 b - - 0 1', { from: 'a1', to: 'a8', piece: 'r', color: 'w', flags: 'n' }).type, 'backrank');
+  });
+});
