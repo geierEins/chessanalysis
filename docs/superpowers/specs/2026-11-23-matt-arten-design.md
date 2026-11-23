@@ -127,3 +127,32 @@ Sonst: **Sonstiges Matt**.
 
 - Anordnung und Breite der Kacheln im Tab, im Stil der bestehenden Tabs.
 - Die genaue Geometrie jedes Musters, im Rahmen der Beschreibungen oben.
+
+## Erweiterung (2026-11-23, auf Wunsch des Nutzers)
+
+**24 Muster.** Neue Prüfreihenfolge (das erste passende gewinnt):
+scholars → fools → smothered → kq → kr → kbn → kbb → arabian → hook → corner → anastasia → morphy →
+greco → boden → opera → epaulette → dovetail → gueridon → damiano → lolli → kiss → ladder → backrank → pawn → other.
+
+Neu hinzugekommen:
+- **Narrenmatt** (`fools`): Schwarz setzt spätestens im 2. eigenen Zug mit der Dame matt, aus der Grundstellung.
+- **Grundmatt K+L+S gegen K** (`kbn`) / **K+L+L gegen K** (`kbb`): nur nach Material, wie K+D und K+T.
+- **Hakenmatt** (`hook`): Ein Turm gibt orthogonal daneben Schach. Ihn deckt ein Springer, und den deckt ein Bauer des Angreifers.
+- **Eckmatt** (`corner`): Der König steht in der Ecke, ein Springer gibt Schach, und eine Schwerfigur des Angreifers
+  steht auf der Nachbarlinie bzw. Nachbarreihe zum Rand.
+- **Morphy-Matt** (`morphy`): wie Eckmatt, nur gibt ein Läufer das Schach.
+- **Greco-Matt** (`greco`): Der König steht in der Ecke. Eine Schwerfigur setzt auf derselben Randlinie matt, ein Läufer
+  des Angreifers deckt das Nachbarfeld auf der Randreihe, und eine eigene Figur des Verteidigers steht schräg neben dem König.
+- **Boden-Matt** (`boden`): Ein Läufer gibt Schach, und ein zweiter Läufer des Angreifers greift ein Nachbarfeld des Königs an.
+- **Opera-Matt** (`opera`): Ein Turm setzt auf der Grundreihe des Königs matt, gedeckt von einem Läufer.
+- **Guéridon-Matt** (`gueridon`): Die Dame steht direkt vor dem König (orthogonal), ist gedeckt, und die beiden Felder schräg
+  hinter dem König sind von eigenen Figuren des Verteidigers besetzt.
+- **Damiano-Matt** (`damiano`): Die Dame steht schräg neben dem König und wird von einem Bauern gedeckt.
+- **Lolli-Matt** (`lolli`): Die Dame steht orthogonal neben dem König und wird von einem Bauern gedeckt.
+
+Namen: Das Bild mit der schräg danebenstehenden Dame bleibt **Schwalbenschwanzmatt** (`dovetail`), das mit der
+Dame direkt davor heißt **Guéridon-Matt**.
+
+**Kacheln:** „Mattbilder“ entfällt. **„Gesetzt und kassiert“** steht an erster Stelle, mit einer zusätzlichen
+anklickbaren Spalte **Gesamt**, absteigend sortiert. Rechts daneben steht **„Matt nach Figur“** über alle Matts,
+ebenfalls mit gesetzt, kassiert und gesamt.
