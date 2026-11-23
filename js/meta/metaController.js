@@ -494,13 +494,13 @@ export function initMetaMode(host) {
   // Shared tooltip for every chart mark carrying data-tip, and for opening
   // names (data-opening) and checkmate patterns (data-mate), which get a small board.
   let tipSource = null;
-  tabPanelEl.addEventListener('mousemove', (e) => {
-    const t = e.target.closest('[data-opening], [data-mate], [data-tip]');
-    if (!t) {
-      tipEl.classList.add('hidden');
-      tipSource = null;
-      return;
-    }
+  const TIP_SEL = '[data-opening], [data-mate], [data-tip]';
+  function hideTip() {
+    tipEl.classList.add('hidden');
+    tipSource = null;
+  }
+  /** Shows the tooltip of `t` near the point (x, y) - beside the mouse, or under a tapped element. */
+  function showTip(t, x0, y0) {
     if (t !== tipSource) {
       tipSource = t;
       const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
@@ -510,15 +510,47 @@ export function initMetaMode(host) {
       else tipEl.innerHTML = esc(t.getAttribute('data-tip') ?? t.dataset.opening).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     }
     tipEl.classList.remove('hidden');
-    const x = Math.min(e.clientX + 12, window.innerWidth - tipEl.offsetWidth - 8);
-    const below = e.clientY + 14;
-    const y = below + tipEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, e.clientY - tipEl.offsetHeight - 10) : below;
+    const x = Math.max(8, Math.min(x0 + 12, window.innerWidth - tipEl.offsetWidth - 8));
+    const below = y0 + 14;
+    const y = below + tipEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, y0 - tipEl.offsetHeight - 10) : below;
     tipEl.style.left = `${x}px`;
     tipEl.style.top = `${y}px`;
+  }
+  // Touch screens have no hover (and send a fake mousemove before each tap) - they get the tap below instead.
+  const touchOnly = window.matchMedia('(hover: none)');
+  tabPanelEl.addEventListener('mousemove', (e) => {
+    if (touchOnly.matches) return;
+    const t = e.target.closest(TIP_SEL);
+    if (t) showTip(t, e.clientX, e.clientY);
+    else hideTip();
   });
   tabPanelEl.addEventListener('mouseleave', () => {
-    tipEl.classList.add('hidden');
-    tipSource = null;
+    if (!touchOnly.matches) hideTip();
+  });
+  // Touch: the first tap on an element with a tooltip shows it (the row it sits in
+  // doesn't open); a second tap on it does what a click does. Taps on counts, the
+  // magnifier and other controls act at once; taps elsewhere close the tooltip.
+  tabPanelEl.addEventListener('click', (e) => {
+    if (!touchOnly.matches) return;
+    const t = e.target.closest(TIP_SEL);
+    if (!t || e.target.closest('button, input, select, a, .meta-count, th[data-sort]')) {
+      hideTip();
+      return;
+    }
+    if (t === tipSource && !tipEl.classList.contains('hidden')) {
+      hideTip();
+      return; // second tap - the normal click handlers take it from here
+    }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const r = t.getBoundingClientRect();
+    showTip(t, r.left, r.bottom - 8);
+  }, true);
+  window.addEventListener('scroll', () => {
+    if (touchOnly.matches) hideTip();
+  }, { passive: true });
+  document.addEventListener('click', (e) => {
+    if (touchOnly.matches && !tabPanelEl.contains(e.target)) hideTip();
   });
 
   // ---------- opponent picker (in the top bar, where single-game mode has its game picker) ----------
