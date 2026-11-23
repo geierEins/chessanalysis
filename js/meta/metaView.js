@@ -68,6 +68,8 @@ const groupBy = (rs, f) => {
   return m;
 };
 const byCountDesc = (a, b) => b[1].length - a[1].length;
+// Search text and names compared without case and accents ("osterreich" finds "Österreich").
+const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 // When the game ended, e.g. "Mi., 12.11.2026, 14:37 Uhr" - the "Partien" table's date tooltip.
 const fmtDateTime = (ms) => {
@@ -972,7 +974,6 @@ function opponents(rs, ctx) {
   const topCountries = ctx.countryLimit ? countries.slice(0, ctx.countryLimit) : countries;
   // "Woher kommen deine Gegner?" can be narrowed by a search text (metaController's
   // countrySearch) - over all countries, not just the top ones; case and accents don't matter.
-  const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const query = fold((ctx.countrySearch ?? '').trim());
   const shownCountries = query ? countries.filter(([code]) => fold(countryName(code)).includes(query) || code.toLowerCase() === query) : topCountries;
   const countryRows = shownCountries.map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, valHtml: gamesCount(l), tip: `${countryName(code)}: ${l.length} Partien` }));
@@ -1563,7 +1564,13 @@ function analyzeCell(r, ctx, cls = 'r') {
   return `<td class="${cls}"><button type="button" class="meta-analyze" data-analyze="${esc(r.url)}" title="Diese Partie analysieren">${MAGNIFIER}</button></td>`;
 }
 
-function gamesTab(rs, ctx) {
+function gamesTab(all, ctx) {
+  // Opponent search (metaController's gameSearch): narrows the table on every keystroke.
+  const query = fold((ctx.gameSearch ?? '').trim());
+  const rs = query ? all.filter((r) => fold(r.opponent).includes(query)) : all;
+  const search = all.length
+    ? `<input type="search" class="meta-country-search" data-game-search value="${esc(ctx.gameSearch ?? '')}" placeholder="Gegner suchen …" aria-label="Gegner suchen" autocomplete="off">`
+    : '';
   const sort = ctx.sorts.games;
   const sortValue = {
     date: (r) => r.endTime,
@@ -1595,9 +1602,9 @@ function gamesTab(rs, ctx) {
         })
         .join('')}
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`
-    : EMPTY;
+    : query && all.length ? `<p class="meta-muted">Kein Gegner passt zu „${esc(ctx.gameSearch.trim())}“.</p>` : EMPTY;
   const more = left > 0 ? ` Gezeigt werden die ersten ${list.length} von ${rs.length} in dieser Sortierung.` : '';
-  return card(`Partien (${rs.length})`, body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
+  return card(query ? `Partien (${rs.length} von ${all.length})` : `Partien (${rs.length})`, search + body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
 }
 
 /** The "Partien" table's result tooltip: the Elo after the game and, for a mate, its pattern. */

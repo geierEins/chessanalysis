@@ -93,6 +93,7 @@ export function initMetaMode(host) {
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   let countrySearch = ''; // search text of "Woher kommen deine Gegner?" (metaView's data-country-search)
+  let gameSearch = ''; // opponent search of the "Partien" tab (metaView's data-game-search)
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
@@ -148,6 +149,7 @@ export function initMetaMode(host) {
       gamesShown,
       countryLimit,
       countrySearch,
+      gameSearch,
       endings,
       heatmap,
       mateHeat,
@@ -209,13 +211,14 @@ export function initMetaMode(host) {
     const rs = filtered();
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
-    // The country search re-renders on every keystroke (and countries keep
-    // arriving while typing) - keep its focus and cursor across the new HTML.
+    // The search fields re-render on every keystroke (and countries keep
+    // arriving while typing) - keep focus and cursor across the new HTML.
     const focused = document.activeElement;
-    const caret = focused?.matches?.('[data-country-search]') ? focused.selectionStart : null;
+    const searchSel = ['[data-country-search]', '[data-game-search]'].find((s) => focused?.matches?.(s));
+    const caret = searchSel ? focused.selectionStart : null;
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
     if (caret != null) {
-      const input = tabPanelEl.querySelector('[data-country-search]');
+      const input = tabPanelEl.querySelector(searchSel);
       input?.focus();
       input?.setSelectionRange(caret, caret);
     }
@@ -433,9 +436,13 @@ export function initMetaMode(host) {
   });
 
   // "Woher kommen deine Gegner?": search text narrows the countries on every keystroke.
+  // "Partien": the opponent search, the table starts again at its first rows.
   tabPanelEl.addEventListener('input', (e) => {
-    if (!e.target.matches('[data-country-search]')) return;
-    countrySearch = e.target.value;
+    if (e.target.matches('[data-country-search]')) countrySearch = e.target.value;
+    else if (e.target.matches('[data-game-search]')) {
+      gameSearch = e.target.value;
+      gamesShown = GAMES_STEP;
+    } else return;
     render();
   });
 
