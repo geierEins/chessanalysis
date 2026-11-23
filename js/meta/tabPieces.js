@@ -45,15 +45,19 @@ ROW_W -= GAP;
  * leave the other pieces out and just draw the line through their spots.
  * @returns {{width: number, height: number, body: string, all: boolean}} body is the SVG's content;
  *   all: needs the row's room (always - see css/styles.css .meta-tabs-wrap.all-pieces)
+ * @param {string} tabId the tab now shown
+ * @param {string|null} [fromTab] the tab it was switched from - "Matt" → "Zeit & Partieende" stands the king back up
  */
-export function tabPieceSvg(tabId) {
+export function tabPieceSvg(tabId, fromTab = null) {
   // "Matt": the "Zeit & Partieende" tab's piece - the one with the cross on top,
   // i.e. the king, although PIECES calls that drawing 'queen' - standing exactly
   // where it stands there, topples over to the right and lies on the line
-  // (css/styles.css .king-falls).
-  if (tabId === 'mate') {
+  // (css/styles.css .king-falls). Coming straight back from "Matt" to
+  // "Zeit & Partieende", it gets up again (.king-rises).
+  const motion = tabId === 'mate' ? 'king-falls' : tabId === 'time' && fromTab === 'mate' ? 'king-rises' : null;
+  if (motion) {
     const piece = BY_TAB.time;
-    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${OFFSET[piece]} 0)"><g class="king-falls"><path d="${PIECES[piece].d}"/></g></g>`;
+    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${OFFSET[piece]} 0)"><g class="${motion}"><path d="${PIECES[piece].d}"/></g></g>`;
     return { width: ROW_W, height: H, body, all: true };
   }
   const shown = BY_TAB[tabId] ? [BY_TAB[tabId]] : ALL;

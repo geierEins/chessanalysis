@@ -184,12 +184,13 @@ export function initMetaMode(host) {
   }
   initStickyTabs();
 
-  function renderTabs() {
+  /** fromTab: the tab just left - the tab piece can animate the change (tabPieceSvg). */
+  function renderTabs(fromTab = null) {
     tabsEl.innerHTML = META_TABS.map(
       (t) => `<button type="button" role="tab" class="meta-tab" data-tab="${t.id}" aria-selected="${t.id === tab}"${t.tip ? ` title="${t.tip}"` : ''}>${t.label}</button>`
     ).join('');
     // The line under the tabs draws the tab's piece (css/styles.css .meta-tabs-wrap).
-    const piece = tabPieceSvg(tab);
+    const piece = tabPieceSvg(tab, fromTab);
     tabPieceEl.setAttribute('viewBox', `0 0 ${piece.width} ${piece.height}`);
     tabPieceEl.setAttribute('width', piece.width);
     tabPieceEl.setAttribute('height', piece.height);
@@ -262,9 +263,10 @@ export function initMetaMode(host) {
     if (!b) return;
     marked = null;
     gamesShown = GAMES_STEP;
+    const fromTab = tab;
     tab = b.dataset.tab;
     saveMetaTab(tab);
-    renderTabs();
+    renderTabs(fromTab);
     render();
     // A new tab always starts at its top - not wherever the last one was scrolled to.
     window.scrollTo({ top: 0, behavior: 'instant' });
