@@ -1200,6 +1200,18 @@ function setAnalyzing(analyzing) {
   analyzeToggleBtn.classList.toggle('analyze-btn-ready', !analyzing);
   analyzeToggleBtn.classList.toggle('bg-red-600', analyzing);
   analyzeToggleBtn.classList.toggle('hover:bg-red-500', analyzing);
+  if (!analyzing) engineRunning = false;
+  syncGameModeAnalyzeBtn();
+}
+
+// True while startAnalysis runs the engine (no stored analysis to replay).
+let engineRunning = false;
+
+/** Game mode has no magnifier - the button only shows while the engine
+ *  analyzes the game here (an old link to an unanalyzed game), as progress +
+ *  cancel; not for the instant replay of a stored analysis. */
+function syncGameModeAnalyzeBtn() {
+  analyzeToggleBtn.classList.toggle('hidden', appMode === 'game' && !(isAnalyzing && engineRunning));
 }
 
 /** The running analysis' progress on #analyze-toggle-btn: fill + "37%", or
@@ -1276,6 +1288,8 @@ async function startAnalysis() {
       }
     }
     if (!result) {
+      engineRunning = true;
+      syncGameModeAnalyzeBtn();
       const settings = engineSettings();
       const recorder = recordingEngine(await ensureEngine());
       result = await analyzeGame(game.pgn, recorder, {
@@ -2091,11 +2105,18 @@ loaderPanel.addEventListener('animationend', (e) => {
   loaderPanel.dataset.prevMode = loaderPanel.dataset.mode;
 });
 
+// Top-bar controls hidden in game mode (css/styles.css "Boot mode" hides the same before the first paint).
+const GAME_MODE_HIDDEN = ['platform-toggle-btn', 'username-picker', 'time-range-picker', 'game-type-picker', 'outcome-filter-picker', 'color-filter-picker', 'fetch-games-btn'];
+
 function applyAppMode() {
   const isMeta = appMode === 'meta';
   delete document.documentElement.dataset.bootMode; // index.html's pre-paint guess - from here on the classes below decide
   markModeInBar();
   gamePickerEl.classList.toggle('hidden', isMeta);
+  // The game mode only ever shows the one game the Meta-Analyse opened (deep
+  // link) - site, username, filters and "Spiele laden" have nothing to do there.
+  for (const id of GAME_MODE_HIDDEN) el(id).classList.toggle('hidden', !isMeta);
+  syncGameModeAnalyzeBtn();
   // Board color and piece style only matter next to a board - the Meta mode gets just the theme.
   appearance.setMetaMode(isMeta);
   // The gear menu only holds board settings (sounds, best-move arrow, move list) - gone in meta mode.

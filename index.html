@@ -50,7 +50,7 @@
     // flashes first. main.js's applyAppMode removes the attribute again (css/styles.css "Boot mode").
     try {
       const q = new URLSearchParams(location.search);
-      if (!(q.get('game') && q.get('user'))) document.documentElement.dataset.bootMode = 'meta';
+      document.documentElement.dataset.bootMode = q.get('game') && q.get('user') ? 'game' : 'meta';
     } catch {}
   }
 </script>

@@ -2597,6 +2597,15 @@ html[data-boot-mode="meta"] #loader-panel { --t-old: var(--tint-meta); }
 html[data-boot-mode="meta"] #game-empty,
 html[data-boot-mode="meta"] #game-picker,
 html[data-boot-mode="meta"] #settings-picker { display: none; }
+/* The game mode (deep link) has no site, username, filter or load controls - js/main.js's GAME_MODE_HIDDEN. */
+html[data-boot-mode="game"] #platform-toggle-btn,
+html[data-boot-mode="game"] #username-picker,
+html[data-boot-mode="game"] #time-range-picker,
+html[data-boot-mode="game"] #game-type-picker,
+html[data-boot-mode="game"] #outcome-filter-picker,
+html[data-boot-mode="game"] #color-filter-picker,
+html[data-boot-mode="game"] #fetch-games-btn,
+html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
 #loader-panel::before,
 #loader-panel::after {
   content: '';
