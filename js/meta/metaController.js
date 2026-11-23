@@ -241,6 +241,7 @@ export function initMetaMode(host) {
     const rs = filtered();
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
+    hideTip(); // ... and so is the element a tooltip belongs to
     // The search fields re-render on every keystroke (and countries keep
     // arriving while typing) - keep focus and cursor across the new HTML.
     const focused = document.activeElement;
@@ -388,6 +389,7 @@ export function initMetaMode(host) {
   });
 
   tabPanelEl.addEventListener('click', (e) => {
+    if (e.metaTipOnly) return; // a first tap that just showed a tooltip (touch, see below)
     const streakBtn = e.target.closest('[data-streak]');
     if (streakBtn) {
       showStreak(gameListById(streakBtn.dataset.streak));
@@ -542,7 +544,7 @@ export function initMetaMode(host) {
       return; // second tap - the normal click handlers take it from here
     }
     e.preventDefault();
-    e.stopImmediatePropagation();
+    e.metaTipOnly = true; // the panel's click handler skips its action; document-level "click outside" closers still run
     const r = t.getBoundingClientRect();
     showTip(t, r.left, r.bottom - 8);
   }, true);
