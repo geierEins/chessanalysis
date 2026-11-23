@@ -470,7 +470,10 @@ const board = new BoardView('board', 'board-arrow-paths', 'board-user-arrow-path
 const evalBar = new EvalBar('eval-bar-white', 'eval-bar-black', 'eval-bar-label');
 const evalGraph = new EvalGraph('eval-graph', (ply) => goToPly(ply));
 const moveList = new MoveList('move-list', (node) => goToNode(node), 'move-strip', (node) => deleteVariationAndNavigate(node));
-moveList.setHideFuture(loadHideFutureMoves());
+// "Kommende Züge verbergen" (js/ui/settingsPanel.js): the move list stops at
+// the current move, and the game label drops its S/R/N badge - it'd give the end away.
+let hideFutureMoves = loadHideFutureMoves();
+moveList.setHideFuture(hideFutureMoves);
 const dashboard = new Dashboard('accuracy-white', 'accuracy-black', 'classification-table');
 const timeManagementChart = new TimeManagementChart('time-management-chart', (ply) => goToPly(ply));
 
@@ -1135,7 +1138,7 @@ function ensureEngine() {
 function buildGameOptions(gameList, username) {
   return gameList.map((game, index) => {
     const style = timeClassStyle(game.timeClass);
-    const outcome = ownOutcomeBadge(game, username);
+    const outcome = appMode === 'game' && hideFutureMoves ? '' : ownOutcomeBadge(game, username);
     const own = appMode === 'game' ? `${playerLabel(game, username, true)} ` : '';
     const vs = `${own}vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
     const moves = game.moveCount != null ? ` — ${game.moveCount} Zg.` : '';
@@ -2128,11 +2131,8 @@ function applyAppMode() {
   syncGameModeAnalyzeBtn();
   // Board color and piece style only matter next to a board - the Meta mode gets just the theme.
   appearance.setMetaMode(isMeta);
-  // The gear menu only holds board settings (sounds, best-move arrow, move list) - gone in meta mode.
+  // Board options (sounds, best-move arrow, upcoming moves) - gone in meta mode.
   el('settings-picker').classList.toggle('hidden', isMeta);
-  el('settings-sound-row').classList.toggle('hidden', isMeta);
-  el('settings-best-move-row').classList.toggle('hidden', isMeta);
-  el('settings-future-moves-row').classList.toggle('hidden', isMeta);
   meta.setActive(isMeta);
   el('game-empty').classList.toggle('hidden', isMeta || Boolean(analysis));
   if (isMeta) {
@@ -2185,10 +2185,12 @@ initSettingsPanel({
     saveBestMoveTiming(timing);
     updateBestMoveArrow();
   },
-  hideFutureMoves: loadHideFutureMoves(),
+  hideFutureMoves,
   onHideFutureMovesChange: (hide) => {
+    hideFutureMoves = hide;
     saveHideFutureMoves(hide);
     moveList.setHideFuture(hide);
+    if (games.length) gameSelect.setOptions(buildGameOptions(games, usernameInput.value), gameSelect.value);
   },
 });
 

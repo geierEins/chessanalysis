@@ -1,15 +1,17 @@
-// The small gear button at the end of the top bar (#settings-btn) and its
-// floating options popover (#settings-menu) - a home for small standing
-// preferences that don't deserve their own top-bar control. Behaves like a
-// regular GUI popover: anchored to the gear, flips above it / shifts left
-// whenever it wouldn't fit the viewport, follows window resizes, and closes
-// on an outside click or Escape (returning focus to the gear).
+// The game mode's board options, right in the top bar (#settings-picker):
+// a sound toggle, the best-move arrow's timing as a small dropdown
+// (#best-move-btn/#best-move-menu) and an "upcoming moves" eye toggle.
+// The dropdown behaves like the bar's other menus: anchored under its
+// button, closes on an outside click or Escape (returning focus to it).
 
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 4;
 
 const SOUND_TITLE_ON = 'Brettgeräusche an - klicken zum Ausschalten';
 const SOUND_TITLE_OFF = 'Brettgeräusche aus - klicken zum Einschalten';
+const FUTURE_TITLE_SHOWN = 'Kommende Züge werden gezeigt - klicken zum Verbergen (Zugliste und Ergebnis enden beim aktuellen Zug)';
+const FUTURE_TITLE_HIDDEN = 'Kommende Züge sind verborgen - klicken zum Zeigen';
+const TIMING_LABEL = { before: 'Vorher', after: 'Nachher', off: 'Aus' };
 
 /**
  * @param {{
@@ -22,55 +24,47 @@ const SOUND_TITLE_OFF = 'Brettgeräusche aus - klicken zum Einschalten';
  * }} options
  */
 export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange, onBestMoveTimingChange, hideFutureMoves, onHideFutureMovesChange }) {
-  const picker = document.getElementById('settings-picker');
-  const btn = document.getElementById('settings-btn');
-  const menu = document.getElementById('settings-menu');
   const soundToggle = document.getElementById('settings-sound-toggle');
-  const timingButtons = [...menu.querySelectorAll('[data-best-move-timing]')];
-  const futureButtons = [...menu.querySelectorAll('[data-future-moves]')];
+  const futureToggle = document.getElementById('future-moves-toggle');
+  const timingPicker = document.getElementById('best-move-picker');
+  const timingBtn = document.getElementById('best-move-btn');
+  const timingLabel = document.getElementById('best-move-btn-label');
+  const timingMenu = document.getElementById('best-move-menu');
+  const timingOptions = [...timingMenu.querySelectorAll('[data-best-move-timing]')];
 
-  const isOpen = () => !menu.classList.contains('hidden');
+  const isOpen = () => !timingMenu.classList.contains('hidden');
 
-  // Prefers right-aligned under the gear (it sits at the row's far end), but
-  // clamps into the viewport horizontally and opens upwards instead if
-  // there's no room below.
+  // Left-aligned under its button, clamped into the viewport, flipped above
+  // it if there's no room below.
   function position() {
-    const rect = btn.getBoundingClientRect();
-    const menuWidth = menu.offsetWidth;
-    const menuHeight = menu.offsetHeight;
-
-    let left = rect.right - menuWidth;
-    left = Math.min(left, window.innerWidth - menuWidth - VIEWPORT_MARGIN);
-    left = Math.max(left, VIEWPORT_MARGIN);
-
+    const rect = timingBtn.getBoundingClientRect();
+    const { offsetWidth: w, offsetHeight: h } = timingMenu;
+    const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.left, window.innerWidth - w - VIEWPORT_MARGIN));
     let top = rect.bottom + ANCHOR_GAP;
-    if (top + menuHeight > window.innerHeight - VIEWPORT_MARGIN && rect.top - ANCHOR_GAP - menuHeight >= VIEWPORT_MARGIN) {
-      top = rect.top - ANCHOR_GAP - menuHeight;
-    }
-
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
+    if (top + h > window.innerHeight - VIEWPORT_MARGIN && rect.top - ANCHOR_GAP - h >= VIEWPORT_MARGIN) top = rect.top - ANCHOR_GAP - h;
+    timingMenu.style.left = `${left}px`;
+    timingMenu.style.top = `${top}px`;
   }
 
   function open() {
-    menu.style.position = 'fixed';
-    menu.classList.remove('hidden');
+    timingMenu.style.position = 'fixed';
+    timingMenu.classList.remove('hidden');
     position(); // after un-hiding - offsetWidth/Height are 0 while display:none
-    btn.classList.add('menu-open');
-    btn.setAttribute('aria-expanded', 'true');
+    timingBtn.classList.add('menu-open');
+    timingBtn.setAttribute('aria-expanded', 'true');
   }
 
   function close({ restoreFocus = false } = {}) {
     if (!isOpen()) return;
-    menu.classList.add('hidden');
-    btn.classList.remove('menu-open');
-    btn.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) btn.focus();
+    timingMenu.classList.add('hidden');
+    timingBtn.classList.remove('menu-open');
+    timingBtn.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) timingBtn.focus();
   }
 
-  btn.addEventListener('click', () => (isOpen() ? close() : open()));
+  timingBtn.addEventListener('click', () => (isOpen() ? close() : open()));
   document.addEventListener('click', (e) => {
-    if (!picker.contains(e.target)) close();
+    if (!timingPicker.contains(e.target)) close();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) close({ restoreFocus: true });
@@ -87,11 +81,21 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
   }
 
   function renderTiming() {
-    for (const b of timingButtons) {
+    timingLabel.textContent = TIMING_LABEL[bestMoveTiming];
+    timingBtn.classList.toggle('is-off', bestMoveTiming === 'off');
+    timingBtn.title = `Bester Zug: ${TIMING_LABEL[bestMoveTiming]} - wann der Pfeil mit dem besten Engine-Zug angezeigt wird`;
+    for (const b of timingOptions) {
       const active = b.dataset.bestMoveTiming === bestMoveTiming;
-      b.classList.toggle('active', active);
+      b.classList.toggle('custom-select-option-selected', active);
       b.setAttribute('aria-checked', String(active));
     }
+  }
+
+  function renderFutureMoves() {
+    futureToggle.classList.toggle('is-off', hideFutureMoves);
+    futureToggle.setAttribute('aria-pressed', String(!hideFutureMoves));
+    futureToggle.title = hideFutureMoves ? FUTURE_TITLE_HIDDEN : FUTURE_TITLE_SHOWN;
+    futureToggle.setAttribute('aria-label', futureToggle.title);
   }
 
   soundToggle.addEventListener('click', () => {
@@ -100,8 +104,9 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
     onSoundChange(soundEnabled);
   });
 
-  for (const b of timingButtons) {
+  for (const b of timingOptions) {
     b.addEventListener('click', () => {
+      close({ restoreFocus: true });
       if (b.dataset.bestMoveTiming === bestMoveTiming) return;
       bestMoveTiming = b.dataset.bestMoveTiming;
       renderTiming();
@@ -109,23 +114,11 @@ export function initSettingsPanel({ soundEnabled, bestMoveTiming, onSoundChange,
     });
   }
 
-  function renderFutureMoves() {
-    for (const b of futureButtons) {
-      const active = (b.dataset.futureMoves === 'hide') === hideFutureMoves;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-checked', String(active));
-    }
-  }
-
-  for (const b of futureButtons) {
-    b.addEventListener('click', () => {
-      const hide = b.dataset.futureMoves === 'hide';
-      if (hide === hideFutureMoves) return;
-      hideFutureMoves = hide;
-      renderFutureMoves();
-      onHideFutureMovesChange(hideFutureMoves);
-    });
-  }
+  futureToggle.addEventListener('click', () => {
+    hideFutureMoves = !hideFutureMoves;
+    renderFutureMoves();
+    onHideFutureMovesChange(hideFutureMoves);
+  });
 
   renderSound();
   renderTiming();

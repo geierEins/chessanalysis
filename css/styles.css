@@ -113,7 +113,7 @@ html {
 
 /* The appearance dropdown (#appearance-menu, js/ui/appearancePicker.js):
    "Brettfarbe" as a row of swatches, "Figuren" and "Theme" as lists. */
-/* Gray like the gear (#settings-btn), lighter on hover / while open. */
+/* Gray, lighter on hover / while open. */
 #appearance-btn {
   color: rgb(var(--n-400));
   transition: color 0.15s ease, background-color 0.15s ease;
@@ -297,64 +297,6 @@ html {
   background-color: rgb(var(--n-700));
 }
 
-/* #settings-btn/#settings-menu (js/ui/settingsPanel.js) - the gear turns a
-   bit on hover and stays turned/highlighted while its popover is open. */
-#settings-btn {
-  color: rgb(var(--n-400));
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-#settings-btn:hover,
-#settings-btn.menu-open {
-  color: rgb(var(--n-200));
-  background-color: rgb(var(--n-700));
-}
-
-.settings-gear-icon {
-  transition: transform 0.3s ease;
-}
-
-#settings-btn:hover .settings-gear-icon,
-#settings-btn.menu-open .settings-gear-icon {
-  transform: rotate(60deg);
-}
-
-#settings-menu {
-  min-width: 220px;
-  padding: 6px 0;
-  animation: settings-menu-in 0.12s ease-out;
-}
-
-@keyframes settings-menu-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: none; }
-}
-
-.settings-heading {
-  padding: 2px 12px 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgb(var(--n-500));
-}
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 5px 12px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.settings-row.hidden { display: none; }
-
-.settings-label {
-  color: rgb(var(--n-300));
-}
-
 .settings-icon-toggle {
   display: flex;
   align-items: center;
@@ -385,33 +327,25 @@ html {
   display: block;
 }
 
-/* Two-option segmented control - same active look as .dashboard-view-btn. */
-.settings-segmented {
-  display: flex;
-  padding: 2px;
-  gap: 2px;
-  border-radius: 0.375rem;
-  border: 1px solid rgb(var(--n-700));
-  background: rgb(var(--n-900));
-}
+/* The game mode's board options in the top bar (#settings-picker,
+   js/ui/settingsPanel.js): icon toggles - green when on, gray when off. */
+.settings-icon-toggle .future-hidden,
+.settings-icon-toggle.is-off .future-shown { display: none; }
+.settings-icon-toggle.is-off .future-hidden { display: block; }
 
-.settings-segmented > button {
-  padding: 2px 8px;
-  border-radius: 0.25rem;
+/* Best-move timing: the arrow plus its current value and a caret. */
+.settings-icon-toggle.best-move-btn {
+  width: auto;
+  gap: 4px;
+  padding: 0 6px;
   font-size: 0.7rem;
   font-weight: 500;
-  color: rgb(var(--n-400));
-  transition: color 0.15s ease, background-color 0.15s ease;
 }
-
-.settings-segmented > button:hover {
-  color: rgb(var(--n-200));
-}
-
-.settings-segmented > button.active {
-  color: rgb(var(--n-200));
-  background: rgb(var(--n-700));
-}
+.best-move-btn #best-move-btn-label { color: rgb(var(--n-300)); }
+.best-move-caret { font-size: 0.6rem; color: rgb(var(--n-500)); }
+.settings-icon-toggle.menu-open { background: rgb(var(--n-700)); }
+#best-move-menu { min-width: 110px; }
+#settings-picker.hidden { display: none; }
 
 /* js/ui/customSelect.js - #game-type-menu/#game-menu/#time-range-menu's
    option items. Flex row (not plain block) so an option with an icon lines
@@ -2576,13 +2510,11 @@ html[data-site-theme="nordlicht"] .bg-blue-600 {
 }
 
 html[data-site-theme="nordlicht"] .meta-card,
-html[data-site-theme="nordlicht"] #settings-menu,
 html[data-site-theme="nordlicht"] [role="menu"] {
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.04);
 }
 
-html[data-site-theme="nordlicht"] h2,
-html[data-site-theme="nordlicht"] .settings-heading {
+html[data-site-theme="nordlicht"] h2 {
   letter-spacing: 0.01em;
 }
 

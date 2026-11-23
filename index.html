@@ -216,6 +216,61 @@
         <div id="opponent-menu" class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden"></div>
       </div>
 
+      <!-- Spiel-Analyse only (js/ui/settingsPanel.js): the three board options
+           right in the bar - best-move arrow, sounds, upcoming moves. -->
+      <div id="settings-picker" class="flex items-center gap-1">
+        <div id="best-move-picker" class="relative">
+          <button id="best-move-btn" type="button" class="settings-icon-toggle best-move-btn"
+                  aria-haspopup="menu" aria-expanded="false" aria-controls="best-move-menu">
+            <!-- An arrow like the best-move arrow on the board. -->
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 19 19 5"></path>
+              <path d="M9 5h10v10"></path>
+            </svg>
+            <span id="best-move-btn-label"></span>
+            <span class="best-move-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="best-move-menu" role="menu" aria-label="Bester Zug"
+               class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg overflow-hidden">
+            <button type="button" role="menuitemradio" class="custom-select-option" data-best-move-timing="before"
+                    title="Zeigt den besten Zug für die aktuelle Brettstellung - also schon bevor der nächste Zug gespielt wird">Vorher</button>
+            <button type="button" role="menuitemradio" class="custom-select-option" data-best-move-timing="after"
+                    title="Zeigt nach einem Zug, welcher Zug stattdessen der beste gewesen wäre">Nachher</button>
+            <button type="button" role="menuitemradio" class="custom-select-option" data-best-move-timing="off"
+                    title="Zeigt keinen Pfeil für den besten Zug">Aus</button>
+          </div>
+        </div>
+        <button id="settings-sound-toggle" type="button" class="settings-icon-toggle">
+          <svg class="settings-sound-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
+            <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+            <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+          </svg>
+          <svg class="settings-sound-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
+            <path d="M22 9l-6 6"></path>
+            <path d="M16 9l6 6"></path>
+          </svg>
+        </button>
+        <button id="future-moves-toggle" type="button" class="settings-icon-toggle">
+          <svg class="future-shown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <svg class="future-hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19"></path>
+            <path d="M6.6 6.6A18.4 18.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"></path>
+            <path d="M14.1 14.1a3 3 0 1 1-4.2-4.2"></path>
+            <path d="M2 2l20 20"></path>
+          </svg>
+        </button>
+      </div>
+
       <!-- Darstellung (js/ui/appearancePicker.js): Brettfarbe, Figurenstil und
            Theme in einem Dropdown - im Meta-Modus nur das Theme. -->
       <div id="appearance-picker" class="relative">
@@ -303,61 +358,6 @@
         <span id="analyze-toggle-btn-pct" class="relative z-10 hidden tabular-nums"></span>
       </button>
 
-      <!-- Kleine Optionen (js/ui/settingsPanel.js) - schwebendes Popover statt
-           eigener Top-Bar-Controls, damit künftige Kleinigkeiten hier Platz
-           finden, ohne die Leiste breiter zu machen. -->
-      <div id="settings-picker" class="relative">
-        <button id="settings-btn" type="button" title="Einstellungen" aria-label="Einstellungen"
-                aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu"
-                class="bg-neutral-800 border border-neutral-700 rounded px-1.5 py-1 text-xs flex items-center">
-          <svg class="settings-gear-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-        <div id="settings-menu" role="dialog" aria-label="Einstellungen"
-             class="hidden z-30 bg-neutral-800 border border-neutral-700 rounded shadow-lg">
-          <div class="settings-heading">Einstellungen</div>
-          <div id="settings-sound-row" class="settings-row">
-            <span class="settings-label">Brettgeräusche</span>
-            <button id="settings-sound-toggle" type="button" class="settings-icon-toggle">
-              <svg class="settings-sound-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
-                <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
-                <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
-              </svg>
-              <svg class="settings-sound-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"></path>
-                <path d="M22 9l-6 6"></path>
-                <path d="M16 9l6 6"></path>
-              </svg>
-            </button>
-          </div>
-          <div id="settings-best-move-row" class="settings-row">
-            <span class="settings-label" title="Wann der Pfeil mit dem besten Engine-Zug angezeigt wird">Bester Zug</span>
-            <div class="settings-segmented" role="radiogroup" aria-label="Bester Zug anzeigen">
-              <button type="button" role="radio" data-best-move-timing="before"
-                      title="Vorher: zeigt den besten Zug für die aktuelle Brettstellung - also schon bevor der nächste Zug gespielt wird">Vorher</button>
-              <button type="button" role="radio" data-best-move-timing="after"
-                      title="Nachher: zeigt nach einem Zug, welcher Zug stattdessen der beste gewesen wäre">Nachher</button>
-              <button type="button" role="radio" data-best-move-timing="off"
-                      title="Aus: zeigt keinen Pfeil für den besten Zug">Aus</button>
-            </div>
-          </div>
-          <div id="settings-future-moves-row" class="settings-row">
-            <span class="settings-label" title="Ob die Zugliste die Züge nach der aktuellen Stellung zeigt">Kommende Züge</span>
-            <div class="settings-segmented" role="radiogroup" aria-label="Kommende Züge">
-              <button type="button" role="radio" data-future-moves="show"
-                      title="Zeigen: die Zugliste zeigt die ganze Partie">Zeigen</button>
-              <button type="button" role="radio" data-future-moves="hide"
-                      title="Verbergen: die Zugliste endet beim aktuellen Zug und wächst beim Weiterklicken mit">Verbergen</button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </section>
