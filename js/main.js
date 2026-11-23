@@ -1371,8 +1371,10 @@ async function startAnalysis() {
   } catch (err) {
     if (err.name === 'AbortError') {
       showToast('Analyse abgebrochen.', 'info');
+      showGameLoadProblem('Analyse abgebrochen.');
     } else {
       showToast(err.message ?? 'Fehler bei der Analyse.', 'error');
+      showGameLoadProblem('Die Analyse ist fehlgeschlagen.');
     }
   } finally {
     setAnalyzing(false);
@@ -2200,6 +2202,7 @@ async function openDeepLinkedGame({ user, game, end }) {
     const [raw] = await Promise.all([fetchGame(user, game, end), syncAutoAnalysis(user)]);
     if (!raw) {
       showToast(`Die Partie wurde bei ${platformLabel()} nicht gefunden.`, 'error');
+      showGameLoadProblem(`Die Partie wurde bei ${platformLabel()} nicht gefunden.`);
       return;
     }
     games = [summarizeGame(raw)];
@@ -2209,5 +2212,13 @@ async function openDeepLinkedGame({ user, game, end }) {
     analysisRun = startAnalysis();
   } catch (err) {
     showToast(err.message ?? 'Die Partie konnte nicht geladen werden.', 'error');
+    showGameLoadProblem('Die Partie konnte nicht geladen werden.');
   }
+}
+
+/** Game mode has no controls to retry with - while no game is shown, the
+ *  start text ("Partie wird geladen …") says what went wrong and how to retry. */
+function showGameLoadProblem(reason) {
+  if (appMode !== 'game' || analysis) return;
+  el('game-empty-text').textContent = `${reason} Zum erneuten Versuch die Seite neu laden (F5).`;
 }

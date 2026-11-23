@@ -2615,6 +2615,16 @@ html[data-boot-mode="game"] #outcome-filter-picker,
 html[data-boot-mode="game"] #color-filter-picker,
 html[data-boot-mode="game"] #fetch-games-btn,
 html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
+/* Their own display rules (e.g. #analyze-toggle-btn's inline-flex) outrank
+   Tailwind's .hidden - without this, GAME_MODE_HIDDEN's class did nothing. */
+#platform-toggle-btn.hidden,
+#username-picker.hidden,
+#time-range-picker.hidden,
+#game-type-picker.hidden,
+#outcome-filter-picker.hidden,
+#color-filter-picker.hidden,
+#fetch-games-btn.hidden,
+#analyze-toggle-btn.hidden { display: none; }
 #loader-panel::before,
 #loader-panel::after {
   content: '';
