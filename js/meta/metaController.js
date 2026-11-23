@@ -98,6 +98,7 @@ export function initMetaMode(host) {
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
   // and which piece types - own and the opponent's (none = all).
   const heatmap = loadHeatmap();
+  let mateHeat = 'set'; // "Matt" tab's king board: 'set' (their king) or 'taken' (yours) - metaView's data-mate-heat
   let run = null; // the running analysis, see startRun()
   let engine = null;
   let engineLoadedId = null;
@@ -149,6 +150,7 @@ export function initMetaMode(host) {
       countrySearch,
       endings,
       heatmap,
+      mateHeat,
       username,
       engineLabel: label,
       countriesPending: countryJob.running,
@@ -376,6 +378,12 @@ export function initMetaMode(host) {
     if (limitBtn) {
       countryLimit = Number(limitBtn.dataset.countryLimit);
       saveCountryLimit(countryLimit);
+      render();
+      return;
+    }
+    const mateHeatBtn = e.target.closest('[data-mate-heat]');
+    if (mateHeatBtn) {
+      mateHeat = mateHeatBtn.dataset.mateHeat;
       render();
       return;
     }

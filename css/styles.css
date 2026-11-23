@@ -2008,6 +2008,7 @@ button.field-error {
 .meta-stack { grid-column: span 4; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .meta-stack > .meta-card { grid-column: auto; flex: 1 1 auto; }
 .meta-stack.w8 { grid-column: span 8; }
+.meta-stack.w6 { grid-column: span 6; }
 
 /* A stack that takes its height from the row instead of setting it ("Zeit
    pro Zug" + "Dauer der Partien" follow "Uhr" + "Quote nach Partielänge"):
@@ -2056,7 +2057,7 @@ button.field-error {
 }
 
 @media (max-width: 900px) {
-  .meta-card, .meta-card.w4, .meta-card.w6, .meta-card.w8, .meta-stack, .meta-stack.w8 { grid-column: span 12; }
+  .meta-card, .meta-card.w4, .meta-card.w6, .meta-card.w8, .meta-stack, .meta-stack.w6, .meta-stack.w8 { grid-column: span 12; }
   .meta-stack > .meta-card { grid-column: auto; }
 }
 
@@ -2182,6 +2183,10 @@ button.field-error {
 .meta-seg button[data-heat-mode] { --mode: var(--meta-s1); box-shadow: inset 0 -2px 0 var(--mode); }
 .meta-seg button[data-heat-mode="lost"] { --mode: var(--meta-loss); }
 .meta-seg button[data-heat-mode].on { background: var(--mode); box-shadow: none; }
+/* "Matt" tab's king board: in the board's heat colors (metaView's heatColor) - blue for gesetzt, red for kassiert. */
+.meta-seg button[data-mate-heat] { --mode: hsl(214 85% 48%); box-shadow: inset 0 -2px 0 var(--mode); }
+.meta-seg button[data-mate-heat="taken"] { --mode: hsl(4 85% 50%); }
+.meta-seg button[data-mate-heat].on { background: var(--mode); box-shadow: none; }
 .meta-kpi .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .meta-kpi .v.up { color: var(--meta-win); }
 .meta-kpi .v.down, .meta-kpi .v.bad { color: #ef6b5e; }
@@ -2241,6 +2246,25 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 .meta-tbl table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .meta-tbl th { text-align: left; font-weight: 600; color: var(--meta-muted); padding: 6px 8px; border-bottom: 1px solid var(--meta-line); white-space: nowrap; }
 .meta-tbl th.wide { min-width: 120px; }
+.meta-tbl th.c { text-align: center; }
+/* "Matt" tab's right column (.mate-fit): it never makes the row taller than
+   "Gesetzt und kassiert" next to it (height 0, stretched to the row) - the
+   king board shrinks to whatever height is left. Stacked on narrow screens. */
+@media (min-width: 901px) {
+  .meta-stack.mate-fit { height: 0; min-height: 100%; }
+  .mate-fit > .meta-card { flex: none; }
+  .mate-fit > .meta-side-by-side { flex: 1 1 0; min-height: 0; }
+  .mate-fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; min-height: 0; }
+  .mate-fit .meta-mate-board-wrap { flex: 1 1 0; min-height: 0; container-type: size; display: flex; justify-content: center; }
+  .mate-fit .meta-mate-board { width: min(100cqw, 100cqh); margin: 0; }
+}
+/* "Wo der König mattgesetzt wird": gesetzt/kassiert centered under the board. */
+.meta-mate-toggle { display: flex; justify-content: center; margin-top: 10px; }
+/* A card title with an explanation on hover (card()'s tip). */
+.meta-card-head h2.meta-has-tip { cursor: help; white-space: nowrap; }
+/* Half-width "Matt" cards (e.g. "Wann das Matt fällt"): a narrower bar and cells. */
+.meta-tbl.compact th.wide { min-width: 60px; }
+.meta-tbl.compact th, .meta-tbl.compact td { padding-left: 5px; padding-right: 5px; }
 .meta-tbl th.sort { cursor: pointer; user-select: none; }
 .meta-tbl th.sort:hover, .meta-tbl th.sort.on { color: var(--meta-fg); }
 .meta-tbl td { padding: 6px 8px; border-bottom: 1px solid rgb(var(--n-800)); vertical-align: middle; font-variant-numeric: tabular-nums; }

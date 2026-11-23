@@ -142,9 +142,10 @@ const CARD_ICONS = {
   'Wie du gewinnst': '🏆',
   'Wie du verlierst': '💔',
   'Wie Remis entstehen': '🤝',
-  'Mattbilder': '♚',
   'Gesetzt und kassiert': '⚖️',
-  'Sonstiges Matt nach Figur': '♟️',
+  'Matt nach Figur': '♟️',
+  'Wann das Matt fällt': '⏱️',
+  'Wo der König mattgesetzt wird': '🎯',
   'Keine Mattpartien': '♚',
   'Uhr': '⏰',
   'Zeit pro Zug': '⏱️',
@@ -170,11 +171,12 @@ function cardIcon(title) {
 /** head: extra controls at the right end of the title row (e.g. limitPicker). */
 /** accent: optional color for the same colored top edge and glow as a stat tile (kpi()). */
 /** mid: content centered in the title row, between title and head (e.g. a chart's legend). */
-function card(title, body, { cls = 'w6', note = '', head = '', accent = '', mid = '' } = {}) {
+/** tip: tooltip on the title (the shared data-tip tooltip), e.g. instead of a note. */
+function card(title, body, { cls = 'w6', note = '', head = '', accent = '', mid = '', tip = '' } = {}) {
   const right = head ? `<span class="meta-card-tools">${head}</span>` : '';
   const attrs = accent ? `class="meta-card ${cls} accent" style="--kpi-accent:${accent}"` : `class="meta-card ${cls}"`;
   const headCls = mid ? 'meta-card-head has-mid' : 'meta-card-head';
-  return `<section ${attrs}><div class="${headCls}"><h2>${cardIcon(title)}${title}</h2>${mid ? `<div class="meta-card-mid">${mid}</div>` : ''}${right}</div>${body}${
+  return `<section ${attrs}><div class="${headCls}"><h2${tip ? ` class="meta-has-tip" data-tip="${esc(tip)}"` : ''}>${cardIcon(title)}${title}</h2>${mid ? `<div class="meta-card-mid">${mid}</div>` : ''}${right}</div>${body}${
     note ? `<p class="meta-note">${note}</p>` : ''
   }</section>`;
 }
@@ -1606,7 +1608,7 @@ function resultTip(r) {
 }
 
 /** The "Matt" tab: checkmate patterns of the filtered games (r.mate, js/analysis/mateType.js) - set and taken. */
-function mateTab(rs) {
+function mateTab(rs, ctx) {
   if (!rs.length) return card('Matt', EMPTY, { cls: 'w12' });
   const mated = rs.filter((r) => r.mate);
   if (!mated.length) {
@@ -1616,7 +1618,6 @@ function mateTab(rs) {
   const taken = mated.filter((r) => !r.mate.byMe);
   const byType = MATE_TYPES.map((t) => [t, mated.filter((r) => r.mate.type === t)]).filter(([, l]) => l.length).sort(byCountDesc);
   const byPiece = [...groupBy(mated, (r) => r.mate.piece)].sort(byCountDesc);
-  const others = mated.filter((r) => r.mate.type === 'other');
   const flagged = (key) => mated.filter((r) => r.mate[key]);
   const doubles = flagged('doubleCheck');
   const discovered = flagged('discovered');
@@ -1632,26 +1633,67 @@ function mateTab(rs) {
     ${kpi('♕ Umwandlungsmatt', gamesCount(promoted), 'Matt mit dem Umwandlungszug', '', '#8fb4ff')}
   </div>`;
 
-  const freq = hbars(byType.map(([t, l]) => ({ label: MATE_LABEL[t], v: l.length, valHtml: gamesCount(l), tip: `${MATE_LABEL[t]}: ${n(l)}, ${pc(l.length / mated.length)}` })));
-  const versus = `<div class="meta-tbl"><table><thead><tr><th>Mattbild</th><th class="r">gesetzt</th><th class="wide">Verteilung</th><th class="r">kassiert</th></tr></thead><tbody>
-    ${byType
-      .map(([t, l]) => {
+  // Rows of [label, games], most games first: gesetzt | distribution | kassiert | gesamt.
+  const zero = '<span class="meta-faint">0</span>';
+  const versusTable = (head, rows, cls = '') => `<div class="meta-tbl${cls ? ` ${cls}` : ''}"><table><thead><tr><th>${head}</th><th class="r">gesetzt</th><th class="wide c">Verteilung</th><th>kassiert</th><th class="r">gesamt</th></tr></thead><tbody>
+    ${rows
+      .map(([label, l, mateType]) => {
         const mine = l.filter((r) => r.mate.byMe);
         const theirs = l.filter((r) => !r.mate.byMe);
-        return `<tr><td>${MATE_LABEL[t]}</td><td class="r">${mine.length ? gamesCount(mine) : '<span class="meta-faint">0</span>'}</td><td>${wdlBar(l)}</td><td class="r">${theirs.length ? gamesCount(theirs) : '<span class="meta-faint">0</span>'}</td></tr>`;
+        return `<tr><td${mateType && mateType !== 'other' ? ` data-mate="${mateType}"` : ''}>${label}</td><td class="r">${mine.length ? gamesCount(mine) : zero}</td><td>${wdlBar(l)}</td><td>${theirs.length ? gamesCount(theirs) : zero}</td><td class="r"><b>${gamesCount(l)}</b></td></tr>`;
       })
       .join('')}
     </tbody></table></div>`;
-  const otherPieces = [...groupBy(others, (r) => r.mate.piece)].sort(byCountDesc);
-  const otherBars = others.length
-    ? hbars(otherPieces.map(([p, l]) => ({ label: PIECE_LABEL[p] ?? p, v: l.length, valHtml: gamesCount(l), tip: `${PIECE_LABEL[p] ?? p}: ${n(l)}` })))
-    : '<p class="meta-muted">Jedes Matt passt zu einem der Mattbilder.</p>';
+  // "Sonstiges Matt" fits no pattern - always the last row, whatever its count.
+  const typeRows = [...byType.filter(([t]) => t !== 'other'), ...byType.filter(([t]) => t === 'other')];
+  const versus = versusTable('Mattbild', typeRows.map(([t, l]) => [MATE_LABEL[t], l, t]));
+  // Each piece with its icon in front, like "Patzer mit welcher Figur?" in the quality tab.
+  const pieceTable = versusTable('Figur', byPiece.map(([p, l]) => [`<img class="meta-piece-icon" src="${pieceUrl(`w${p.toUpperCase()}`)}" alt="">${PIECE_LABEL[p] ?? p}`, l]));
+  // When the mate falls - the game's move number, in fixed ranges.
+  const whenTable = versusTable('Zug', [[0, 20, 'bis 20'], [21, 30, '21–30'], [31, 40, '31–40'], [41, Infinity, 'ab 41']]
+    .map(([a, b, label]) => [label, mated.filter((r) => r.moves >= a && r.moves <= b)])
+    .filter(([, l]) => l.length), 'compact');
 
   return kpis + `<div class="meta-grid">
-    ${card('Mattbilder', freq, { note: 'Wie oft jedes Mattbild vorkommt, gesetzt und kassiert zusammen. Zahl anklicken: die Partien.' })}
-    ${card('Gesetzt und kassiert', versus, { note: 'Gesetzt: du hast mattgesetzt (Sieg). Kassiert: du wurdest mattgesetzt (Niederlage).' })}
-    ${card('Sonstiges Matt nach Figur', otherBars, { note: 'Matts, die zu keinem der 12 Mattbilder passen - nach der Figur, die mattsetzt.' })}
+    ${card('Gesetzt und kassiert', versus, { note: `Jedes Mattbild, das vorkam - gesetzt: du hast mattgesetzt (Sieg), kassiert: du wurdest mattgesetzt (Niederlage). Was zu keinem der ${MATE_TYPES.length - 1} Mattbilder passt, steht unter „Sonstiges Matt“. Zahl anklicken: die Partien.` })}
+    <div class="meta-stack w6 mate-fit">
+      ${card('Matt nach Figur', pieceTable, { note: 'Die Figur, die mattsetzt - über alle Matts. Bei einer Umwandlung die neue Figur.' })}
+      <div class="meta-side-by-side">
+        ${card('Wann das Matt fällt', whenTable, { note: 'Partiezug, in dem das Matt fällt.' })}
+        ${mateKingCard(mated, ctx.mateHeat === 'taken' ? 'taken' : 'set')}
+      </div>
+    </div>
   </div>`;
+}
+
+const MATE_HEAT_MODES = [['set', 'gesetzt'], ['taken', 'kassiert']];
+
+/** Where the king stood when mated (r.mate.king): the opponent's king for mates
+ *  you set, your own for mates you took - switched by data-mate-heat (metaController). */
+function mateKingCard(mated, mode) {
+  const games = mated.filter((r) => r.mate.king && r.mate.byMe === (mode === 'set'));
+  // From your side: as Black the ranks flip, so your back rank is always rank 1 (files stay - kingside stays right).
+  const bySquare = groupBy(games, (r) => (r.color === 'b' ? r.mate.king[0] + (9 - Number(r.mate.king[1])) : r.mate.king));
+  const max = Math.max(1, ...[...bySquare.values()].map((l) => l.length));
+  const color = mode === 'taken' ? 'lost' : 'taken'; // heatColor: red for your king, blue for theirs
+  let squares = '';
+  for (let rank = 8; rank >= 1; rank--) {
+    for (const f of FILES) {
+      const sq = `${f}${rank}`;
+      const l = bySquare.get(sq) ?? [];
+      const light = (FILES.indexOf(f) + rank) % 2 === 0;
+      squares += `<div class="meta-heat-sq ${light ? 'l' : 'd'}" data-tip="${esc(`Reihe ${rank} aus deiner Sicht, ${f}-Linie: ${l.length} ${l.length === 1 ? 'Matt' : 'Matts'}`)}">${
+        l.length ? `<i style="background:${heatColor(l.length / max, color)}"></i><b>${gamesCount(l)}</b>` : ''
+      }${f === 'a' ? `<span class="rk">${rank}</span>` : ''}${rank === 1 ? `<span class="fl">${f}</span>` : ''}</div>`;
+    }
+  }
+  const body = games.length
+    ? `<div class="meta-mate-board-wrap"><div class="meta-heat-board meta-mate-board">${squares}</div></div>`
+    : `<p class="meta-muted">Keine ${mode === 'set' ? 'gesetzten' : 'kassierten'} Matts.</p>`;
+  // The switch under the board; the explanation on the title, so the title fits in one line.
+  return card('Wo der König mattgesetzt wird', `${body}<div class="meta-mate-toggle">${segPicker(MATE_HEAT_MODES, mode, 'mate-heat', 'Gesetzt oder kassiert')}</div>`, {
+    tip: `${mode === 'set' ? 'Feld des gegnerischen Königs bei deinen Matts' : 'Feld deines Königs, wenn du mattgesetzt wurdest'} - aus deiner Sicht: deine Grundreihe ist unten (Reihe 1), auch in Partien mit Schwarz. Zahl anklicken: die Partien.`,
+  });
 }
 
 const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, mate: mateTab, games: gamesTab };
