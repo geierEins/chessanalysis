@@ -47,11 +47,13 @@ ROW_W -= GAP;
  *   all: needs the row's room (always - see css/styles.css .meta-tabs-wrap.all-pieces)
  */
 export function tabPieceSvg(tabId) {
-  // "Matt": the king knocked over - turned 90°, lying on the line with its foot
-  // where the standing king's right edge is (its head reaches into the queen's spot).
+  // "Matt": the "Zeit & Partieende" tab's piece - the one with the cross on top,
+  // i.e. the king, although PIECES calls that drawing 'queen' - standing exactly
+  // where it stands there, topples over to the right and lies on the line
+  // (css/styles.css .king-falls).
   if (tabId === 'mate') {
-    const x = OFFSET.king + PIECES.king.w - H;
-    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${x} ${H}) rotate(-90)"><path d="${PIECES.king.d}"/></g>`;
+    const piece = BY_TAB.time;
+    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${OFFSET[piece]} 0)"><g class="king-falls"><path d="${PIECES[piece].d}"/></g></g>`;
     return { width: ROW_W, height: H, body, all: true };
   }
   const shown = BY_TAB[tabId] ? [BY_TAB[tabId]] : ALL;

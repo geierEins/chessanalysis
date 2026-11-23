@@ -1924,12 +1924,30 @@ button.field-error {
   position: absolute;
   left: var(--piece-x);
   bottom: 0;
+  overflow: visible; /* the toppled king ("Matt" tab) lies past the right edge */
   fill: none;
   stroke: var(--meta-line);
   stroke-width: 1;
   stroke-linejoin: round;
   stroke-linecap: round;
   pointer-events: none;
+}
+
+/* "Matt" tab (js/meta/tabPieces.js): the king tips over to the right around its
+   bottom right corner, overshoots a little and settles lying on the line. */
+.meta-tabs-rook .king-falls {
+  transform-box: fill-box;
+  transform-origin: 100% 100%;
+  animation: king-falls 750ms cubic-bezier(0.55, 0, 0.8, 0.25) 120ms both;
+}
+@keyframes king-falls {
+  0% { transform: rotate(0deg); }
+  78% { transform: rotate(93deg); }
+  90% { transform: rotate(87deg); }
+  100% { transform: rotate(90deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meta-tabs-rook .king-falls { animation: none; transform: rotate(90deg); }
 }
 
 /* Too narrow for the piece(s) next to the tabs - just the plain line. The
