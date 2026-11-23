@@ -181,7 +181,7 @@ export function initMetaMode(host) {
 
   function renderTabs() {
     tabsEl.innerHTML = META_TABS.map(
-      (t) => `<button type="button" role="tab" class="meta-tab" data-tab="${t.id}" aria-selected="${t.id === tab}">${t.label}</button>`
+      (t) => `<button type="button" role="tab" class="meta-tab" data-tab="${t.id}" aria-selected="${t.id === tab}"${t.tip ? ` title="${t.tip}"` : ''}>${t.label}</button>`
     ).join('');
     // The line under the tabs draws the tab's piece (css/styles.css .meta-tabs-wrap).
     const piece = tabPieceSvg(tab);

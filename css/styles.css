@@ -2047,17 +2047,6 @@ button.field-error {
 .meta-card-head h2 { display: flex; align-items: center; gap: 6px; }
 .meta-card-icon { flex: none; width: 18px; height: 18px; font-size: 15px; line-height: 18px; text-align: center; }
 
-.meta-src {
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border-radius: 3px;
-  padding: 1px 6px;
-  white-space: nowrap;
-}
-
-.meta-src.fast { color: var(--meta-win); border: 1px solid #81b64c66; }
-.meta-src.eng { color: #8fb4ff; border: 1px solid #3b82f688; }
 
 .meta-note { font-size: 12px; color: var(--meta-faint); }
 

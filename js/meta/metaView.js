@@ -15,7 +15,12 @@ export const META_TABS = [
   { id: 'overview', label: 'Übersicht' },
   { id: 'openings', label: 'Eröffnungen' },
   { id: 'opponents', label: 'Gegner & Länder' },
-  { id: 'quality', label: 'Spielqualität' },
+  // The only tab built on engine values - its tooltip says so (no per-card badges).
+  {
+    id: 'quality',
+    label: 'Spielqualität',
+    tip: 'Statistiken zur Genauigkeit deiner Züge: Die Engine bewertet jeden Zug. Nur Partien mit Engine-Analyse zählen, also mit der Lupe oder automatisch analysierte.',
+  },
   { id: 'heatmap', label: 'Heatmap' },
   { id: 'time', label: 'Zeit & Partieende' },
   { id: 'games', label: 'Partien' },
@@ -156,12 +161,11 @@ function cardIcon(title) {
     : `<span class="meta-card-icon" aria-hidden="true">${metaIcon(icon) || icon}</span>`;
 }
 
-/** head: extra controls right of the title, before the badge (e.g. limitPicker). */
+/** head: extra controls at the right end of the title row (e.g. limitPicker). */
 /** accent: optional color for the same colored top edge and glow as a stat tile (kpi()). */
-/** mid: content centered in the title row, between title and badge (e.g. a chart's legend). */
-function card(title, src, body, { cls = 'w6', note = '', head = '', accent = '', mid = '' } = {}) {
-  const badge = src ? `<span class="meta-src ${src}">${src === 'fast' ? 'ohne Engine' : 'Engine'}</span>` : '';
-  const right = head ? `<span class="meta-card-tools">${head}${badge}</span>` : badge;
+/** mid: content centered in the title row, between title and head (e.g. a chart's legend). */
+function card(title, body, { cls = 'w6', note = '', head = '', accent = '', mid = '' } = {}) {
+  const right = head ? `<span class="meta-card-tools">${head}</span>` : '';
   const attrs = accent ? `class="meta-card ${cls} accent" style="--kpi-accent:${accent}"` : `class="meta-card ${cls}"`;
   const headCls = mid ? 'meta-card-head has-mid' : 'meta-card-head';
   return `<section ${attrs}><div class="${headCls}"><h2>${cardIcon(title)}${title}</h2>${mid ? `<div class="meta-card-mid">${mid}</div>` : ''}${right}</div>${body}${
@@ -761,7 +765,7 @@ function coverageNote(ctx, withEngine, total) {
 }
 
 function noEngineCard(ctx) {
-  return card('Noch keine Engine-Werte', 'eng',
+  return card('Noch keine Engine-Werte',
     `<p class="meta-muted">Für <b>${esc(ctx.engineLabel)}</b> ist für diese Partien noch nichts analysiert. Die Lupe oben startet die Analyse.</p>`,
     { cls: 'w12' });
 }
@@ -810,7 +814,7 @@ function gamesPerDayKpi(chrono, ctx) {
 }
 
 function overview(rs, ctx) {
-  if (!rs.length) return card('Übersicht', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Übersicht', EMPTY, { cls: 'w12' });
   const c = wdl(rs);
   const chrono = [...rs].sort((a, b) => a.endTime - b.endTime);
   const withEngine = rs.filter((r) => ctx.engineOf(r));
@@ -838,14 +842,14 @@ function overview(rs, ctx) {
   const days = bestWorstDays(rs);
   return kpis + `<div class="meta-grid">
     <div class="meta-overview-row">
-      ${card('Sieg, Remis, Niederlage', 'fast', resultPie(rs))}
-      ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
-      ${card('Die letzten 7 Partien', '', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten, sonst analysiert die Lupe die Partie.' })}
+      ${card('Sieg, Remis, Niederlage', resultPie(rs))}
+      ${card('Nach Farbe und Spielart', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
+      ${card('Die letzten 7 Partien', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten, sonst analysiert die Lupe die Partie.' })}
     </div>
-    ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend, note: ZOOM_NOTE })}
-    ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend, note: ZOOM_NOTE })}
-    ${card('Beste Tage', 'fast', days.best, { cls: 'w6', note: DAYS_NOTE })}
-    ${card('Schlechteste Tage', 'fast', days.worst, { cls: 'w6', note: DAYS_NOTE })}
+    ${card('Elo-Verlauf', rating.body, { cls: 'w12', mid: rating.legend, note: ZOOM_NOTE })}
+    ${card('Partien pro Tag', perDay.body, { cls: 'w12', mid: perDay.legend, note: ZOOM_NOTE })}
+    ${card('Beste Tage', days.best, { cls: 'w6', note: DAYS_NOTE })}
+    ${card('Schlechteste Tage', days.worst, { cls: 'w6', note: DAYS_NOTE })}
   </div>`;
 }
 
@@ -862,7 +866,7 @@ function sortRows(rows, dir) {
 }
 
 function openings(rs, ctx) {
-  if (!rs.length) return card('Eröffnungen', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Eröffnungen', EMPTY, { cls: 'w12' });
   const name = (r) => r.family ?? 'Ohne Eröffnungsnamen';
   const sort = ctx.sorts.openings;
   // "Ergebnis" sorts by share of wins, then of draws.
@@ -910,11 +914,11 @@ function openings(rs, ctx) {
       ? `<div class="meta-rows">${arr.map((r) => `<div class="meta-card-head small"><span data-opening="${esc(r.fam)}">${esc(r.fam)}</span><span class="meta-muted">${pc(r.s)} · ${r.n} P.</span></div>`).join('')}</div>`
       : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
-    ${card('Mit Weiß', 'fast', table(white), { cls: 'w12' })}
-    ${card('Mit Schwarz', 'fast', table(black), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), gruppiert nach Eröffnung. Tooltip: Grundstellung der Eröffnung und gespielte Varianten. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
-    ${card('Erster Zug als Weiß', 'fast', hbars(moveRows(white, '')), { cls: 'w4' })}
-    ${card('Als Schwarz gegen …', 'fast', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
-    ${card('Stärkste und schwächste', 'fast', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}
+    ${card('Mit Weiß', table(white), { cls: 'w12' })}
+    ${card('Mit Schwarz', table(black), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), gruppiert nach Eröffnung. Tooltip: Grundstellung der Eröffnung und gespielte Varianten. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
+    ${card('Erster Zug als Weiß', hbars(moveRows(white, '')), { cls: 'w4' })}
+    ${card('Als Schwarz gegen …', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
+    ${card('Stärkste und schwächste', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}
   </div>`;
 }
 
@@ -930,7 +934,7 @@ function limitPicker(current) {
 }
 
 function opponents(rs, ctx) {
-  if (!rs.length) return card('Gegner', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Gegner', EMPTY, { cls: 'w12' });
   let h2h = '';
   if (ctx.opponent) {
     const c = wdl(rs);
@@ -938,7 +942,7 @@ function opponents(rs, ctx) {
     const withEngine = rs.filter((r) => ctx.engineOf(r));
     const fam = [...groupBy(rs.filter((r) => r.family), (r) => r.family)].sort(byCountDesc)[0]?.[0];
     const oppName = rs[0].opponent;
-    h2h = card(`Direktvergleich mit ${esc(oppName)}`, 'fast', `
+    h2h = card(`Direktvergleich mit ${esc(oppName)}`, `
       <div class="meta-h2h">
         <div><div class="name">${esc(ctx.username)}</div><div class="meta-muted small">Ø Gen. ${f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy))}</div></div>
         <div class="rec">${c.W} – ${c.D} – ${c.L}</div>
@@ -1004,10 +1008,10 @@ function opponents(rs, ctx) {
     .join('');
 
   return `<div class="meta-grid">${h2h}
-    ${card('Woher kommen deine Gegner?', 'fast', countries.length ? `${countrySearch}${countryBars}` : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: `${countries.length ? `${query ? `${shownCountries.length} von ${countries.length} Ländern passen zur Suche.` : limitNote} ` : ''}${pendingNote}`, head: limitPicker(ctx.countryLimit) })}
-    ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: countries.length ? limitNote : '', head: limitPicker(ctx.countryLimit) })}
-    ${card('Häufigste Gegner', 'fast', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
-    ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis. Nur gewertete Partien.' })}
+    ${card('Woher kommen deine Gegner?', countries.length ? `${countrySearch}${countryBars}` : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: `${countries.length ? `${query ? `${shownCountries.length} von ${countries.length} Ländern passen zur Suche.` : limitNote} ` : ''}${pendingNote}`, head: limitPicker(ctx.countryLimit) })}
+    ${card('Quote nach Land', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: countries.length ? limitNote : '', head: limitPicker(ctx.countryLimit) })}
+    ${card('Häufigste Gegner', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
+    ${card('Gegen Stärkere und Schwächere', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis. Nur gewertete Partien.' })}
   </div>`;
 }
 
@@ -1172,7 +1176,7 @@ function accuracyTrendChart(es, E) {
 }
 
 function quality(rs, ctx) {
-  if (!rs.length) return card('Spielqualität', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Spielqualität', EMPTY, { cls: 'w12' });
   const es = rs.filter((r) => ctx.engineOf(r));
   if (!es.length) return `<div class="meta-grid">${noEngineCard(ctx)}</div>`;
   const E = (r) => ctx.engineOf(r);
@@ -1236,10 +1240,10 @@ function quality(rs, ctx) {
   const tt = clockBlunders.filter((x) => x.timeTrouble).length;
 
   return kpis + `<div class="meta-grid">
-    ${card('Verteilung der Genauigkeit', 'eng', columns(bins), { cls: 'w8', note: note || 'Genauigkeit je Partie, nach derselben Formel wie in der Einzelanalyse.' })}
-    ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
-    ${card('Verlauf der Genauigkeit', 'eng', trend.body, { cls: 'w12', mid: trend.legend, note: 'Jeder Punkt ist eine Partie (grün Sieg, gelb Remis, rot Niederlage), in der Reihenfolge, in der du sie gespielt hast. Die Linien zeigen den gleitenden Durchschnitt. ' + ZOOM_NOTE })}
-    ${card('Verwertung', 'eng', `<div class="meta-kpis five">
+    ${card('Verteilung der Genauigkeit', columns(bins), { cls: 'w8', note: note || 'Genauigkeit je Partie, nach derselben Formel wie in der Einzelanalyse.' })}
+    ${card('Genauigkeit nach Phase', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
+    ${card('Verlauf der Genauigkeit', trend.body, { cls: 'w12', mid: trend.legend, note: 'Jeder Punkt ist eine Partie (grün Sieg, gelb Remis, rot Niederlage), in der Reihenfolge, in der du sie gespielt hast. Die Linien zeigen den gleitenden Durchschnitt. ' + ZOOM_NOTE })}
+    ${card('Verwertung', `<div class="meta-kpis five">
       ${kpi('🏁 Gewinnstellungen verwertet', pc(winning.length ? converted.length / winning.length : null), `${converted.length} von ${winning.length}`, '', GOOD)}
       ${kpi('🛟 Aus Verluststellung gerettet', gamesCount(saved), 'Remis oder Sieg', '', GOOD)}
       ${kpi('🛡️ Niederlagen abgewiesen', gamesCount(turned), 'mit −3 Material-Rückstand noch gewonnen', '', GOOD)}
@@ -1256,13 +1260,13 @@ function quality(rs, ctx) {
     <div class="meta-kpis wide">
       ${topGamesTile('♚ Meiste verpasste Matt-in-1 in einer Partie', m1Top.map((x) => x.r), BAD, 'Matt in 1 möglich, aber anders gezogen', (r) => `<b>${m1Of.get(r)}</b>× M1`)}
     </div>`, { cls: 'w12', note: '„Gewinnstellung“: Engine-Bewertung mindestens +3 aus deiner Sicht. „Verluststellung“: höchstens −3. Verschenkte Siege, abgewiesene Niederlagen, Vorsprung und Aufholjagd: Materialbilanz in Bauerneinheiten (Bauer 1, Springer/Läufer 3, Turm 5, Dame 9), die mindestens einen Gegenzug lang bestand – aus allen Partien, auch ohne Engine. Die ±9-Werte sind jeweils ein Teil der ±3-Werte. Matt in 1: Stellungen, in denen die Engine ein Matt in einem Zug fand, du aber anders gezogen hast.' })}
-    ${card('Wann passieren deine Patzer?', 'eng', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
-    ${card('Patzer mit welcher Figur?', 'eng', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
+    ${card('Wann passieren deine Patzer?', columns(moveBins), { cls: 'w8', note: 'Nach Zugnummer.' })}
+    ${card('Patzer mit welcher Figur?', hbars(pieceRows, { color: 'var(--meta-loss)' }), { cls: 'w4', note: 'Die Figur, die beim Patzer gezogen wurde.' })}
   </div>`;
 }
 
 function timeTab(rs, ctx) {
-  if (!rs.length) return card('Zeit', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Zeit', EMPTY, { cls: 'w12' });
   const how = (result, color) => {
     const l = rs.filter((r) => r.result === result);
     const slices = [...groupBy(l, (r) => r.termination)]
@@ -1321,31 +1325,31 @@ function timeTab(rs, ctx) {
   }
 
   return `<div class="meta-grid">
-    ${card('Wie du gewinnst', 'fast', how('W', 'var(--meta-win)'), { cls: 'w4', accent: 'var(--meta-win)' })}
-    ${card('Wie du verlierst', 'fast', how('L', 'var(--meta-loss)'), { cls: 'w4', accent: 'var(--meta-loss)' })}
-    ${card('Wie Remis entstehen', 'fast', how('D', 'var(--meta-draw)'), { cls: 'w4', accent: 'var(--meta-draw)' })}
-    ${card('Kürzeste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.shortest).sort((a, b) => a.moves - b.moves || b.endTime - a.endTime)), { head: endingPicker('shortest', ctx.endings.shortest), note: ENDING_NOTE })}
-    ${card('Längste Partien', 'fast', topGamesTable(byEnding(rs, ctx.endings.longest).sort((a, b) => b.moves - a.moves || b.endTime - a.endTime)), { head: endingPicker('longest', ctx.endings.longest), note: ENDING_NOTE })}
+    ${card('Wie du gewinnst', how('W', 'var(--meta-win)'), { cls: 'w4', accent: 'var(--meta-win)' })}
+    ${card('Wie du verlierst', how('L', 'var(--meta-loss)'), { cls: 'w4', accent: 'var(--meta-loss)' })}
+    ${card('Wie Remis entstehen', how('D', 'var(--meta-draw)'), { cls: 'w4', accent: 'var(--meta-draw)' })}
+    ${card('Kürzeste Partien', topGamesTable(byEnding(rs, ctx.endings.shortest).sort((a, b) => a.moves - b.moves || b.endTime - a.endTime)), { head: endingPicker('shortest', ctx.endings.shortest), note: ENDING_NOTE })}
+    ${card('Längste Partien', topGamesTable(byEnding(rs, ctx.endings.longest).sort((a, b) => b.moves - a.moves || b.endTime - a.endTime)), { head: endingPicker('longest', ctx.endings.longest), note: ENDING_NOTE })}
     <div class="meta-stack">
-      ${card('Uhr', 'fast', bigStats([
+      ${card('Uhr', bigStats([
         [avgDuration == null ? '–' : fmtSeconds(avgDuration), 'Ø Dauer pro Partie'],
         [f0(avg(rs, (r) => r.moves)), 'Ø Züge pro Partie'],
         [pc(losses.length ? timeLosses.length / losses.length : null), 'der Niederlagen auf Zeit'],
         [avgClockLeft == null ? '–' : fmtSeconds(avgClockLeft), 'Ø Restzeit auf deiner Uhr'],
       ]), { note: 'Dauer: verbrauchte Zeit beider Uhren aus dem PGN. Restzeit: was am Ende der Partie noch auf deiner Uhr stand, auch bei Niederlagen. Beides ohne Daily-Partien.' })}
-      ${card('Quote nach Partielänge', 'fast', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
+      ${card('Quote nach Partielänge', hbars(lengthRows, { fmt: pctFmt, max: 100 }))}
     </div>
     <div class="meta-stack w8 fit">
       <div class="meta-side-by-side">
-        ${card('Zeit pro Zug', 'fast', moveTimeChart(rs), { note: 'Ø Bedenkzeit für deinen 1. bis 50. Zug, je Spielart. Ein Punkt erscheint ab 3 Partien, die so lange gingen.' })}
-        ${card('Längste Königsreisen', 'fast', topGamesTable(rs.filter((r) => r.kingMoves > 0).sort((a, b) => b.kingMoves - a.kingMoves || b.endTime - a.endTime), (r) => `<b>${r.kingMoves}</b> Königszüge`), { note: 'Partien, in denen dein König am häufigsten gezogen hat (Rochade eingerechnet).' })}
+        ${card('Zeit pro Zug', moveTimeChart(rs), { note: 'Ø Bedenkzeit für deinen 1. bis 50. Zug, je Spielart. Ein Punkt erscheint ab 3 Partien, die so lange gingen.' })}
+        ${card('Längste Königsreisen', topGamesTable(rs.filter((r) => r.kingMoves > 0).sort((a, b) => b.kingMoves - a.kingMoves || b.endTime - a.endTime), (r) => `<b>${r.kingMoves}</b> Königszüge`), { note: 'Partien, in denen dein König am häufigsten gezogen hat (Rochade eingerechnet).' })}
       </div>
-      ${card('Dauer der Partien', 'fast', durationColumns(timed), { note: 'Verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien. Längere Partien als 20 Minuten stehen gesammelt in „20+“.' })}
+      ${card('Dauer der Partien', durationColumns(timed), { note: 'Verbrauchte Zeit beider Uhren aus dem PGN, ohne Daily-Partien. Längere Partien als 20 Minuten stehen gesammelt in „20+“.' })}
     </div>
-    ${card('Wann du spielst', 'fast', `<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}
+    ${card('Wann du spielst', `<div class="meta-tbl"><div class="meta-heat">${heat}</div></div>`, { cls: 'w8', note: 'Farbe = Anzahl Partien (Ende der Partie, Ortszeit). Tooltip zeigt die Quote.' })}
     <div class="meta-stack">
-      ${card('Quote nach Tageszeit', 'fast', hbars(slots, { fmt: pctFmt, max: 100 }))}
-      ${card('Serien und Tilt', 'fast', bigStats([
+      ${card('Quote nach Tageszeit', hbars(slots, { fmt: pctFmt, max: 100 }))}
+      ${card('Serien und Tilt', bigStats([
         [longestStreak(chrono, 'W'), 'längste Siegesserie'],
         [longestStreak(chrono, 'L'), 'längste Niederlagenserie'],
         [pc(score(afterWin)), 'Quote direkt nach einem Sieg'],
@@ -1433,7 +1437,7 @@ function heatColor(t, mode) {
 }
 
 function heatmapTab(rs, ctx) {
-  if (!rs.length) return card('Heatmap', '', EMPTY, { cls: 'w12' });
+  if (!rs.length) return card('Heatmap', EMPTY, { cls: 'w12' });
   const { mode, pieces, oppPieces } = ctx.heatmap;
   const games = rs; // the top bar's color filter decides which games
   // Captures are "<square><own piece><opponent's piece>" (metaRecords' captureSquares),
@@ -1511,16 +1515,16 @@ function heatmapTab(rs, ctx) {
     ? 'Felder, auf denen der Gegner deine Figuren geschlagen hat. „Meine Figuren“ wählt deine geschlagene Figur, „Gegnerische Figuren“ die schlagende'
     : 'Felder, auf denen du gegnerische Figuren geschlagen hast. „Meine Figuren“ wählt deine schlagende Figur, „Gegnerische Figuren“ die geschlagene';
   return `${controls}<div class="meta-grid">
-    ${card('Schlag-Heatmap', 'fast', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
+    ${card('Schlag-Heatmap', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
     <div class="meta-stack">
-      ${card('Zusammenfassung', 'fast', bigStats([
+      ${card('Zusammenfassung', bigStats([
         [count.taken, 'gegnerische Figuren geschlagen', 'var(--meta-s1)', sentence.taken],
         [perGame(count.taken), 'pro Partie', 'var(--meta-s1)', `Im Schnitt ${perGame(count.taken)}-mal pro Partie (${games.length} Partien).`],
         [count.lost, 'eigene Figuren verloren', 'var(--meta-loss)', sentence.lost],
         [perGame(count.lost), 'pro Partie', 'var(--meta-loss)', `Im Schnitt ${perGame(count.lost)}-mal pro Partie (${games.length} Partien).`],
       ], 'two'))}
-      ${card(mode === 'lost' ? 'Welche Figuren du verlierst' : 'Womit du schlägst', 'fast', hbars(pieceRows, { color: modeColor }))}
-      ${card('Die heißesten Felder', 'fast', hbars(topSquares))}
+      ${card(mode === 'lost' ? 'Welche Figuren du verlierst' : 'Womit du schlägst', hbars(pieceRows, { color: modeColor }))}
+      ${card('Die heißesten Felder', hbars(topSquares))}
     </div>
   </div>`;
 }
@@ -1585,7 +1589,7 @@ function gamesTab(rs, ctx) {
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`
     : EMPTY;
   const more = left > 0 ? ` Gezeigt werden die ersten ${list.length} von ${rs.length} in dieser Sortierung.` : '';
-  return card(`Partien (${rs.length})`, 'fast', body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
+  return card(`Partien (${rs.length})`, body, { cls: 'w12', note: `Zeile anklicken: Partie in der Spiel-Analyse öffnen. Spaltenkopf anklicken: sortieren. Lupe: Partie analysieren, mehrere reihen sich nacheinander ein.${more}` });
 }
 
 const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab, time: timeTab, games: gamesTab };
