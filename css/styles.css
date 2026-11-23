@@ -1728,6 +1728,9 @@ button.field-error {
 
 #meta-content {
   display: grid;
+  /* One column no wider than the panel - an implicit 'auto' column grows to its
+     widest content's min-content and pushed the whole page sideways on phones. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -1877,6 +1880,7 @@ button.field-error {
    above the status line while stuck. */
 .meta-sticky {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* see #meta-content */
   gap: 12px;
   position: sticky;
   top: var(--bar-h, 0px);
