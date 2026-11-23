@@ -596,15 +596,19 @@ function ownColorFor(game, ownUsername) {
   return null;
 }
 
-/** "Opponent (Elo)" - the searched user's OWN name/elo is dropped, since
- *  it's already shown in the username field right next to this dropdown.
- *  Used for the game picker's entries (buildGameOptions), collapsed and open. */
-function opponentLabel(game, ownUsername) {
-  const isOpponentWhite = ownColorFor(game, ownUsername) === 'b';
-  const name = isOpponentWhite ? game.white : game.black;
-  const rating = isOpponentWhite ? game.whiteRating : game.blackRating;
+/** "Name (Elo)" of the searched user (own) or their opponent - a game the user
+ *  didn't play counts White as "own". Used for the game picker's entries
+ *  (buildGameOptions): just the opponent where the username field sits next
+ *  to it, own + opponent in game mode, which has no username field. */
+function playerLabel(game, ownUsername, own) {
+  const ownIsBlack = ownColorFor(game, ownUsername) === 'b';
+  const white = own ? !ownIsBlack : ownIsBlack;
+  const name = white ? game.white : game.black;
+  const rating = white ? game.whiteRating : game.blackRating;
   return rating ? `${name} (${rating})` : name;
 }
+
+const opponentLabel = (game, ownUsername) => playerLabel(game, ownUsername, false);
 
 /** Eval-graph markers for the searched user's own Brilliant/Great/Miss/Blunder
  *  moves only - not the opponent's. */
@@ -1132,7 +1136,8 @@ function buildGameOptions(gameList, username) {
   return gameList.map((game, index) => {
     const style = timeClassStyle(game.timeClass);
     const outcome = ownOutcomeBadge(game, username);
-    const vs = `vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
+    const own = appMode === 'game' ? `${playerLabel(game, username, true)} ` : '';
+    const vs = `${own}vs ${opponentLabel(game, username)} — ${game.dateLabel}`;
     const moves = game.moveCount != null ? ` — ${game.moveCount} Zg.` : '';
     const stored = analyzedUrls.has(game.url) ? '✓' : ''; // opens without re-analyzing
     const join = (...parts) => parts.filter(Boolean).join(' ');
@@ -1140,8 +1145,8 @@ function buildGameOptions(gameList, username) {
     const html = (text) => join(style.icon, escapeHtml(text), outcome, stored);
     return {
       value: String(index),
-      // Own name/elo dropped everywhere (see opponentLabel) - just "vs
-      // Opponent (Elo) — Date"; the open menu adds the move count.
+      // "vs Opponent (Elo) — Date", in game mode with "Own (Elo)" in front
+      // (see playerLabel); the open menu adds the move count.
       label: join(vs + moves, stored),
       shortLabel: join(vs, stored),
       html: html(vs + moves),
@@ -2113,6 +2118,8 @@ function applyAppMode() {
   delete document.documentElement.dataset.bootMode; // index.html's pre-paint guess - from here on the classes below decide
   markModeInBar();
   gamePickerEl.classList.toggle('hidden', isMeta);
+  // Game mode: the picker holds only the opened game - a fixed label, no menu.
+  gamePickerEl.classList.toggle('static', !isMeta);
   // The game mode only ever shows the one game the Meta-Analyse opened (deep
   // link) - site, username, filters and "Spiele laden" have nothing to do there.
   for (const id of GAME_MODE_HIDDEN) el(id).classList.toggle('hidden', !isMeta);
@@ -2197,7 +2204,6 @@ async function openDeepLinkedGame({ user, game, end }) {
     }
     games = [summarizeGame(raw)];
     gameSelect.setOptions(buildGameOptions(games, user), '0');
-    gameSelect.disabled = false;
     analyzeToggleBtn.disabled = false;
     refreshAnalyzedMarkers();
     analysisRun = startAnalysis();

@@ -2663,6 +2663,8 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
 #game-btn .outcome-badge { width: 13px; height: 13px; font-size: 8.5px; border-radius: 2px; vertical-align: -2.5px; }
 /* Collapsed button: a touch higher than in the open list. */
 #game-btn .outcome-badge { vertical-align: -1px; }
+/* Game mode (js/main.js applyAppMode): the opened game as a fixed label - disabled, but not greyed out. */
+#game-picker.static #game-btn { opacity: 1; cursor: default; max-width: none; }
 
 /* Meta-Analyse icons (js/meta/metaIcons.js): one-color line icons in the tile's
    accent (its colored top edge), on a card without one in the theme accent. */
