@@ -2438,6 +2438,15 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
   background: none; cursor: pointer;
 }
 .meta-pop-more:hover { color: rgb(var(--n-100)); }
+/* Instead of opening a game without engine values (metaView's gameHintHtml). */
+.meta-pop-hint { padding: 6px 10px 4px; font-size: 0.75rem; color: rgb(var(--n-200)); }
+.meta-pop-hint-btn {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+  padding: 3px 10px; border-radius: 4px; font-size: 0.75rem;
+  background: var(--meta-accent); color: #fff; cursor: pointer;
+}
+.meta-pop-hint-btn svg { width: 12px; height: 12px; }
+.meta-pop-hint-btn:hover { filter: brightness(1.12); }
 /* Accuracy cell of a game without moves (metaView's NO_MOVES). */
 .meta-nomoves { display: inline-flex; vertical-align: middle; color: var(--meta-muted); cursor: help; }
 .meta-nomoves svg { width: 14px; height: 14px; }

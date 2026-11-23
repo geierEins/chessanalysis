@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
-import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne } from '../js/meta/metaRecords.js';
+import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne, gameOpenState } from '../js/meta/metaRecords.js';
 import { openingLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -182,5 +182,28 @@ describe('metaRecords: mateInOne', () => {
 
   test('no engine log gives null', () => {
     expectEqual(mateInOne({}, buildFastRecord(rawGame(), 'alice')), null);
+  });
+});
+
+describe('metaRecords: gameOpenState', () => {
+  test('a game with engine values opens', () => {
+    expectEqual(gameOpenState({ plies: 40 }, {}, null), 'open');
+  });
+
+  test('engine values win over "no moves"', () => {
+    expectEqual(gameOpenState({ plies: 0 }, {}, null), 'open');
+  });
+
+  test('a game without moves cannot be analyzed', () => {
+    expectEqual(gameOpenState({ plies: 0 }, null, null), 'nomoves');
+  });
+
+  test('a running or queued analysis is reported as such', () => {
+    expectEqual(gameOpenState({ plies: 40 }, null, 'running'), 'running');
+    expectEqual(gameOpenState({ plies: 40 }, null, 'queued'), 'queued');
+  });
+
+  test('otherwise it still needs an analysis', () => {
+    expectEqual(gameOpenState({ plies: 40 }, null, null), 'analyze');
   });
 });

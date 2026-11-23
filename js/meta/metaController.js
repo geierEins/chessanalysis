@@ -14,9 +14,9 @@ import { timeClassStyle } from '../timeClassStyle.js';
 
 // The status line's game-type counts, in the Spielart dropdown's order.
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
-import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves } from './metaRecords.js';
+import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
@@ -282,9 +282,13 @@ export function initMetaMode(host) {
     gamesPopEl.innerHTML = gameListHtml(gameListById(btn.dataset.games), LISTED_GAMES_STEP);
     gamesPopEl.dataset.for = btn.dataset.games; // a second click on the same count closes it
     gamesPopEl.dataset.shown = String(LISTED_GAMES_STEP);
+    placePop(btn.getBoundingClientRect());
+  }
+
+  /** Shows #meta-games-pop under `rect` (a viewport rect), shifted left /
+   *  flipped above where it wouldn't fit. */
+  function placePop(rect) {
     gamesPopEl.classList.remove('hidden');
-    // Under the number, shifted left / flipped above where it wouldn't fit.
-    const rect = btn.getBoundingClientRect();
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - gamesPopEl.offsetWidth - 8));
     const below = rect.bottom + 4;
     const top = below + gamesPopEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, rect.top - gamesPopEl.offsetHeight - 4) : below;
@@ -307,13 +311,22 @@ export function initMetaMode(host) {
       box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
       return;
     }
+    // The hint's "Analysieren" (gameHintHtml): queue the game, like the magnifier in the "Partien" tab.
+    const hintBtn = e.target.closest('[data-hint-analyze]');
+    if (hintBtn) {
+      enqueueGame(hintBtn.dataset.hintAnalyze);
+      closeGamesPop();
+      return;
+    }
     const item = e.target.closest('[data-game]');
     if (!item) return;
+    const rect = item.getBoundingClientRect(); // a hint takes the list's place
     closeGamesPop();
-    openGame(item.dataset.game);
+    openGame(item.dataset.game, rect);
   });
   document.addEventListener('click', (e) => {
-    if (!gamesPopEl.contains(e.target) && !e.target.closest('.meta-count')) closeGamesPop();
+    // A click on a game may just have opened the hint (openGame) - it stays.
+    if (!gamesPopEl.contains(e.target) && !e.target.closest('.meta-count, [data-game]')) closeGamesPop();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeGamesPop();
@@ -397,7 +410,8 @@ export function initMetaMode(host) {
     }
     const gameRow = e.target.closest('tr[data-game]');
     if (gameRow) {
-      openGame(gameRow.dataset.game);
+      // A hint (openGame) appears under the clicked cell, not at the far left of a wide row.
+      openGame(gameRow.dataset.game, (e.target.closest('td') ?? gameRow).getBoundingClientRect());
       return;
     }
     const oppRow = e.target.closest('tr[data-opp]');
@@ -819,9 +833,20 @@ export function initMetaMode(host) {
   // ---------- jumping into a single game ----------
 
   /** Opens the game in a new tab, in the single-game mode (js/main.js's deep link) - this tab keeps the Meta-Analyse. */
-  function openGame(url) {
+  /** Opens a game in the game mode (its own tab) - only once it has engine
+   *  values; otherwise a hint under `anchorRect` says why, with a button to
+   *  analyze it where that's possible (gameHintHtml). */
+  function openGame(url, anchorRect) {
     const r = records.find((x) => x.url === url);
     if (!r) return;
+    const state = gameOpenState(r, engineCache.get(r.url) ?? null, ctx().queueState(r));
+    if (state !== 'open') {
+      gamesPopEl.innerHTML = gameHintHtml(r, state);
+      gamesPopEl.dataset.for = 'hint'; // never a count's id - its next click opens the list again
+      placePop(anchorRect);
+      return;
+    }
+    closeGamesPop();
     const params = new URLSearchParams({ user: username, game: url, end: String(Math.round(r.endTime / 1000)) });
     if (site !== 'chesscom') params.set('site', site);
     window.open(`${location.pathname}?${params}`, '_blank', 'noopener');

@@ -40,6 +40,16 @@ export const isCoachGame = (r) => /^coach-/i.test(r.opponent);
 // engine could evaluate - it never counts as "missing engine values".
 export const hasMoves = (r) => r.plies > 0;
 
+/** What a click on a game in the Meta-Analyse does: 'open' it in the game
+ *  mode (it has engine values), or explain why not - 'nomoves' (nothing to
+ *  analyze), 'running' / 'queued' (its analysis is under way) or 'analyze'.
+ *  engine: its engine record or null; queue: 'running' | 'queued' | null. */
+export function gameOpenState(r, engine, queue) {
+  if (engine) return 'open';
+  if (!hasMoves(r)) return 'nomoves';
+  return queue ?? 'analyze';
+}
+
 /** Only the parts of a Chess.com game object the meta mode needs - also what
  *  the auto-analysis master files store, so they run through the exact same
  *  buildFastRecord() path as a fresh download. */

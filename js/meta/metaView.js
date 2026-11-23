@@ -227,6 +227,24 @@ export function gameListHtml(list, shown) {
   return `${head}<div class="meta-pop-list">${items.join('')}</div>${more}`;
 }
 
+const HINT_TEXT = {
+  analyze: 'Noch nicht analysiert.',
+  running: 'Wird gerade analysiert …',
+  queued: 'Wartet auf die Analyse.',
+  nomoves: 'Kann nicht analysiert werden (keine Züge).',
+};
+
+/** Shown in #meta-games-pop instead of opening a game without engine values
+ *  (metaRecords' gameOpenState): the game, why it doesn't open, and for
+ *  'analyze' a button that queues it (metaController's data-hint-analyze). */
+export function gameHintHtml(r, state) {
+  const style = timeClassStyle(r.timeClass);
+  const elo = r.oppRating ? ` (${r.oppRating})` : '';
+  const btn = state === 'analyze' ? `<button type="button" class="meta-pop-hint-btn" data-hint-analyze="${esc(r.url)}">${MAGNIFIER} Analysieren</button>` : '';
+  return `<p class="meta-pop-head" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}${elo} — ${esc(r.summary.dateLabel)}</p>`
+    + `<div class="meta-pop-hint"><p>${HINT_TEXT[state]}</p>${btn}</div>`;
+}
+
 /** items: [value, label, color?, tip?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
 function bigStats(items, cls = '') {
   return `<div class="meta-big${cls ? ` ${cls}` : ''}">${items
