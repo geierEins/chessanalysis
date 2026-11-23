@@ -115,7 +115,18 @@
       <!-- Zeitraum-Filter: eigenes Dropdown statt <select>, damit im
            eingeklappten Zustand nur ein kompaktes Icon steht statt des
            vollen Labels (siehe js/main.js's timeRangeSelect.setOptions). -->
-      <div id="time-range-picker" class="relative">
+      <!-- Phones, Meta-Analyse only (css/styles.css "PHONES": the .filter-ctl controls,
+           js/meta/metaController.js initFilterPanel): opens the filters below. -->
+      <button id="filter-toggle-btn" type="button" aria-expanded="false" title="Filter"
+              class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs items-center gap-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+        <span>Filter</span>
+        <span id="filter-toggle-count" class="filter-count hidden"></span>
+      </button>
+      <!-- Phones: line break before the opened filters. -->
+      <span id="filter-break" aria-hidden="true"></span>
+      <div id="time-range-picker" class="relative filter-ctl">
         <button id="time-range-btn" type="button" title="Zeitraum"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left">
           <span id="time-range-btn-label"></span>
@@ -128,7 +139,7 @@
            Spielarten" entfällt dadurch (alle vier angehakt = alle Arten),
            und der Button bleibt schmal (nur die ausgewählten Icons
            überlappend, kein Textlabel mehr). -->
-      <div id="game-type-picker" class="relative">
+      <div id="game-type-picker" class="relative filter-ctl">
         <!-- Filled by js/main.js's updateGameTypeFilterButtonIcon(). -->
         <button id="game-type-btn" type="button" title="Spielart"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left"></button>
@@ -152,7 +163,7 @@
            Der Button zeigt immer alle 3 Bobbel leicht überlappend, unabhängig
            vom aktuellen Auswahlstand (reines Icon fürs Dropdown selbst, wie
            beim Farbschema-Button). -->
-      <div id="outcome-filter-picker" class="relative">
+      <div id="outcome-filter-picker" class="relative filter-ctl">
         <!-- Filled by js/main.js's updateOutcomeFilterButtonIcon(), which
              renders only the currently-selected outcomes' icons. -->
         <button id="outcome-filter-btn" type="button" title="Ergebnis-Filter"
@@ -173,7 +184,7 @@
            oben: Mehrfachauswahl per Checkboxen, eigenes Dropdown statt
            CustomSelect, Button zeigt nur die aktuell ausgewählten Bauern-Icons
            überlappend. -->
-      <div id="color-filter-picker" class="relative">
+      <div id="color-filter-picker" class="relative filter-ctl">
         <!-- Filled by js/main.js's updateColorFilterButtonIcon(). -->
         <button id="color-filter-btn" type="button" title="Farb-Filter"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-left"></button>
@@ -208,7 +219,7 @@
       <!-- Meta-Analyse only (js/meta/metaController.js): takes the game
            picker's slot - filters every statistic down to one opponent, or
            "Alle Gegner". -->
-      <div id="opponent-picker" class="relative hidden">
+      <div id="opponent-picker" class="relative filter-ctl hidden">
         <button id="opponent-btn" type="button" disabled title="Gegner"
                 class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs max-w-96 text-left disabled:opacity-50 disabled:cursor-not-allowed truncate">
           <span id="opponent-btn-label">Erst Spiele laden…</span>

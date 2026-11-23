@@ -13,6 +13,8 @@ import { flagHtml } from '../ui/playerLabel.js';
 import { timeClassStyle } from '../timeClassStyle.js';
 
 // The status line's game-type counts, in the Spielart dropdown's order.
+// Phones - the same breakpoint as css/styles.css "PHONES".
+const PHONE_QUERY = '(max-width: 640px)';
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
@@ -184,6 +186,33 @@ export function initMetaMode(host) {
   }
   initStickyTabs();
 
+  // Phones: the filters sit in a panel under the top bar, opened by #filter-toggle-btn
+  // (css/styles.css "Mobile filter panel"). It closes again after "Spiele laden"
+  // and on a tab change.
+  const loaderPanelEl = document.getElementById('loader-panel');
+  const filterBtn = el('filter-toggle-btn');
+  const filterCountEl = el('filter-toggle-count');
+  function setFiltersOpen(open) {
+    loaderPanelEl.classList.toggle('filters-open', open);
+    filterBtn.setAttribute('aria-expanded', String(open));
+  }
+  filterBtn.addEventListener('click', () => setFiltersOpen(!loaderPanelEl.classList.contains('filters-open')));
+  el('fetch-games-btn').addEventListener('click', () => setFiltersOpen(false));
+
+  /** How many filters differ from "everything": time range, game types, results, colors, opponent. */
+  function updateFilterCount(f) {
+    const n = [
+      f.from != null || f.to != null,
+      f.timeClasses.size < TYPE_ORDER.length,
+      f.outcomes.size < 3,
+      f.colors.size < 2,
+      Boolean(opponent),
+    ].filter(Boolean).length;
+    filterCountEl.textContent = String(n);
+    filterCountEl.classList.toggle('hidden', !n);
+    filterBtn.title = n ? `Filter (${n} aktiv)` : 'Filter';
+  }
+
   /** fromTab: the tab just left - the tab piece can animate the change (tabPieceSvg). */
   function renderTabs(fromTab = null) {
     tabsEl.innerHTML = META_TABS.map(
@@ -197,6 +226,8 @@ export function initMetaMode(host) {
     tabPieceEl.innerHTML = piece.body;
     tabPieceEl.parentElement.style.setProperty('--piece-w', `${piece.width}px`);
     tabPieceEl.parentElement.classList.toggle('all-pieces', piece.all); // needs more room - hidden earlier on narrow screens
+    // Phones swipe the tab strip - keep the current tab in view.
+    if (window.matchMedia(PHONE_QUERY).matches) tabsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   function render() {
@@ -212,6 +243,7 @@ export function initMetaMode(host) {
     const rs = filtered();
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
+    hideTip(); // ... and so is the element a tooltip belongs to
     // The search fields re-render on every keystroke (and countries keep
     // arriving while typing) - keep focus and cursor across the new HTML.
     const focused = document.activeElement;
@@ -240,17 +272,27 @@ export function initMetaMode(host) {
     const have = rs.filter((r) => engineCache.has(r.url)).length;
     const missing = rs.filter(needsEngine).length;
     const f = host.getFilters();
+    updateFilterCount(f);
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
-    let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
-    if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
-    else {
-      // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
-      const state = !missing ? 'full' : have ? 'part' : 'none';
-      const hint = !missing ? ' Alles analysiert.' : have ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Tabs ohne Engine sind trotzdem fertig.';
-      text += `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${have + missing} Partien</span> mit Engine-Werten.${hint}`;
-    }
-    if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
-    statusEl.innerHTML = text;
+    // One set of facts, said twice: in full (desktop) and as just the counts
+    // (phones, css/styles.css .meta-status-short: "411/411 Partien · [404/411] Engine").
+    const total = have + missing;
+    // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
+    const state = !missing ? 'full' : have ? 'part' : 'none';
+    const coverage = `${esc(label)}: ${have} von ${total} Partien mit Engine-Werten`;
+    const hint = !missing ? 'Alles analysiert.' : have ? `Die Lupe analysiert die ${missing} fehlenden.` : 'Tabs ohne Engine sind trotzdem fertig.';
+    const olderMissing = 'Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.';
+    const long = [
+      rs.length ? `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern.` : `Keine der ${records.length} geladenen Partien passt zu den Filtern.`,
+      rs.length ? `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${total} Partien</span> mit Engine-Werten. ${hint}` : '',
+      wider ? `<span class="meta-warn">${olderMissing}</span>` : '',
+    ];
+    const short = [
+      `<b>${rs.length}</b>/${records.length} Partien`,
+      rs.length ? `<span class="meta-cov ${state}" title="${coverage}">${have}/${total}</span> Engine` : '',
+      wider ? `<span class="meta-warn" title="${olderMissing}">ältere fehlen</span>` : '',
+    ];
+    statusEl.innerHTML = `<span class="meta-status-long">${long.filter(Boolean).join(' ')}</span><span class="meta-status-short">${short.filter(Boolean).join(' · ')}</span>`;
     // Right-aligned: all loaded games per game type (not just the filtered ones).
     typesEl.innerHTML = TYPE_ORDER.map(([tc, label]) => {
       const n = records.filter((r) => r.timeClass === tc).length;
@@ -263,6 +305,7 @@ export function initMetaMode(host) {
     if (!b) return;
     marked = null;
     gamesShown = GAMES_STEP;
+    setFiltersOpen(false);
     const fromTab = tab;
     tab = b.dataset.tab;
     saveMetaTab(tab);
@@ -354,6 +397,7 @@ export function initMetaMode(host) {
   });
 
   tabPanelEl.addEventListener('click', (e) => {
+    if (e.metaTipOnly) return; // a first tap that just showed a tooltip (touch, see below)
     const streakBtn = e.target.closest('[data-streak]');
     if (streakBtn) {
       showStreak(gameListById(streakBtn.dataset.streak));
@@ -438,6 +482,15 @@ export function initMetaMode(host) {
   });
 
   // "Woher kommen deine Gegner?": search text narrows the countries on every keystroke.
+  // Phones: the "Partien" sorting as one select (metaView's gamesSortSelect) instead of the table head.
+  tabPanelEl.addEventListener('change', (e) => {
+    if (!e.target.matches('[data-games-sort]')) return;
+    const [key, dir] = e.target.value.split(':');
+    sorts.games = { key, dir };
+    gamesShown = GAMES_STEP;
+    render();
+  });
+
   // "Partien": the opponent search, the table starts again at its first rows.
   tabPanelEl.addEventListener('input', (e) => {
     if (e.target.matches('[data-country-search]')) countrySearch = e.target.value;
@@ -451,13 +504,13 @@ export function initMetaMode(host) {
   // Shared tooltip for every chart mark carrying data-tip, and for opening
   // names (data-opening) and checkmate patterns (data-mate), which get a small board.
   let tipSource = null;
-  tabPanelEl.addEventListener('mousemove', (e) => {
-    const t = e.target.closest('[data-opening], [data-mate], [data-tip]');
-    if (!t) {
-      tipEl.classList.add('hidden');
-      tipSource = null;
-      return;
-    }
+  const TIP_SEL = '[data-opening], [data-mate], [data-tip]';
+  function hideTip() {
+    tipEl.classList.add('hidden');
+    tipSource = null;
+  }
+  /** Shows the tooltip of `t` near the point (x, y) - beside the mouse, or under a tapped element. */
+  function showTip(t, x0, y0) {
     if (t !== tipSource) {
       tipSource = t;
       const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
@@ -467,15 +520,47 @@ export function initMetaMode(host) {
       else tipEl.innerHTML = esc(t.getAttribute('data-tip') ?? t.dataset.opening).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     }
     tipEl.classList.remove('hidden');
-    const x = Math.min(e.clientX + 12, window.innerWidth - tipEl.offsetWidth - 8);
-    const below = e.clientY + 14;
-    const y = below + tipEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, e.clientY - tipEl.offsetHeight - 10) : below;
+    const x = Math.max(8, Math.min(x0 + 12, window.innerWidth - tipEl.offsetWidth - 8));
+    const below = y0 + 14;
+    const y = below + tipEl.offsetHeight > window.innerHeight - 8 ? Math.max(8, y0 - tipEl.offsetHeight - 10) : below;
     tipEl.style.left = `${x}px`;
     tipEl.style.top = `${y}px`;
+  }
+  // Touch screens have no hover (and send a fake mousemove before each tap) - they get the tap below instead.
+  const touchOnly = window.matchMedia('(hover: none)');
+  tabPanelEl.addEventListener('mousemove', (e) => {
+    if (touchOnly.matches) return;
+    const t = e.target.closest(TIP_SEL);
+    if (t) showTip(t, e.clientX, e.clientY);
+    else hideTip();
   });
   tabPanelEl.addEventListener('mouseleave', () => {
-    tipEl.classList.add('hidden');
-    tipSource = null;
+    if (!touchOnly.matches) hideTip();
+  });
+  // Touch: the first tap on an element with a tooltip shows it (the row it sits in
+  // doesn't open); a second tap on it does what a click does. Taps on counts, the
+  // magnifier and other controls act at once; taps elsewhere close the tooltip.
+  tabPanelEl.addEventListener('click', (e) => {
+    if (!touchOnly.matches) return;
+    const t = e.target.closest(TIP_SEL);
+    if (!t || e.target.closest('button, input, select, a, .meta-count, th[data-sort]')) {
+      hideTip();
+      return;
+    }
+    if (t === tipSource && !tipEl.classList.contains('hidden')) {
+      hideTip();
+      return; // second tap - the normal click handlers take it from here
+    }
+    e.preventDefault();
+    e.metaTipOnly = true; // the panel's click handler skips its action; document-level "click outside" closers still run
+    const r = t.getBoundingClientRect();
+    showTip(t, r.left, r.bottom - 8);
+  }, true);
+  window.addEventListener('scroll', () => {
+    if (touchOnly.matches) hideTip();
+  }, { passive: true });
+  document.addEventListener('click', (e) => {
+    if (touchOnly.matches && !tabPanelEl.contains(e.target)) hideTip();
   });
 
   // ---------- opponent picker (in the top bar, where single-game mode has its game picker) ----------
@@ -488,12 +573,13 @@ export function initMetaMode(host) {
     }
     const base = filtered({ ignoreOpponent: true });
     if (!opponent) {
-      oppBtnLabel.textContent = `👥 Alle Gegner · ${base.length} Partien`;
+      // Icon and text apart - phones show just the icon while no opponent is picked (css/styles.css "PHONES").
+      oppBtnLabel.innerHTML = `<span class="opp-ico">👥</span><span class="opp-all"> Alle Gegner · ${base.length} Partien</span>`;
       return;
     }
     const mine = base.filter((r) => r.opponent.toLowerCase() === opponent);
     const name = mine[0]?.opponent ?? records.find((r) => r.opponent.toLowerCase() === opponent)?.opponent ?? opponent;
-    oppBtnLabel.textContent = `⚔️ ${name} · ${mine.length} Partien`;
+    oppBtnLabel.innerHTML = `<span class="opp-ico">⚔️</span> <span class="opp-name">${esc(name)}</span><span class="opp-count"> · ${mine.length} Partien</span>`;
   }
 
   function closeOpponentMenu() {
