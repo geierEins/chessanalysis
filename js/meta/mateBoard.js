@@ -1,7 +1,7 @@
 // Small example board for the "Matt" tab's pattern tooltips: one textbook
-// position per checkmate pattern (js/analysis/mateType.js), cut down to the
-// part of the board where it happens, the mating move highlighted, plus a
-// one-line explanation. Same look as the opening tooltips (openingBoard.js).
+// position per checkmate pattern (js/analysis/mateType.js) on the whole board,
+// with just the pieces that make the pattern, the mating move highlighted, plus
+// a one-line explanation. Same look as the opening tooltips (openingBoard.js).
 
 import { MATE_LABEL } from './metaRecords.js';
 import { pieceUrl } from './openingBoard.js';
@@ -39,8 +39,6 @@ const EXAMPLES = {
 
 const cache = new Map();
 
-/** "e4" -> [file 0-7, row 0-7 from the top] */
-const pos = (sq) => [FILES.indexOf(sq[0]), 8 - Number(sq[1])];
 
 /** Rows of 8 entries (piece code like "wQ" or null) from a FEN board part. */
 function parseBoard(fen) {
@@ -62,31 +60,17 @@ export function mateBoardHtml(type) {
   if (!cache.has(key)) {
     const [fen, from, to, text] = ex;
     const board = parseBoard(fen);
-    // The part of the board that matters: every piece and the move, one square of margin, at least 4×4.
-    const cells = [pos(from), pos(to)];
-    board.forEach((row, r) => row.forEach((p, f) => p && cells.push([f, r])));
-    const span = (vals) => {
-      let lo = Math.max(0, Math.min(...vals) - 1);
-      let hi = Math.min(7, Math.max(...vals) + 1);
-      while (hi - lo < 3) (lo > 0 ? lo-- : hi++);
-      return [lo, hi];
-    };
-    const [f0, f1] = span(cells.map(([f]) => f));
-    const [r0, r1] = span(cells.map(([, r]) => r));
+    // The whole board (like the opening tooltips), with just the pieces that make the pattern.
     const moved = new Set([from, to]);
     let squares = '';
-    for (let r = r0; r <= r1; r++) {
-      for (let f = f0; f <= f1; f++) {
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
         const sq = FILES[f] + (8 - r);
         const p = board[r][f];
         squares += `<span class="${(r + f) % 2 ? 'd' : 'l'}${moved.has(sq) ? ' hl' : ''}">${p ? `<img src="${pieceUrl(p)}" alt="">` : ''}</span>`;
       }
     }
-    const cols = f1 - f0 + 1;
-    const rows = r1 - r0 + 1;
-    cache.set(key, `<div class="meta-ob-name">${MATE_LABEL[type]}</div>`
-      + `<div class="meta-ob" style="grid-template-columns:repeat(${cols},22px);grid-template-rows:repeat(${rows},22px);width:${cols * 22}px;height:${rows * 22}px">${squares}</div>`
-      + `<div class="meta-ob-moves">${text}</div>`);
+    cache.set(key, `<div class="meta-ob-name">${MATE_LABEL[type]}</div><div class="meta-ob">${squares}</div><div class="meta-ob-moves">${text}</div>`);
   }
   return cache.get(key);
 }
