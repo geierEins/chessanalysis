@@ -2807,3 +2807,11 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   #meta-panel svg.meta-cols text { font-size: 19px; }
   .meta-gauge > svg { overflow: visible; } /* the "100" label at the right end */
 }
+
+/* ---------- Phones: single-game view (Task 7) ----------
+   The bar scrolled sideways (overflow-x) and hid the board options right of
+   the full-width game label - now they wrap onto the line below it. */
+@media (max-width: 640px) {
+  #loader-panel[data-mode="game"] #filter-row { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
+  #loader-panel[data-mode="game"] #filter-row #game-btn { white-space: normal; height: auto; min-height: 26px; padding-top: 3px; padding-bottom: 3px; }
+}
