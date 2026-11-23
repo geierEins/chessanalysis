@@ -91,6 +91,7 @@ export function initMetaMode(host) {
   let gamesShown = GAMES_STEP; // rows of the "Partien" table - grows by GAMES_STEP per "weitere laden", back to it on a new sort or tab
   if (!META_TABS.some((t) => t.id === tab)) tab = 'overview';
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
+  let countrySearch = ''; // search text of "Woher kommen deine Gegner?" (metaView's data-country-search)
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
@@ -144,6 +145,7 @@ export function initMetaMode(host) {
       sorts,
       gamesShown,
       countryLimit,
+      countrySearch,
       endings,
       heatmap,
       username,
@@ -203,7 +205,16 @@ export function initMetaMode(host) {
     const rs = filtered();
     renderStatus(rs);
     closeGamesPop(); // its count button is about to be replaced
+    // The country search re-renders on every keystroke (and countries keep
+    // arriving while typing) - keep its focus and cursor across the new HTML.
+    const focused = document.activeElement;
+    const caret = focused?.matches?.('[data-country-search]') ? focused.selectionStart : null;
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
+    if (caret != null) {
+      const input = tabPanelEl.querySelector('[data-country-search]');
+      input?.focus();
+      input?.setSelectionRange(caret, caret);
+    }
     layoutFitCharts(tabPanelEl);
     host.onCoverageChange(); // the analyze button greys out once nothing is left to analyze
   }
@@ -391,6 +402,13 @@ export function initMetaMode(host) {
     }
     const oppRow = e.target.closest('tr[data-opp]');
     if (oppRow) setOpponent(oppRow.dataset.opp.toLowerCase());
+  });
+
+  // "Woher kommen deine Gegner?": search text narrows the countries on every keystroke.
+  tabPanelEl.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-country-search]')) return;
+    countrySearch = e.target.value;
+    render();
   });
 
   // Shared tooltip for every chart mark carrying data-tip, and for opening

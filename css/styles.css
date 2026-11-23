@@ -2498,6 +2498,19 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
   color: rgb(var(--n-200));
 }
 
+/* Search above the bars of "Woher kommen deine Gegner?" */
+.meta-country-search {
+  width: 100%;
+  margin: 0 0 8px;
+  height: 26px;
+  padding: 0 8px;
+  background: rgb(var(--n-900));
+  border: 1px solid rgb(var(--n-700));
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgb(var(--n-200));
+}
+
 .meta-opp-list { max-height: 320px; overflow-y: auto; }
 .meta-opp-option { justify-content: space-between; }
 .meta-opp-name { overflow: hidden; text-overflow: ellipsis; }

@@ -82,7 +82,7 @@ function wdlBar(rs) {
 
 const WDL_LEGEND = `<div class="meta-legend"><span><i style="background:var(--meta-win)"></i>Sieg</span><span><i style="background:var(--meta-draw)"></i>Remis</span><span><i style="background:var(--meta-loss)"></i>Niederlage</span></div>`;
 
-/** Horizontal bars. rows: {label, labelHtml?, v, tip?, color?} */
+/** Horizontal bars. rows: {label, labelHtml?, v, valHtml?, tip?, color?} */
 function hbars(rows, { color = 'var(--meta-s1)', fmt = (v) => v, max } = {}) {
   if (!rows.length) return '<p class="meta-muted">Keine Daten.</p>';
   const m = max ?? Math.max(1, ...rows.map((r) => r.v));
@@ -90,7 +90,7 @@ function hbars(rows, { color = 'var(--meta-s1)', fmt = (v) => v, max } = {}) {
     .map(
       (r) => `<div class="meta-hrow"><span class="meta-lab" title="${esc(r.label)}">${r.labelHtml ?? esc(r.label)}</span>`
         + `<div class="meta-hbar"><i style="width:${(r.v / m) * 100}%;background:${r.color ?? color}" data-tip="${esc(r.tip ?? `${r.label}: ${fmt(r.v)}`)}"></i></div>`
-        + `<span class="meta-val">${fmt(r.v)}</span></div>`
+        + `<span class="meta-val">${r.valHtml ?? fmt(r.v)}</span></div>`
     )
     .join('')}</div>`;
 }
@@ -936,7 +936,16 @@ function opponents(rs, ctx) {
   // Both country cards show the top ctx.countryLimit countries by game count
   // (0 = all) - the table then sorts just those.
   const topCountries = ctx.countryLimit ? countries.slice(0, ctx.countryLimit) : countries;
-  const countryRows = topCountries.map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, tip: `${countryName(code)}: ${l.length} Partien` }));
+  // "Woher kommen deine Gegner?" can be narrowed by a search text (metaController's
+  // countrySearch) - over all countries, not just the top ones; case and accents don't matter.
+  const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const query = fold((ctx.countrySearch ?? '').trim());
+  const shownCountries = query ? countries.filter(([code]) => fold(countryName(code)).includes(query) || code.toLowerCase() === query) : topCountries;
+  const countryRows = shownCountries.map(([code, l]) => ({ label: countryName(code), labelHtml: countryLabel(code), v: l.length, valHtml: gamesCount(l), tip: `${countryName(code)}: ${l.length} Partien` }));
+  const countrySearch = `<input type="search" class="meta-country-search" data-country-search value="${esc(ctx.countrySearch ?? '')}" placeholder="Land suchen …" aria-label="Land suchen" autocomplete="off">`;
+  const countryBars = query && !countryRows.length
+    ? `<p class="meta-muted">Kein Land passt zu „${esc(ctx.countrySearch.trim())}“.</p>`
+    : hbars(countryRows, { max: Math.max(1, ...countries.map(([, l]) => l.length)) });
   const limitNote = countries.length > topCountries.length ? `Top ${topCountries.length} von ${countries.length} Ländern nach Anzahl Partien.` : `Alle ${countries.length} Länder.`;
   const pendingNote = pending ? `Länder werden noch geladen (${ctx.countriesDone} von ${ctx.countriesTotal} Gegnern).` : 'Land aus dem Chess.com-Profil des Gegners.';
   const cSort = ctx.sorts.countries;
@@ -973,7 +982,7 @@ function opponents(rs, ctx) {
     .join('');
 
   return `<div class="meta-grid">${h2h}
-    ${card('Woher kommen deine Gegner?', 'fast', countries.length ? hbars(countryRows) : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: `${countries.length ? `${limitNote} ` : ''}${pendingNote}`, head: limitPicker(ctx.countryLimit) })}
+    ${card('Woher kommen deine Gegner?', 'fast', countries.length ? `${countrySearch}${countryBars}` : `<p class="meta-muted">${pending ? 'Länder werden geladen …' : 'Keine Länderangaben.'}</p>`, { note: `${countries.length ? `${query ? `${shownCountries.length} von ${countries.length} Ländern passen zur Suche.` : limitNote} ` : ''}${pendingNote}`, head: limitPicker(ctx.countryLimit) })}
     ${card('Quote nach Land', 'fast', countries.length ? countryTable : '<p class="meta-muted">Noch keine Daten.</p>', { note: countries.length ? limitNote : '', head: limitPicker(ctx.countryLimit) })}
     ${card('Häufigste Gegner', 'fast', oppTable, { note: 'Zeile anklicken: Statistik nur gegen diesen Gegner.' })}
     ${card('Gegen Stärkere und Schwächere', 'fast', `<div class="meta-rows">${diffRows}</div>`, { note: 'Erwartete Quote nach Elo-Formel aus dem Wertungsunterschied, verglichen mit dem tatsächlichen Ergebnis. Nur gewertete Partien.' })}
