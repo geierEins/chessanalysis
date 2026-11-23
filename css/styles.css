@@ -1841,6 +1841,12 @@ button.field-error {
 /* Right after the status text, not pushed to the right edge. */
 .meta-status-types { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .meta-status-dot { color: var(--meta-faint); }
+/* Engine coverage in the status line (metaController's renderStatus): a tinted chip -
+   jade = all analyzed, amber = some, crimson = none. Shades kept apart from the game
+   types' text colors (js/timeClassStyle.js: rapid #4ade80, daily #f2c94c, bullet #f87171). */
+.meta-cov { --cov: #2bb594; display: inline-block; padding: 0 7px; border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--cov); background: color-mix(in srgb, var(--cov) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cov) 45%, transparent); }
+.meta-cov.part { --cov: #e8912d; }
+.meta-cov.none { --cov: #e5484d; }
 
 .meta-tabs {
   display: flex;

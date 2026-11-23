@@ -239,8 +239,12 @@ export function initMetaMode(host) {
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
     let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
     if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
-    else if (have === 0) text += `Für <b>${esc(label)}</b> ist noch nichts analysiert, Tabs ohne Engine sind trotzdem fertig.`;
-    else text += `<b>${esc(label)}</b>: ${have} von ${have + missing} mit Engine-Werten.${missing ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Alles analysiert.'}`;
+    else {
+      // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
+      const state = !missing ? 'full' : have ? 'part' : 'none';
+      const hint = !missing ? ' Alles analysiert.' : have ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Tabs ohne Engine sind trotzdem fertig.';
+      text += `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${have + missing} Partien</span> mit Engine-Werten.${hint}`;
+    }
     if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
     statusEl.innerHTML = text;
     // Right-aligned: all loaded games per game type (not just the filtered ones).
