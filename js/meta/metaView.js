@@ -128,6 +128,7 @@ const CARD_ICONS = {
   'Womit du schlägst': '⚔️',
   'Verteilung der Genauigkeit': '📶',
   'Genauigkeit nach Phase': '🧭',
+  'Verlauf der Genauigkeit': '📈',
   'Verwertung': '🏁',
   'Wann passieren deine Patzer?': '💥',
   'Zeit': '⏱️',
@@ -321,17 +322,93 @@ function columns(bins, { color = 'var(--meta-s1)', H = 170, W = 640 } = {}) {
 // renderMetaTab() puts placeholders into the HTML; layoutFitCharts() draws
 // them once the HTML is in the page, and again whenever the size changes.
 const fitDraws = new Map();
+// Zoomable charts: id -> {key, min, max, minSpan, l, r, from, to} (from/to: the visible x range).
+const fitZooms = new Map();
+// The last zoom per chart key, so a re-render with the same points keeps it.
+const zoomMemory = new Map();
 let fitSeq = 0;
 
 /**
- * @param {(W: number, H: number) => string} draw returns the chart's SVG
- * @param {{height?: number}} [opts] height: a fixed height in px instead of the usual proportions
+ * @param {(W: number, H: number, view?: {from: number, to: number}) => string} draw returns the chart's SVG
+ * @param {{height?: number, zoom?: {key: string, min: number, max: number, minSpan: number, l: number, r: number}}} [opts]
+ *   height: a fixed height in px instead of the usual proportions.
+ *   zoom: makes the x axis zoomable (drag a range, Ctrl + wheel, double-click resets);
+ *   min/max: the full x range, minSpan: the narrowest zoom, l/r: the plot's left/right
+ *   padding in px. draw then gets the visible range as its third argument.
  */
-function fitChart(draw, { height } = {}) {
+function fitChart(draw, { height, zoom } = {}) {
   const id = `fit${++fitSeq}`;
   fitDraws.set(id, draw);
   const style = height ? ` style="aspect-ratio:auto;height:${height}px"` : '';
-  return `<div class="meta-fit" data-fit="${id}"${style}></div>`;
+  const box = `<div class="meta-fit" data-fit="${id}"${style}></div>`;
+  if (!zoom) return box;
+  const prev = zoomMemory.get(zoom.key);
+  const view = prev?.min === zoom.min && prev?.max === zoom.max ? prev : { from: zoom.min, to: zoom.max };
+  fitZooms.set(id, { ...zoom, from: view.from, to: view.to });
+  const zoomed = view.from > zoom.min || view.to < zoom.max;
+  return `<div class="meta-zoom">${box}<div class="meta-zoom-sel hidden"></div>`
+    + `<button type="button" class="meta-zoom-reset${zoomed ? '' : ' hidden'}">Zoom zurücksetzen</button></div>`;
+}
+
+/** Wires a zoomable chart's mouse handling, once per rendered box. */
+function bindZoom(box, z) {
+  const wrap = box.parentElement;
+  const sel = wrap.querySelector('.meta-zoom-sel');
+  const reset = wrap.querySelector('.meta-zoom-reset');
+  const xOf = (e) => e.clientX - box.getBoundingClientRect().left;
+  const indexAt = (px) => {
+    const x0 = z.l;
+    const x1 = box.clientWidth - z.r;
+    const t = Math.max(0, Math.min(1, (px - x0) / Math.max(1, x1 - x0)));
+    return z.from + t * (z.to - z.from);
+  };
+  const apply = (from, to) => {
+    const span = Math.min(z.max - z.min, z.minSpan);
+    if (to - from < span) {
+      const c = (from + to) / 2;
+      [from, to] = [c - span / 2, c + span / 2];
+    }
+    if (from < z.min) [from, to] = [z.min, to + (z.min - from)];
+    if (to > z.max) [from, to] = [Math.max(z.min, from - (to - z.max)), z.max];
+    Object.assign(z, { from, to });
+    zoomMemory.set(z.key, { min: z.min, max: z.max, from, to });
+    reset.classList.toggle('hidden', from <= z.min && to >= z.max);
+    delete box.dataset.size;
+    layoutFitCharts(wrap);
+  };
+  let start = null;
+  box.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    start = xOf(e);
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (start == null) return;
+    const x = Math.max(z.l, Math.min(box.clientWidth - z.r, xOf(e)));
+    const a = Math.max(z.l, Math.min(start, x));
+    sel.style.left = `${a}px`;
+    sel.style.width = `${Math.abs(x - Math.max(z.l, start))}px`;
+    sel.classList.remove('hidden');
+  });
+  const end = (e) => {
+    if (start == null) return;
+    const x = xOf(e);
+    const [a, b] = [Math.min(start, x), Math.max(start, x)];
+    start = null;
+    sel.classList.add('hidden');
+    if (b - a > 6) apply(indexAt(a), indexAt(b));
+  };
+  box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', () => { start = null; sel.classList.add('hidden'); });
+  box.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return; // a plain wheel keeps scrolling the page
+    e.preventDefault();
+    const c = indexAt(xOf(e));
+    const f = e.deltaY > 0 ? 1.25 : 0.8;
+    apply(c - (c - z.from) * f, c + (z.to - c) * f);
+  }, { passive: false });
+  box.addEventListener('dblclick', () => apply(z.min, z.max));
+  reset.addEventListener('click', () => apply(z.min, z.max));
 }
 
 /** Draws every fitChart() placeholder in root at its current size. */
@@ -339,11 +416,16 @@ export function layoutFitCharts(root) {
   for (const box of root.querySelectorAll('[data-fit]')) {
     const draw = fitDraws.get(box.dataset.fit);
     if (!draw) continue;
+    const z = fitZooms.get(box.dataset.fit);
+    if (z && !box.dataset.zoomBound) {
+      box.dataset.zoomBound = '1';
+      bindZoom(box, z);
+    }
     const W = Math.max(240, Math.floor(box.clientWidth));
     const H = Math.max(90, Math.floor(box.clientHeight));
     if (box.dataset.size === `${W}x${H}`) continue;
     box.dataset.size = `${W}x${H}`;
-    box.innerHTML = draw(W, H);
+    box.innerHTML = z ? draw(W, H, { from: z.from, to: z.to }) : draw(W, H);
   }
 }
 
@@ -425,49 +507,76 @@ function ratingChart(rs) {
   const all = series.flatMap(([, l]) => l);
   const x0 = Math.min(...all.map((r) => r.endTime));
   const x1 = Math.max(...all.map((r) => r.endTime));
-  const ys = all.map((r) => r.ownRating);
-  const span = Math.max(...ys) - Math.min(...ys);
-  const step = span > 600 ? 200 : span > 250 ? 100 : 50;
-  const y0 = Math.floor((Math.min(...ys) - 10) / step) * step;
-  const y1 = Math.ceil((Math.max(...ys) + 10) / step) * step;
-  const months = [];
-  const d = new Date(x0);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  d.setMonth(d.getMonth() + 1);
-  for (; +d <= x1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d));
   const lines = series.map(([tc, list]) => [tc, [...list].sort((a, b) => a.endTime - b.endTime)]);
   const legend = lines
     .map(([tc, sorted]) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]} ${sorted[0].ownRating} → <b style="color:${timeClassStyle(tc).color}">${sorted[sorted.length - 1].ownRating}</b></span>`)
     .join('');
+  const P = { l: 40, r: 14, t: 8, b: 22 };
   // Drawn at the box's pixel size (fitChart), so text and lines keep their size on a wide card.
-  const draw = (W, H) => {
-    const P = { l: 40, r: 14, t: 8, b: 22 };
-    const X = (x) => P.l + ((x - x0) / Math.max(1, x1 - x0)) * (W - P.l - P.r);
+  // view: the visible time range, see fitChart's zoom.
+  const draw = (W, H, view = { from: x0, to: x1 }) => {
+    const { from, to } = view;
+    // The y axis follows the games in view (all of them, should none be).
+    const inView = all.filter((r) => r.endTime >= from && r.endTime <= to);
+    const ys = (inView.length ? inView : all).map((r) => r.ownRating);
+    const span = Math.max(...ys) - Math.min(...ys);
+    const step = span > 600 ? 200 : span > 250 ? 100 : span > 100 ? 50 : 25;
+    const y0 = Math.floor((Math.min(...ys) - 10) / step) * step;
+    const y1 = Math.ceil((Math.max(...ys) + 10) / step) * step;
+    const X = (x) => P.l + ((x - from) / Math.max(1, to - from)) * (W - P.l - P.r);
     const Y = (y) => H - P.b - ((y - y0) / (y1 - y0)) * (H - P.t - P.b);
-    let s = '';
+    let s = `<defs><clipPath id="meta-elo-clip"><rect x="${P.l - 4}" y="0" width="${W - P.l - P.r + 8}" height="${H}"/></clipPath></defs>`;
     for (let y = y0; y <= y1; y += step) {
       s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(y)}" y2="${Y(y)}"/><text x="${P.l - 6}" y="${Y(y) + 4}" text-anchor="end">${y}</text>`;
     }
-    // Month ticks, thinned so labels never collide (~70 px each).
-    const every = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor((W - P.l - P.r) / 70))));
-    months.forEach((m, i) => {
-      if (i % every) return;
-      const label = m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString('de-DE', { month: 'short' });
-      s += `<text x="${X(+m)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
-    });
+    for (const { t, label } of timeTicks(from, to, W - P.l - P.r, 70)) {
+      s += `<text x="${X(t)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    }
+    let marks = '';
     for (const [tc, sorted] of lines) {
       const col = timeClassStyle(tc).color;
-      s += `<polyline fill="none" stroke="${col}" stroke-width="1.25" stroke-linejoin="round" points="${sorted.map((r) => `${X(r.endTime).toFixed(1)},${Y(r.ownRating).toFixed(1)}`).join(' ')}"/>`;
+      marks += `<polyline fill="none" stroke="${col}" stroke-width="1.25" stroke-linejoin="round" points="${sorted.map((r) => `${X(r.endTime).toFixed(1)},${Y(r.ownRating).toFixed(1)}`).join(' ')}"/>`;
+      const last = sorted[sorted.length - 1];
+      marks += `<circle cx="${X(last.endTime)}" cy="${Y(last.ownRating)}" r="3" fill="${col}" stroke="var(--meta-panel)" stroke-width="1.5"/>`;
+    }
+    s += `<g clip-path="url(#meta-elo-clip)">${marks}</g>`;
+    for (const [tc, sorted] of lines) {
       for (const r of sorted) {
+        if (r.endTime < from || r.endTime > to) continue;
         s += `<circle cx="${X(r.endTime).toFixed(1)}" cy="${Y(r.ownRating).toFixed(1)}" r="5" fill="transparent" data-tip="${TC_LABEL[tc]} · ${fmtDate(r.endTime)}\nWertung ${r.ownRating} · ${RES_WORD[r.result]} gegen ${esc(r.opponent)}"/>`;
       }
-      const last = sorted[sorted.length - 1];
-      s += `<circle cx="${X(last.endTime)}" cy="${Y(last.ownRating)}" r="3" fill="${col}" stroke="var(--meta-panel)" stroke-width="1.5"/>`;
     }
     return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo-Verlauf">${s}</svg>`;
   };
-  return { legend: `<div class="meta-legend spaced">${legend}</div>`, body: fitChart(draw, { height: 180 }) };
+  return {
+    legend: `<div class="meta-legend spaced">${legend}</div>`,
+    body: fitChart(draw, { height: 180, zoom: { key: 'rating', min: x0, max: x1, minSpan: DAY_MS, l: P.l, r: P.r } }),
+  };
+}
+
+const DAY_MS = 864e5;
+const ZOOM_NOTE = 'Zoomen: Bereich mit der Maus aufziehen oder Strg + Mausrad; Doppelklick setzt zurück.';
+
+/** Date labels for a time axis from..to (ms), about gap px apart over width px:
+ *  every day for up to two weeks, Mondays up to two months, else each month's 1st
+ *  (the year on January). @returns {{t: number, label: string}[]} */
+function timeTicks(from, to, width, gap) {
+  const span = (to - from) / DAY_MS;
+  const unit = span <= 14 ? 'day' : span <= 62 ? 'week' : 'month';
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  if (unit === 'month') d.setDate(1);
+  const out = [];
+  // setDate/setMonth steps keep local midnight across daylight-saving changes.
+  for (; +d <= to; unit === 'month' ? d.setMonth(d.getMonth() + 1) : d.setDate(d.getDate() + 1)) {
+    if (+d < from || (unit === 'week' && d.getDay() !== 1)) continue;
+    const label = unit === 'month'
+      ? (d.getMonth() === 0 ? String(d.getFullYear()) : d.toLocaleDateString('de-DE', { month: 'short' }))
+      : d.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
+    out.push({ t: +d, label });
+  }
+  const every = Math.max(1, Math.ceil(out.length / Math.max(2, Math.floor(width / gap))));
+  return out.filter((_, i) => i % every === 0);
 }
 
 /** One column per calendar day of the period (local time), stacked by game type;
@@ -489,36 +598,38 @@ function gamesPerDayChart(rs) {
   const active = byDay.size;
   const legend = types.map((tc) => `<span><i style="background:${timeClassStyle(tc).color}"></i>${TC_LABEL[tc]}</span>`).join('')
     + `<span class="meta-muted">${active} von ${days.length} Tagen gespielt · Ø ${f1(rs.length / active)} an Spieltagen · max. ${max}</span>`;
-  const draw = (W, H) => {
-    const P = { l: 34, r: 10, t: 8, b: 22 };
+  const P = { l: 34, r: 10, t: 8, b: 22 };
+  const dayIndex = new Map(days.map((t, i) => [t, i]));
+  // x runs in days: day i's column covers i..i+1. view: the visible part, see fitChart's zoom.
+  const draw = (W, H, view = { from: 0, to: days.length }) => {
+    const { from, to } = view;
+    const i0 = Math.max(0, Math.floor(from));
+    const i1 = Math.min(days.length - 1, Math.ceil(to) - 1);
+    // The y axis follows the days in view.
+    let maxInView = 1;
+    for (let i = i0; i <= i1; i++) maxInView = Math.max(maxInView, byDay.get(days[i])?.length ?? 0);
     const lines = Math.max(2, Math.floor((H - P.t - P.b) / 26));
-    const step = [1, 2, 5, 10, 20, 25, 50, 100].find((x) => max / x <= lines) ?? 200;
-    const top = Math.ceil(max / step) * step;
-    const bw = (W - P.l - P.r) / days.length;
+    const step = [1, 2, 5, 10, 20, 25, 50, 100].find((x) => maxInView / x <= lines) ?? 200;
+    const top = Math.ceil(maxInView / step) * step;
+    const bw = (W - P.l - P.r) / Math.max(1e-9, to - from);
     const gap = bw > 6 ? 1.5 : bw > 3 ? 0.75 : 0;
+    const X = (u) => P.l + (u - from) * bw;
     const Y = (v) => H - P.b - (v / top) * (H - P.t - P.b);
-    let s = '';
+    let s = `<defs><clipPath id="meta-perday-clip"><rect x="${P.l}" y="0" width="${W - P.l - P.r}" height="${H}"/></clipPath></defs>`;
     for (let v = 0; v <= top; v += step) {
       s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
     }
-    // Ticks: every month's 1st over long periods, otherwise each Monday (or every day for a short one), ~60 px apart.
-    const ticks = days.filter((t) => {
-      const d = new Date(t);
-      return days.length > 62 ? d.getDate() === 1 : days.length > 14 ? d.getDay() === 1 : true;
-    });
-    const every = Math.max(1, Math.ceil(ticks.length / Math.max(2, Math.floor((W - P.l - P.r) / 60))));
-    ticks.forEach((t, i) => {
-      if (i % every) return;
-      const d = new Date(t);
-      const label = days.length > 62
-        ? (d.getMonth() === 0 ? String(d.getFullYear()) : d.toLocaleDateString('de-DE', { month: 'short' }))
-        : d.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
-      s += `<text x="${P.l + days.indexOf(t) * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${label}</text>`;
-    });
-    days.forEach((t, i) => {
+    // Labels under the column centers whose day is in view, ~60 px apart.
+    for (const { t, label } of timeTicks(days[i0], days[i1], W - P.l - P.r, 60)) {
+      const i = dayIndex.get(t);
+      if (i != null) s += `<text x="${X(i + 0.5)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    }
+    let bars = '';
+    for (let i = i0; i <= i1; i++) {
+      const t = days[i];
       const list = byDay.get(t);
-      if (!list) return;
-      const x = P.l + i * bw + gap / 2;
+      if (!list) continue;
+      const x = X(i) + gap / 2;
       let y = Y(0);
       const parts = [];
       for (const tc of types) {
@@ -526,18 +637,22 @@ function gamesPerDayChart(rs) {
         if (!n) continue;
         const h = Y(0) - Y(n);
         y -= h;
-        s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, bw - gap).toFixed(1)}" height="${h.toFixed(1)}" fill="${timeClassStyle(tc).color}"/>`;
+        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, bw - gap).toFixed(1)}" height="${h.toFixed(1)}" fill="${timeClassStyle(tc).color}"/>`;
         parts.push(`${TC_LABEL[tc]} ${n}`);
       }
       const c = wdl(list);
       const date = new Date(t).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
       // Hover target: the whole column height, so even a 1-game day is easy to hit.
-      s += `<rect x="${(P.l + i * bw).toFixed(1)}" y="${P.t}" width="${bw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent" data-tip="${date}: **${list.length} ${list.length === 1 ? 'Partie' : 'Partien'}**\n${parts.join(' · ')}\n${c.W} S · ${c.D} R · ${c.L} N"/>`;
-    });
+      bars += `<rect x="${X(i).toFixed(1)}" y="${P.t}" width="${bw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent" data-tip="${date}: **${list.length} ${list.length === 1 ? 'Partie' : 'Partien'}**\n${parts.join(' · ')}\n${c.W} S · ${c.D} R · ${c.L} N"/>`;
+    }
+    s += `<g clip-path="url(#meta-perday-clip)">${bars}</g>`;
     s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
     return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Partien pro Tag">${s}</svg>`;
   };
-  return { legend: `<div class="meta-legend spaced">${legend}</div>`, body: fitChart(draw, { height: 160 }) };
+  return {
+    legend: `<div class="meta-legend spaced">${legend}</div>`,
+    body: fitChart(draw, { height: 160, zoom: { key: 'perDay', min: 0, max: days.length, minSpan: Math.min(days.length, 3), l: P.l, r: P.r } }),
+  };
 }
 
 const DAY_MIN_GAMES = 3; // a day with one won game would otherwise always be "the best"
@@ -705,8 +820,8 @@ function overview(rs, ctx) {
       ${card('Nach Farbe und Spielart', 'fast', `<div class="meta-rows">${byColor}${byTc}</div>${WDL_LEGEND}`)}
       ${card('Die letzten 7 Partien', '', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten.' })}
     </div>
-    ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend })}
-    ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend })}
+    ${card('Elo-Verlauf', 'fast', rating.body, { cls: 'w12', mid: rating.legend, note: ZOOM_NOTE })}
+    ${card('Partien pro Tag', 'fast', perDay.body, { cls: 'w12', mid: perDay.legend, note: ZOOM_NOTE })}
     ${card('Beste Tage', 'fast', days.best, { cls: 'w6', note: DAYS_NOTE })}
     ${card('Schlechteste Tage', 'fast', days.worst, { cls: 'w6', note: DAYS_NOTE })}
   </div>`;
@@ -952,6 +1067,79 @@ function accuracyGauge(own, opp) {
     <span class="d">Gegner <b class="meta-gauge-oppval" style="color:${oppColor}">${f1(opp)}</b></span></div>`;
 }
 
+const RES_COLOR = { W: 'var(--meta-win)', D: 'var(--meta-draw)', L: 'var(--meta-loss)' };
+
+/** Accuracy per game in playing order: one dot per game (colored by result) and a
+ *  moving average for you and your opponents, so a trend shows through the noise.
+ *  @returns {{legend: string, body: string}} */
+function accuracyTrendChart(es, E) {
+  const games = es.filter((r) => E(r).accuracy != null).sort((a, b) => a.endTime - b.endTime);
+  if (games.length < 2) return { legend: '', body: '<p class="meta-muted">Zu wenige analysierte Partien.</p>' };
+  const n = games.length;
+  // Window grows with the number of games: smooth enough for many, still reactive for few.
+  const win = Math.max(5, Math.min(50, Math.round(n / 15)));
+  const rolling = (get) => games.map((_, i) => {
+    const xs = games.slice(Math.max(0, i + 1 - win), i + 1).map(get).filter((x) => x != null);
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  });
+  const own = rolling((r) => E(r).accuracy);
+  const opp = rolling((r) => E(r).oppAccuracy);
+  const OWN = 'var(--meta-s1)';
+  const OPP = 'var(--meta-muted)';
+  const legend = `<span><i style="background:${OWN}"></i>Du (Ø ${win} Partien) <b style="color:${OWN}">${f1(own[n - 1])}</b></span>`
+    + `<span><i style="background:${OPP}"></i>Gegner (Ø ${win} Partien) <b>${f1(opp[n - 1])}</b></span>`;
+  const P = { l: 34, r: 14, t: 8, b: 22 };
+  // view: the visible range of game indices (fractional while zoomed), see fitChart's zoom.
+  const draw = (W, H, view = { from: 0, to: n - 1 }) => {
+    const { from, to } = view;
+    const i0 = Math.max(0, Math.floor(from));
+    const i1 = Math.min(n - 1, Math.ceil(to));
+    // One game beyond each edge, so the lines run out of the picture instead of stopping short.
+    const idx = [];
+    for (let i = Math.max(0, i0 - 1); i <= Math.min(n - 1, i1 + 1); i++) idx.push(i);
+    const shown = idx.filter((i) => i >= from - 1e-9 && i <= to + 1e-9);
+    // The y axis follows what is visible.
+    const lo = Math.min(50, Math.floor(Math.min(...shown.map((i) => E(games[i]).accuracy)) / 10) * 10);
+    const X = (i) => P.l + ((i - from) / Math.max(1e-9, to - from)) * (W - P.l - P.r);
+    const Y = (v) => H - P.b - ((v - lo) / (100 - lo)) * (H - P.t - P.b);
+    let s = `<defs><clipPath id="meta-acc-clip"><rect x="${P.l}" y="0" width="${W - P.l - P.r}" height="${H}"/></clipPath></defs>`;
+    for (let v = lo; v <= 100; v += 10) {
+      s += `<line class="meta-grid" x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+    // Game numbers on the x axis, ~70 px apart, on round steps.
+    const span = to - from + 1;
+    const want = Math.max(2, Math.floor((W - P.l - P.r) / 70));
+    const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find((x) => span / x <= want) ?? 10000;
+    for (let g = Math.ceil((from + 1) / step) * step; g <= to + 1; g += step) {
+      s += `<text x="${X(g - 1)}" y="${H - 6}" text-anchor="middle">${g}</text>`;
+    }
+    s += `<line class="meta-axis" x1="${P.l}" x2="${W - P.r}" y1="${Y(lo)}" y2="${Y(lo)}"/>`;
+    const dotR = shown.length > 300 ? 1.5 : shown.length > 100 ? 2 : shown.length > 30 ? 2.5 : 3.5;
+    let marks = '';
+    for (const i of shown) {
+      marks += `<circle cx="${X(i).toFixed(1)}" cy="${Y(E(games[i]).accuracy).toFixed(1)}" r="${dotR}" fill="${RES_COLOR[games[i].result]}" opacity="0.45"/>`;
+    }
+    const line = (vals, col, width) => {
+      const pts = idx.filter((i) => vals[i] != null).map((i) => `${X(i).toFixed(1)},${Y(vals[i]).toFixed(1)}`);
+      return `<polyline fill="none" stroke="${col}" stroke-width="${width}" stroke-linejoin="round" points="${pts.join(' ')}"/>`;
+    };
+    marks += line(opp, OPP, 1.5) + line(own, OWN, 2.5);
+    s += `<g clip-path="url(#meta-acc-clip)">${marks}</g>`;
+    // Invisible hover targets, one column per game.
+    const bw = (W - P.l - P.r) / Math.max(1, to - from);
+    for (const i of shown) {
+      const r = games[i];
+      const e = E(r);
+      s += `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${P.t}" width="${Math.max(1, bw).toFixed(1)}" height="${H - P.t - P.b}" fill="transparent" data-tip="Partie ${i + 1} · ${fmtDate(r.endTime)}\n${RES_WORD[r.result]} gegen ${esc(r.opponent)}\nGenauigkeit ${f1(e.accuracy)} · Gegner ${f1(e.oppAccuracy)}\nØ ${win} Partien: du ${f1(own[i])} · Gegner ${f1(opp[i])}"/>`;
+    }
+    return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verlauf der Genauigkeit">${s}</svg>`;
+  };
+  return {
+    legend: `<div class="meta-legend spaced">${legend}</div>`,
+    body: fitChart(draw, { height: 220, zoom: { key: 'accuracyTrend', min: 0, max: n - 1, minSpan: 4, l: P.l, r: P.r } }),
+  };
+}
+
 function quality(rs, ctx) {
   if (!rs.length) return card('Spielqualität', '', EMPTY, { cls: 'w12' });
   const es = rs.filter((r) => ctx.engineOf(r));
@@ -980,6 +1168,8 @@ function quality(rs, ctx) {
   const byRes = [['Siege', 'W', 'var(--meta-win)'], ['Remis', 'D', 'var(--meta-draw)'], ['Niederlagen', 'L', 'var(--meta-loss)']].map(([label, k, color]) => ({
     label, v: avg(es.filter((r) => r.result === k), (r) => E(r).accuracy) ?? 0, color,
   }));
+
+  const trend = accuracyTrendChart(es, E);
 
   const blunders = es.flatMap((r) => E(r).blunders);
   const moveBins = [[1, 10], [11, 20], [21, 30], [31, 40], [41, 50], [51, 60], [61, Infinity]].map(([a, b]) => {
@@ -1017,6 +1207,7 @@ function quality(rs, ctx) {
   return kpis + `<div class="meta-grid">
     ${card('Verteilung der Genauigkeit', 'eng', columns(bins), { cls: 'w8', note: note || 'Genauigkeit je Partie, nach derselben Formel wie in der Einzelanalyse.' })}
     ${card('Genauigkeit nach Phase', 'eng', hbars(phase, { fmt: f1, max: 100 }) + '<h3>Nach Ergebnis</h3>' + hbars(byRes, { fmt: f1, max: 100 }), { cls: 'w4', note: `Eröffnung: Züge 1–${OPENING_LAST_MOVE}. Endspiel: ab höchstens 20 Punkten Figurenmaterial auf dem Brett (ohne Bauern und Könige).` })}
+    ${card('Verlauf der Genauigkeit', 'eng', trend.body, { cls: 'w12', mid: trend.legend, note: 'Jeder Punkt ist eine Partie (grün Sieg, gelb Remis, rot Niederlage), in der Reihenfolge, in der du sie gespielt hast. Die Linien zeigen den gleitenden Durchschnitt. ' + ZOOM_NOTE })}
     ${card('Verwertung', 'eng', `<div class="meta-kpis five">
       ${kpi('🏁 Gewinnstellungen verwertet', pc(winning.length ? converted.length / winning.length : null), `${converted.length} von ${winning.length}`, '', GOOD)}
       ${kpi('🛟 Aus Verluststellung gerettet', gamesCount(saved), 'Remis oder Sieg', '', GOOD)}

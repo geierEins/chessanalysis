@@ -2058,6 +2058,23 @@ button.field-error {
 .meta-fit { aspect-ratio: 640 / 200; min-width: 0; }
 .meta-fit > svg { width: 100%; height: 100%; }
 
+/* Zoomable chart (metaView's fitChart zoom): drag a range, Ctrl + wheel, double-click resets. */
+.meta-zoom { position: relative; }
+.meta-zoom > .meta-fit { cursor: crosshair; user-select: none; touch-action: pan-y; }
+.meta-zoom-sel {
+  position: absolute; top: 8px; bottom: 22px; pointer-events: none;
+  background: color-mix(in srgb, var(--meta-s1) 16%, transparent);
+  border-left: 1px solid var(--meta-s1); border-right: 1px solid var(--meta-s1);
+}
+.meta-zoom-reset {
+  position: absolute; top: 4px; right: 14px;
+  padding: 2px 8px; font-size: 11px; line-height: 16px;
+  color: var(--meta-muted); background: var(--meta-panel);
+  border: 1px solid color-mix(in srgb, var(--meta-muted) 35%, transparent); border-radius: 10px;
+  opacity: 0.75; cursor: pointer;
+}
+.meta-zoom-reset:hover { opacity: 1; color: inherit; }
+
 @media (min-width: 901px) {
   /* min-content: overflow:hidden would otherwise let the card shrink to 0. */
   .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: min-content; overflow: hidden; }
