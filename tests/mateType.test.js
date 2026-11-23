@@ -20,6 +20,7 @@ describe('mateType: Merkmale', () => {
     expectEqual(m.doubleCheck, false);
     expectEqual(m.discovered, false);
     expectEqual(m.promotion, false);
+    expectEqual(m.king, 'g8');
   });
 
   test('a discovered mate: the checking piece, not the moved one', () => {
@@ -95,7 +96,7 @@ describe('mateType: Muster', () => {
   });
 
   test('Damenkuss', () => {
-    expectEqual(type('6k1/6Q1/5P2/8/8/8/8/K7 b - - 0 1', 'g2', 'g7', 'q'), 'kiss');
+    expectEqual(type('6k1/6Q1/8/8/8/2B5/8/K7 b - - 0 1', 'g2', 'g7', 'q'), 'kiss');
   });
 
   test('Damenkuss on the edge beats Treppenmatt', () => {
@@ -114,7 +115,49 @@ describe('mateType: Muster', () => {
     expectEqual(type('6bk/6Pp/5K2/8/8/8/8/8 b - - 0 1', 'g6', 'g7', 'p'), 'pawn');
   });
 
-  test('MATE_TYPES lists the 12 patterns in checking order, then other', () => {
-    expectEqual(MATE_TYPES.join(','), 'scholars,smothered,kq,kr,arabian,anastasia,epaulette,dovetail,kiss,ladder,backrank,pawn,other');
+  test('MATE_TYPES lists the 24 patterns in checking order, then other', () => {
+    expectEqual(MATE_TYPES.join(','), 'scholars,fools,smothered,kq,kr,kbn,kbb,arabian,hook,corner,anastasia,morphy,greco,boden,opera,epaulette,dovetail,gueridon,damiano,lolli,kiss,ladder,backrank,pawn,other');
+  });
+});
+
+describe('mateType: weitere Muster', () => {
+  const type = (fen, from, to, piece, opts, flags = 'n') => mate(fen, { from, to, piece, color: 'w', flags }, opts).type;
+
+  test('Narrenmatt', () => {
+    const fen = 'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3';
+    expectEqual(mate(fen, { from: 'd8', to: 'h4', piece: 'q', color: 'b', flags: 'n' }, { standardStart: true, moveNumber: 2 }).type, 'fools');
+  });
+  test('Grundmatt K+L+S gegen K', () => {
+    expectEqual(type('k7/3N4/1K6/3B4/8/8/8/8 b - - 0 1', 'e4', 'd5', 'b'), 'kbn');
+  });
+  test('Grundmatt K+L+L gegen K', () => {
+    expectEqual(type('k7/8/1K6/3BB3/8/8/8/8 b - - 0 1', 'e4', 'd5', 'b'), 'kbb');
+  });
+  test('Hakenmatt', () => {
+    expectEqual(type('3nkr2/4R3/8/3N4/4P3/8/8/6K1 b - - 0 1', 'a7', 'e7', 'r'), 'hook');
+  });
+  test('Eckmatt', () => {
+    expectEqual(type('7k/5N1p/8/8/8/8/8/6RK b - - 0 1', 'e5', 'f7', 'n'), 'corner');
+  });
+  test('Morphy-Matt', () => {
+    expectEqual(type('7k/7p/8/8/3B4/8/8/6RK b - - 0 1', 'a1', 'd4', 'b'), 'morphy');
+  });
+  test('Greco-Matt', () => {
+    expectEqual(type('7k/6p1/8/8/2B5/7R/8/6K1 b - - 0 1', 'a3', 'h3', 'r'), 'greco');
+  });
+  test('Boden-Matt', () => {
+    expectEqual(type('2kr4/3p4/B7/8/5B2/8/8/6K1 b - - 0 1', 'e2', 'a6', 'b'), 'boden');
+  });
+  test('Opera-Matt', () => {
+    expectEqual(type('3Rk3/4pp2/8/B7/8/8/8/6K1 b - - 0 1', 'd1', 'd8', 'r'), 'opera');
+  });
+  test('Guéridon-Matt', () => {
+    expectEqual(type('8/3p1p2/4k3/4Q3/5P2/8/8/6K1 b - - 0 1', 'e1', 'e5', 'q'), 'gueridon');
+  });
+  test('Damiano-Matt', () => {
+    expectEqual(type('5rk1/5p1Q/6P1/8/8/8/8/6K1 b - - 0 1', 'h1', 'h7', 'q'), 'damiano');
+  });
+  test('Lolli-Matt', () => {
+    expectEqual(type('6k1/6Q1/5P2/8/8/8/8/K7 b - - 0 1', 'g2', 'g7', 'q'), 'lolli');
   });
 });

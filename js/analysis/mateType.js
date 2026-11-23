@@ -66,8 +66,8 @@ function findKing(board, color) {
  * @param {{from: string, to: string, piece: string, color: string, flags: string, promotion?: string}} move the mating move (chess.js verbose)
  * @param {{standardStart?: boolean, moveNumber?: number}} [opts] standardStart: the game began from the
  *   initial position; moveNumber: the mating side's own move number (both only matter for Schäfermatt)
- * @returns {{type: string, piece: string, doubleCheck: boolean, discovered: boolean, promotion: boolean}|null}
- *   null if the position isn't checkmate
+ * @returns {{type: string, piece: string, doubleCheck: boolean, discovered: boolean, promotion: boolean, king: string}|null}
+ *   king: the mated king's square; null if the position isn't checkmate
  */
 export function detectMate(fen, move, opts = {}) {
   let chess;
@@ -83,6 +83,7 @@ export function detectMate(fen, move, opts = {}) {
     const defender = chess.turn();
     const attacker = defender === 'w' ? 'b' : 'w';
     const kingSq = findKing(board, defender);
+    result.king = kingSq;
     const checks = checkers(board, kingSq, attacker);
     result.doubleCheck = checks.length > 1;
     result.discovered = checks.some((sq) => sq !== move.to);
@@ -96,7 +97,10 @@ export function detectMate(fen, move, opts = {}) {
 }
 
 /** The 12 patterns in checking order - the first one that fits wins - then 'other'. */
-export const MATE_TYPES = ['scholars', 'smothered', 'kq', 'kr', 'arabian', 'anastasia', 'epaulette', 'dovetail', 'kiss', 'ladder', 'backrank', 'pawn', 'other'];
+export const MATE_TYPES = [
+  'scholars', 'fools', 'smothered', 'kq', 'kr', 'kbn', 'kbb', 'arabian', 'hook', 'corner', 'anastasia', 'morphy',
+  'greco', 'boden', 'opera', 'epaulette', 'dovetail', 'gueridon', 'damiano', 'lolli', 'kiss', 'ladder', 'backrank', 'pawn', 'other',
+];
 
 const HEAVY = new Set(['r', 'q']);
 
@@ -123,16 +127,39 @@ function classify(c) {
   const diagonal = Math.abs(cf - kf) === Math.abs(cr - kr);
   const edgeFile = kf === 0 || kf === 7;
   const edgeRank = kr === 0 || kr === 7;
-  const onlyKingAnd = (t) => def.length === 1 && att.length === 2 && att.some((p) => p.type === t);
+  // Bare king against exactly these pieces (besides the attacker's king), e.g. 'bn'.
+  const onlyKingAnd = (types) => def.length === 1
+    && att.filter((p) => p.type !== 'k').map((p) => p.type).sort().join('') === [...types].sort().join('');
   const neighbours = KING.map(([a, b]) => [kf + a, kr + b]);
+  const corner = edgeFile && edgeRank;
+  // The line next to the edge the king stands on (file next to an edge file, rank next to an edge rank).
+  const nextToEdge = (p) => (edgeFile && p.f === (kf === 0 ? 1 : 6)) || (edgeRank && p.r === (kr === 0 ? 1 : 6));
+  const orthogonal = adjacent && !diagonal;
+  const pawnGuarded = () => guarded(cf, cr, ['p']);
 
   const tests = {
     scholars: () => opts.standardStart && (opts.moveNumber ?? 99) <= 10 && piece === 'q' && move.flags?.includes('c')
       && name(cf, cr) === (defender === 'b' ? 'f7' : 'f2') && guarded(cf, cr, ['b']),
+    fools: () => opts.standardStart && (opts.moveNumber ?? 99) <= 2 && defender === 'w' && piece === 'q',
     smothered: () => piece === 'n' && neighbours.every(([f, r]) => !onBoard(f, r) || own(f, r)),
     kq: () => onlyKingAnd('q'),
     kr: () => onlyKingAnd('r'),
-    arabian: () => edgeFile && edgeRank && piece === 'r' && adjacent && !diagonal && guarded(cf, cr, ['n']),
+    kbn: () => onlyKingAnd('bn'),
+    kbb: () => onlyKingAnd('bb'),
+    arabian: () => corner && piece === 'r' && orthogonal && guarded(cf, cr, ['n']),
+    hook: () => piece === 'r' && orthogonal
+      && att.some((p) => p.type === 'n' && attacks(board, p.f, p.r, cf, cr) && guarded(p.f, p.r, ['p'])),
+    corner: () => corner && piece === 'n' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p)),
+    morphy: () => corner && piece === 'b' && att.some((p) => HEAVY.has(p.type) && nextToEdge(p)),
+    greco: () => {
+      if (!corner || !HEAVY.has(piece) || cf !== kf) return false;
+      const inner = kf === 0 ? 1 : 6;
+      const diag = [inner, kr === 0 ? 1 : 6];
+      return own(...diag) && att.some((p) => p.type === 'b' && attacks(board, p.f, p.r, inner, kr));
+    },
+    boden: () => piece === 'b'
+      && att.some((p) => p.type === 'b' && (p.f !== cf || p.r !== cr) && neighbours.some(([f, r]) => onBoard(f, r) && !own(f, r) && attacks(board, p.f, p.r, f, r))),
+    opera: () => piece === 'r' && kr === (defender === 'w' ? 0 : 7) && cr === kr && guarded(cf, cr, ['b']),
     anastasia: () => {
       if (!edgeFile || !HEAVY.has(piece) || cf !== kf) return false;
       const inner = kf === 0 ? 1 : 6;
@@ -151,6 +178,14 @@ function classify(c) {
       const sr = Math.sign(kr - cr);
       return onBoard(kf + sf, kr) && onBoard(kf, kr + sr) && own(kf + sf, kr) && own(kf, kr + sr);
     },
+    gueridon: () => {
+      if (piece !== 'q' || !orthogonal || !guarded(cf, cr)) return false;
+      const [df, dr] = [kf - cf, kr - cr]; // away from the queen
+      const behind = [[kf + df + dr, kr + dr + df], [kf + df - dr, kr + dr - df]];
+      return behind.every(([f, r]) => onBoard(f, r) && own(f, r));
+    },
+    damiano: () => piece === 'q' && adjacent && diagonal && pawnGuarded(),
+    lolli: () => piece === 'q' && orthogonal && pawnGuarded(),
     kiss: () => piece === 'q' && adjacent && guarded(cf, cr),
     ladder: () => {
       if (!HEAVY.has(piece)) return false;
