@@ -95,7 +95,77 @@ export function detectMate(fen, move, opts = {}) {
   return result;
 }
 
-/** The pattern's id, or null for "Sonstiges Matt" (filled in by the pattern task). */
-function classify() {
-  return null;
+/** The 12 patterns in checking order - the first one that fits wins - then 'other'. */
+export const MATE_TYPES = ['scholars', 'smothered', 'kq', 'kr', 'arabian', 'anastasia', 'epaulette', 'dovetail', 'kiss', 'ladder', 'backrank', 'pawn', 'other'];
+
+const HEAVY = new Set(['r', 'q']);
+
+/** The pattern's id, or null for "Sonstiges Matt". c: what detectMate found out. */
+function classify(c) {
+  const { board, defender, attacker, kingSq, checks, move, opts, piece } = c;
+  const [kf, kr] = coords(kingSq);
+  // The checking piece - in a double check the moved one.
+  const [cf, cr] = coords(checks.length > 1 ? move.to : checks[0]);
+  const own = (f, r) => at(board, f, r)?.color === defender;
+  const pieces = (color) => {
+    const out = [];
+    for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+      const p = at(board, f, r);
+      if (p?.color === color) out.push({ ...p, f, r });
+    }
+    return out;
+  };
+  const att = pieces(attacker);
+  const def = pieces(defender);
+  // Defended by another attacking piece (the king included).
+  const guarded = (f, r, by = null) => att.some((p) => (p.f !== f || p.r !== r) && (!by || by.includes(p.type)) && attacks(board, p.f, p.r, f, r));
+  const adjacent = Math.max(Math.abs(cf - kf), Math.abs(cr - kr)) === 1;
+  const diagonal = Math.abs(cf - kf) === Math.abs(cr - kr);
+  const edgeFile = kf === 0 || kf === 7;
+  const edgeRank = kr === 0 || kr === 7;
+  const onlyKingAnd = (t) => def.length === 1 && att.length === 2 && att.some((p) => p.type === t);
+  const neighbours = KING.map(([a, b]) => [kf + a, kr + b]);
+
+  const tests = {
+    scholars: () => opts.standardStart && (opts.moveNumber ?? 99) <= 10 && piece === 'q' && move.flags?.includes('c')
+      && name(cf, cr) === (defender === 'b' ? 'f7' : 'f2') && guarded(cf, cr, ['b']),
+    smothered: () => piece === 'n' && neighbours.every(([f, r]) => !onBoard(f, r) || own(f, r)),
+    kq: () => onlyKingAnd('q'),
+    kr: () => onlyKingAnd('r'),
+    arabian: () => edgeFile && edgeRank && piece === 'r' && adjacent && !diagonal && guarded(cf, cr, ['n']),
+    anastasia: () => {
+      if (!edgeFile || !HEAVY.has(piece) || cf !== kf) return false;
+      const inner = kf === 0 ? 1 : 6;
+      const besides = [kr - 1, kr, kr + 1].filter((r) => r >= 0 && r < 8);
+      return besides.some((r) => own(inner, r)) && att.some((p) => p.type === 'n' && besides.some((r) => attacks(board, p.f, p.r, inner, r)));
+    },
+    epaulette: () => {
+      if (piece !== 'q' || adjacent) return false;
+      if (cf === kf) return onBoard(kf - 1, kr) && onBoard(kf + 1, kr) && own(kf - 1, kr) && own(kf + 1, kr);
+      if (cr === kr) return onBoard(kf, kr - 1) && onBoard(kf, kr + 1) && own(kf, kr - 1) && own(kf, kr + 1);
+      return false;
+    },
+    dovetail: () => {
+      if (piece !== 'q' || !adjacent || !diagonal || !guarded(cf, cr)) return false;
+      const sf = Math.sign(kf - cf); // away from the queen
+      const sr = Math.sign(kr - cr);
+      return onBoard(kf + sf, kr) && onBoard(kf, kr + sr) && own(kf + sf, kr) && own(kf, kr + sr);
+    },
+    kiss: () => piece === 'q' && adjacent && guarded(cf, cr),
+    ladder: () => {
+      if (!HEAVY.has(piece)) return false;
+      const helper = (onLine) => att.some((p) => HEAVY.has(p.type) && (p.f !== cf || p.r !== cr) && onLine(p));
+      if (edgeRank && cr === kr) return helper((p) => p.r === (kr === 7 ? 6 : 1));
+      if (edgeFile && cf === kf) return helper((p) => p.f === (kf === 7 ? 6 : 1));
+      return false;
+    },
+    backrank: () => {
+      const home = defender === 'w' ? 0 : 7;
+      if (kr !== home || !HEAVY.has(piece) || cr !== kr) return false;
+      const front = home === 0 ? 1 : 6;
+      return [kf - 1, kf, kf + 1].filter((f) => onBoard(f, front)).every((f) => own(f, front));
+    },
+    pawn: () => piece === 'p' && !move.promotion,
+  };
+  return MATE_TYPES.find((t) => tests[t]?.()) ?? null;
 }
