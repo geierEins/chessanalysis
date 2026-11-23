@@ -1,10 +1,27 @@
-param([int]$Port = 5500)
+# Dev server. -Lan also serves to other devices in the network (e.g. a phone
+# on the same Wi-Fi) - Windows needs two one-time admin steps for that, printed
+# below if they're missing.
+param([int]$Port = 5500, [switch]$Lan)
 
 $root = $PSScriptRoot
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://localhost:$Port/")
-$listener.Start()
+$listener.Prefixes.Add($(if ($Lan) { "http://+:$Port/" } else { "http://localhost:$Port/" }))
+try {
+  $listener.Start()
+} catch {
+  if (-not $Lan) { throw }
+  Write-Host "Kein Zugriff auf Port $Port fuer das Netzwerk. Einmalig in einer Admin-PowerShell ausfuehren:" -ForegroundColor Yellow
+  Write-Host "  netsh http add urlacl url=http://+:$Port/ user=$env:USERDOMAIN\$env:USERNAME"
+  Write-Host "  New-NetFirewallRule -DisplayName 'chessanalysis dev $Port' -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow -Profile Private"
+  exit 1
+}
 Write-Host "Serving $root at http://localhost:$Port/  (Strg+C zum Beenden)"
+if ($Lan) {
+  $ips = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' -and $_.PrefixOrigin -ne 'WellKnown' } |
+    ForEach-Object { $_.IPAddress }
+  foreach ($ip in $ips) { Write-Host "  im Netzwerk: http://${ip}:$Port/" -ForegroundColor Green }
+}
 
 $mime = @{
   ".html" = "text/html"; ".js" = "text/javascript"; ".css" = "text/css"
