@@ -23,8 +23,8 @@ export const META_TABS = [
     tip: 'Statistiken zur Genauigkeit deiner Züge: Die Engine bewertet jeden Zug. Nur Partien mit Engine-Analyse zählen, also mit der Lupe oder automatisch analysierte.',
   },
   { id: 'heatmap', label: 'Heatmap' },
-  { id: 'time', label: 'Zeit & Partieende' },
   { id: 'mate', label: 'Matt', tip: 'Mit welchen Mattbildern deine Partien enden - gesetzt und kassiert. Erkannt aus der Schlussstellung, ohne Engine.' },
+  { id: 'time', label: 'Zeit & Partieende' },
   { id: 'games', label: 'Partien' },
 ];
 
