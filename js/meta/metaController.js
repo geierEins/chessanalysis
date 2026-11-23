@@ -224,6 +224,8 @@ export function initMetaMode(host) {
     tabPieceEl.innerHTML = piece.body;
     tabPieceEl.parentElement.style.setProperty('--piece-w', `${piece.width}px`);
     tabPieceEl.parentElement.classList.toggle('all-pieces', piece.all); // needs more room - hidden earlier on narrow screens
+    // Phones swipe the tab strip - keep the current tab in view.
+    if (window.matchMedia('(max-width: 640px)').matches) tabsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   function render() {
@@ -270,15 +272,18 @@ export function initMetaMode(host) {
     updateFilterCount(f);
     const wider = records.length && (f.from == null ? loadedFrom != null : loadedFrom != null && +f.from < +loadedFrom);
     let text = `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern. `;
+    // Phones (css/styles.css .meta-status-short): just the counts - "411/411 Partien · [404/411] Engine".
+    let short = `<b>${rs.length}</b>/${records.length} Partien`;
     if (!rs.length) text = `Keine der ${records.length} geladenen Partien passt zu den Filtern. `;
     else {
       // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
       const state = !missing ? 'full' : have ? 'part' : 'none';
       const hint = !missing ? ' Alles analysiert.' : have ? ` Die Lupe analysiert die ${missing} fehlenden.` : ' Tabs ohne Engine sind trotzdem fertig.';
       text += `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${have + missing} Partien</span> mit Engine-Werten.${hint}`;
+      short += ` · <span class="meta-cov ${state}" title="${esc(label)}: ${have} von ${have + missing} Partien mit Engine-Werten">${have}/${have + missing}</span> Engine`;
     }
     if (wider) text += ' <span class="meta-warn">Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.</span>';
-    statusEl.innerHTML = text;
+    statusEl.innerHTML = `<span class="meta-status-long">${text}</span><span class="meta-status-short">${short}${wider ? ' <span class="meta-warn" title="Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.">· ältere fehlen</span>' : ''}</span>`;
     // Right-aligned: all loaded games per game type (not just the filtered ones).
     typesEl.innerHTML = TYPE_ORDER.map(([tc, label]) => {
       const n = records.filter((r) => r.timeClass === tc).length;

@@ -2746,3 +2746,15 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
 @media (max-width: 380px) {
   #filter-toggle-btn > span:not(.filter-count) { display: none; }
 }
+
+/* ---------- Phones: status line and tabs (docs/superpowers/plans/2026-11-23-mobile.md Task 3) ---------- */
+.meta-status-short { display: none; }
+@media (max-width: 640px) {
+  .meta-status-long { display: none; }
+  .meta-status-short { display: inline; }
+  .meta-status { row-gap: 4px; }
+  /* The tab strip: one line, swiped sideways, no scrollbar. */
+  .meta-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .meta-tabs::-webkit-scrollbar { display: none; }
+  .meta-tab { flex: none; padding: 8px 10px; }
+}
