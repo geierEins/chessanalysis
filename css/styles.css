@@ -2877,3 +2877,6 @@ tr.meta-otree.d0 td:first-child {
   color: var(--meta-muted);
   font-style: italic;
 }
+.meta-otree-plain {
+  color: var(--meta-muted);
+}

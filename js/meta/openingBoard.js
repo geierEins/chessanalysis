@@ -48,11 +48,12 @@ function moveText(sans) {
  * Cached per name and piece theme.
  * @param {string} name
  * @param {string} [extra] - plain text shown under the move list (e.g. played variations)
+ * @param {string} [line] - the moves (SAN, space-separated) to show instead of the name's book line
  */
-export function openingBoardHtml(name, extra = '') {
-  const key = `${loadPieceTheme()}|${name}`;
+export function openingBoardHtml(name, extra = '', line = '') {
+  const key = `${loadPieceTheme()}|${name}|${line}`;
   if (!cache.has(key)) {
-    const sans = openingLine(name);
+    const sans = line ? line.split(' ') : openingLine(name);
     const played = sans && playLine(sans);
     let html = null;
     if (played) {

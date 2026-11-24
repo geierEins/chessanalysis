@@ -146,26 +146,31 @@ function openingGroupOf(named) {
 }
 
 /**
- * The game's path through the Eröffnungen tab's opening tree: every named
- * position it passed, in order, each name once - so a deeper level is always
- * a later move ("King's Pawn Game" 1.e4 → "King's Knight Opening" 2.Nf3 →
- * "Normal Variation" 2…Nc6 → "Italian Game" 3.Bc4 → …). `label` is the name
- * without its parent's prefix, `move` the move that produced the name, `byMe`
- * whether the user played it.
+ * The game's path through the Eröffnungen tab's opening tree: one level per
+ * ply, up to its last named position - so level n is always the n-th ply.
+ * A ply that produced a new name is a named step ("King's Knight Opening"
+ * after 2.Nf3, `label` without its parent's prefix); one that didn't (1…e5
+ * is "King's Pawn Game" again, or a move without any name) is labelled by
+ * the move itself. `name` is the opening's name at that point (for the
+ * tooltip), `line` the moves up to it, `byMe` whether the user played it.
  * @param {Array<{ply: number, name: string}>} named openingBook's namedNodesForLine()
  * @param {'w'|'b'} color the user's color
- * @param {string[]} sans the game's moves (SAN), for `move`
- * @returns {Array<{name: string, label: string, move: string, byMe: boolean}>}
+ * @param {string[]} sans the game's moves (SAN)
+ * @returns {Array<{key: string, name: string, label: string, move: string, line: string, named: boolean, byMe: boolean}>}
  */
 export function openingTreePath(named, color, sans) {
+  const byPly = new Map(named.map((n) => [n.ply, n.name]));
   const steps = [];
-  for (const n of named) if (!steps.some((s) => s.name === n.name)) steps.push(n);
-  return steps.map((s, i) => ({
-    name: s.name,
-    label: stripParent(s.name, steps[i - 1]?.name),
-    move: `${Math.ceil(s.ply / 2)}${s.ply % 2 ? '.' : '…'}${sans[s.ply - 1]}`,
-    byMe: byColor(s.ply, color),
-  }));
+  let current = null; // the name in force at this ply
+  for (let ply = 1; ply <= (named.at(-1)?.ply ?? 0); ply++) {
+    const move = `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '…'}${sans[ply - 1]}`;
+    const name = byPly.get(ply);
+    const isNew = name != null && name !== current;
+    const label = isNew ? stripParent(name, current) : move;
+    if (isNew) current = name;
+    steps.push({ key: isNew ? name : move, name: current, label, move, line: sans.slice(0, ply).join(' '), named: isNew, byMe: byColor(ply, color) });
+  }
+  return steps;
 }
 
 /** "Italian Game: Two Knights Defense, Knight Attack" under "Italian Game: Two Knights Defense" -> "Knight Attack";

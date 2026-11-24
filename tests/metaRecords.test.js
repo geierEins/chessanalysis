@@ -263,17 +263,18 @@ describe('metaRecords: openingChoice', () => {
 describe('metaRecords: openingTreePath', () => {
   const path = (sans, color) => openingTreePath(namedNodesForLine(sans), color, sans);
   const same = (a, b) => expectEqual(JSON.stringify(a), JSON.stringify(b));
-  test('every named position is a level, deeper means later (prefixes stripped)', () => {
+  test('one level per ply; a ply without a new name is labelled by its move', () => {
     const p = path(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5'], 'w');
-    same(p.map((s) => s.label), ["King's Pawn Game", "King's Knight Opening", 'Normal Variation', 'Italian Game', 'Two Knights Defense', 'Knight Attack']);
-    same(p.map((s) => s.move), ['1.e4', '2.Nf3', '2…Nc6', '3.Bc4', '3…Nf6', '4.Ng5']);
-    same(p.map((s) => s.byMe), [true, true, false, true, false, true]);
-    expectEqual(p[5].name, 'Italian Game: Two Knights Defense, Knight Attack');
+    same(p.map((s) => s.label), ["King's Pawn Game", '1…e5', "King's Knight Opening", 'Normal Variation', 'Italian Game', 'Two Knights Defense', 'Knight Attack']);
+    same(p.map((s) => s.named), [true, false, true, true, true, true, true]);
+    same(p.map((s) => s.byMe), [true, false, true, false, true, false, true]);
+    expectEqual(p[1].name, "King's Pawn Game");
+    expectEqual(p[1].line, 'e4 e5');
+    expectEqual(p[6].name, 'Italian Game: Two Knights Defense, Knight Attack');
+    expectEqual(p[6].move, '4.Ng5');
   });
-  test('a name repeated on the path (1.e4 e5 is King\'s Pawn Game again) is one level', () => {
-    const p = path(['e4', 'e5', 'Qh5', 'Nf6'], 'b');
-    same(p.map((s) => s.label), ["King's Pawn Game", 'Wayward Queen Attack', 'Kiddie Countergambit']);
-    same(p.map((s) => s.byMe), [false, false, true]);
+  test('an umbrella variation one level below the repeated umbrella name', () => {
+    same(path(['e4', 'e5', 'Qh5', 'Nf6'], 'b').map((s) => s.label), ["King's Pawn Game", '1…e5', 'Wayward Queen Attack', 'Kiddie Countergambit']);
   });
   test('a defense right after the first move', () => {
     same(path(['e4', 'c5'], 'w').map((s) => s.label), ["King's Pawn Game", 'Sicilian Defense']);

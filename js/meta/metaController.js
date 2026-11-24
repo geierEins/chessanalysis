@@ -542,7 +542,7 @@ export function initMetaMode(host) {
   function showTip(t, x0, y0) {
     if (t !== tipSource) {
       tipSource = t;
-      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
+      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants, t.dataset.line) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
       tipEl.classList.toggle('board', Boolean(board));
       if (board) tipEl.innerHTML = board;
       // Plain text, except **...** in a data-tip, which is shown bold.
