@@ -1,6 +1,6 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
-import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, mateInOne, gameOpenState, MATE_LABEL } from '../js/meta/metaRecords.js';
-import { openingLine } from '../js/analysis/openingBook.js';
+import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, openingChoice, mateInOne, gameOpenState, MATE_LABEL } from '../js/meta/metaRecords.js';
+import { openingLine, namedNodesForLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -229,5 +229,33 @@ describe('metaRecords: mate', () => {
   test('a game without mate has none', () => {
     const raw = rawGame({ pgn: '[Result "1-0"]\n\n1. e4 e5 2. Nf3 1-0', black: { username: 'Bob', rating: 950, result: 'resigned' } });
     expectEqual(buildFastRecord(raw, 'alice').mate, null);
+  });
+});
+
+describe('metaRecords: openingChoice', () => {
+  const choice = (sans, color) => openingChoice(namedNodesForLine(sans), color);
+  const same = (a, b) => expectEqual(JSON.stringify(a), JSON.stringify(b));
+  test('a defense is chosen by black', () => {
+    same(choice(['e4', 'c5'], 'w'), { group: 'Sicilian Defense', byMe: false });
+  });
+  test('an opening is chosen by white', () => {
+    same(choice(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'], 'w'), { group: 'Italian Game', byMe: true });
+  });
+  test('the move that completes the family name decides (Four Knights: black, ply 6)', () => {
+    same(choice(['e4', 'e5', 'Nf3', 'Nc6', 'Nc3', 'Nf6'], 'w'), { group: 'Four Knights Game', byMe: false });
+  });
+  test("an umbrella name groups by its variation, chosen by whoever reached the variation", () => {
+    same(choice(['e4', 'e5', 'Qh5', 'Nf6'], 'b'), { group: "King's Pawn Game: Wayward Queen Attack", byMe: false });
+  });
+  test('only the umbrella name: whoever played the first move', () => {
+    same(choice(['e4'], 'b'), { group: "King's Pawn Game", byMe: false });
+  });
+  test('no moves: no group, no chooser', () => {
+    same(openingChoice([], 'w'), { group: null, byMe: null });
+  });
+  test('the fast record carries group and chooser', () => {
+    const r = buildFastRecord(rawGame(), 'alice');
+    expectTrue(typeof r.openingGroup === 'string');
+    expectTrue(typeof r.openingByMe === 'boolean');
   });
 });

@@ -61,15 +61,26 @@ export function createBookTracker() {
  * @returns {string|null}
  */
 export function openingNameForLine(sanMoves) {
+  return namedNodesForLine(sanMoves).at(-1)?.name ?? null;
+}
+
+/**
+ * Every named position along a line of SAN moves, in order, with the ply
+ * (1-based) at which it was reached - e.g. 1.e4 c5 gives
+ * [{ply: 1, name: "King's Pawn Game"}, {ply: 2, name: 'Sicilian Defense'}].
+ * Stops where the line leaves the book, like openingNameForLine().
+ * @param {string[]} sanMoves
+ * @returns {Array<{ply: number, name: string}>}
+ */
+export function namedNodesForLine(sanMoves) {
   let node = BOOK_TRIE;
-  let lastKnownName = null;
-  for (const san of sanMoves) {
-    const next = node?.[san];
-    if (!next) break;
-    node = next;
-    if (node.name) lastKnownName = node.name;
+  const named = [];
+  for (let i = 0; i < sanMoves.length; i++) {
+    node = node?.[sanMoves[i]];
+    if (!node) break;
+    if (node.name) named.push({ ply: i + 1, name: node.name });
   }
-  return lastKnownName;
+  return named;
 }
 
 let linesByName = null;

@@ -9,7 +9,7 @@
 
 import { Chess } from '../chessLib.js';
 import { summarizeGame } from '../api/chesscom.js';
-import { createBookTracker, openingNameForLine } from '../analysis/openingBook.js';
+import { createBookTracker, namedNodesForLine } from '../analysis/openingBook.js';
 import { parseClockSeconds, parseInitialClockSeconds, parseIncrementSeconds } from '../analysis/pgnClock.js';
 import { MATE_CP_EQUIVALENT } from '../analysis/gameAnalyzer.js';
 import { computeGameAccuracy } from '../analysis/accuracy.js';
@@ -112,6 +112,31 @@ export function openingFamily(name) {
   return name ? name.split(':')[0].trim() : null;
 }
 
+// Names Lichess already gives after 1.e4 / 1.d4 - who played that says nothing,
+// so for these the variation ("King's Pawn Game: Wayward Queen Attack") counts.
+const UMBRELLA_FAMILIES = new Set(["King's Pawn Game", "Queen's Pawn Game"]);
+
+/**
+ * Who chose the game's opening, and the name it is grouped under: the player
+ * whose move first produced the opening's family name (odd ply = white). For
+ * the umbrella names above, the variation (up to its first comma) instead.
+ * @param {Array<{ply: number, name: string}>} named openingBook's namedNodesForLine()
+ * @param {'w'|'b'} color the user's color
+ * @returns {{group: string|null, byMe: boolean|null}}
+ */
+export function openingChoice(named, color) {
+  const last = named.at(-1)?.name;
+  if (!last) return { group: null, byMe: null };
+  const family = openingFamily(last);
+  let group = family;
+  let first = named.find((n) => openingFamily(n.name) === family);
+  if (UMBRELLA_FAMILIES.has(family) && last !== family) {
+    group = `${family}: ${last.slice(last.indexOf(':') + 1).split(',')[0].trim()}`;
+    first = named.find((n) => n.name === group || n.name.startsWith(`${group},`)) ?? first;
+  }
+  return { group, byMe: (first.ply % 2 === 1) === (color === 'w') };
+}
+
 const MATERIAL_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 
 function fenMaterialBalance(fen) {
@@ -212,7 +237,9 @@ export function buildFastRecord(raw, username) {
     if (!book.feed(san)) break;
     bookPlies++;
   }
-  const opening = openingNameForLine(sans);
+  const named = namedNodesForLine(sans);
+  const opening = named.at(-1)?.name ?? null;
+  const choice = openingChoice(named, color);
 
   const timeControl = raw.time_control ?? parser.header().TimeControl;
   const initialClock = raw.time_class === 'daily' ? null : parseInitialClockSeconds(timeControl);
@@ -256,6 +283,8 @@ export function buildFastRecord(raw, username) {
     moves: Math.ceil(sans.length / 2),
     opening,
     family: openingFamily(opening),
+    openingGroup: choice.group, // the Eröffnungen tab's grouping (family, or variation of an umbrella name)
+    openingByMe: choice.byMe, // who chose the opening (null: no named position)
     firstMove: sans[0] ?? null,
     bookPlies,
     initialClock,
