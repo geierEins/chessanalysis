@@ -97,6 +97,17 @@ let meta = null;
 // The site games are loaded from (Chess.com/Lichess) - the toggle left of the username field.
 setPlatform(deepLink ? deepLink.site ?? 'chesscom' : loadPlatform());
 
+// Game mode: the button at the top bar's left end opens the game on its site -
+// on Chess.com its game page, which offers the game review.
+if (deepLink) {
+  const link = el('game-review-link');
+  const lichess = deepLink.site === 'lichess';
+  link.dataset.platform = lichess ? 'lichess' : 'chesscom';
+  link.href = deepLink.game;
+  link.title = lichess ? 'Partie auf Lichess öffnen' : 'Partie-Review auf Chess.com öffnen';
+  link.setAttribute('aria-label', link.title);
+}
+
 const usernameInput = el('username-input');
 const usernameAvatarEl = el('username-avatar');
 usernameInput.value = deepLink?.user ?? loadLastUsername(getPlatform()) ?? '';

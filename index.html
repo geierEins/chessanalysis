@@ -72,6 +72,13 @@
 <section id="loader-panel" class="sticky top-0 z-20 bg-neutral-900 border-b border-neutral-800">
   <div class="max-w-[1400px] mx-auto px-4 py-2">
     <div id="filter-row" class="flex items-center gap-2">
+      <!-- Game mode only: the game on its site (Chess.com's game review / Lichess's
+           game page) in a new tab - js/main.js sets href, icon and title from the deep link. -->
+      <a id="game-review-link" target="_blank" rel="noopener" data-platform="chesscom"
+         class="bg-neutral-800 border border-neutral-700 rounded px-1.5 hover:border-neutral-500">
+        <span class="platform-icon platform-icon-chesscom" aria-hidden="true">♟</span>
+        <span class="platform-icon platform-icon-lichess" aria-hidden="true">♞</span>
+      </a>
       <!-- Site toggle: Chess.com (default) / Lichess - js/main.js switches
            data-platform on click, css/styles.css shows the matching icon. -->
       <button id="platform-toggle-btn" type="button" data-platform="chesscom"

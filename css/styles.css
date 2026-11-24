@@ -463,16 +463,26 @@ html {
 }
 
 /* #platform-toggle-btn - Chess.com/Lichess, only the active site's icon shows. */
-#platform-toggle-btn .platform-icon {
+/* #game-review-link (game mode) - the same icons, a link to the game on its site. */
+#platform-toggle-btn .platform-icon,
+#game-review-link .platform-icon {
   font-size: 16px;
   line-height: 1;
 }
-#platform-toggle-btn .platform-icon-chesscom { color: #81b64c; }
-#platform-toggle-btn .platform-icon-lichess { color: rgb(var(--n-100)); }
+#platform-toggle-btn .platform-icon-chesscom,
+#game-review-link .platform-icon-chesscom { color: #81b64c; }
+#platform-toggle-btn .platform-icon-lichess,
+#game-review-link .platform-icon-lichess { color: rgb(var(--n-100)); }
 #platform-toggle-btn[data-platform="chesscom"] .platform-icon-lichess,
-#platform-toggle-btn[data-platform="lichess"] .platform-icon-chesscom {
+#platform-toggle-btn[data-platform="lichess"] .platform-icon-chesscom,
+#game-review-link[data-platform="chesscom"] .platform-icon-lichess,
+#game-review-link[data-platform="lichess"] .platform-icon-chesscom {
   display: none;
 }
+/* Only in the game mode (index.html's boot guess, then js/main.js's data-mode). */
+#game-review-link { display: none; height: 26px; box-sizing: border-box; align-items: center; flex: none; }
+html[data-boot-mode="game"] #game-review-link,
+#loader-panel[data-mode="game"] #game-review-link { display: flex; }
 
 body {
   font-family: var(--font-body), sans-serif;
