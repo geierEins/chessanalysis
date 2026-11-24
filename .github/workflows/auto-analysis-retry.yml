@@ -1,0 +1,39 @@
+# Retries the games in the "skipped" lists of data/state/<user>.json - games
+# the other two workflows gave up on (per-game timeout or an error), which
+# otherwise stay unanalyzed forever. Started by hand (Actions -> "Run
+# workflow"). No per-game timeout here, and the log shows every position's
+# engine time, so a slow position can be found. A game that succeeds leaves
+# the list; one that fails again stays in it.
+name: 'Auto-Analyse: Übersprungene Partien'
+
+on:
+  workflow_dispatch:
+
+# Shares the scheduled run's group: both write the same players' files, so they
+# never run at once - a scheduled run waits until this one is done.
+concurrency:
+  group: auto-analysis
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    # GitHub's hard limit for a job is 6 hours - there is no "unlimited".
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Budget 320 min + the script's 15 min grace (analyze.mjs's GRACE_MS),
+      # then the step limit - all below the job limit, so the commit still runs.
+      - run: node scripts/auto-analysis/analyze.mjs
+        timeout-minutes: 345
+        env:
+          RETRY_SKIPPED: 1
+          TIME_BUDGET_MINUTES: 320
+      - if: ${{ !cancelled() }}
+        run: "sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: übersprungene Partien erneut analysiert'"
