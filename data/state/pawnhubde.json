@@ -7,7 +7,6 @@
     "https://api.chess.com/pub/player/pawnhubde/games/2026/10": "W/\"fb0ad6ca5d3cafe0ab139927538bd27d\""
   },
   "skipped": [
-    "https://www.chess.com/game/live/185941785972",
-    "https://www.chess.com/game/live/174550664944"
+    "https://www.chess.com/game/live/185941785972"
   ]
 }
