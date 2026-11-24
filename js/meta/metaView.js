@@ -942,10 +942,10 @@ function openings(rs, ctx) {
           const toggle = kids
             ? `<button type="button" class="meta-otree-toggle" data-otree="${esc(c.key)}" aria-expanded="${open}" aria-label="${open ? 'Zuklappen' : 'Aufklappen'}">${open ? '▾' : '▸'}</button>`
             : '<span class="meta-otree-leaf"></span>';
-          // Who played the move that produced this name - by majority, as move orders can differ.
+          // Below the first level: who played this ply (by majority, to be safe).
           const me = c.mine * 2 >= c.games.length;
-          const who = depth && c.named
-            ? `<span class="meta-otree-who${me ? ' me' : ''}" data-tip="${me ? 'Deine Wahl: dein Zug hat zu diesem Namen geführt.' : 'Wahl des Gegners: sein Zug hat zu diesem Namen geführt.'}">${me ? 'meine Wahl' : 'Gegner'}</span>`
+          const who = depth
+            ? `<span class="meta-otree-who${me ? ' me' : ''}" data-tip="${me ? 'Dein Zug' : 'Zug des Gegners'}">${me ? 'ich' : 'Gegner'}</span>`
             : '';
           const row = `<tr class="meta-otree d${depth}"><td><span class="meta-otree-cell" style="--depth:${depth}">${toggle}<span data-opening="${esc(c.name)}" data-line="${esc(c.line)}"${c.named ? "" : " class=\"meta-otree-plain\""}>${esc(c.label)}</span>${c.named ? `<span class="meta-otree-move">${esc(c.move)}</span>` : ""}${who}</span></td>${stats(c.games)}</tr>`;
           // Opened, the children add up to the node: games that left the book
@@ -976,7 +976,7 @@ function openings(rs, ctx) {
       : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
     ${card('Mit Weiß', colorCard(white, 'w'), { cls: 'w12' })}
-    ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: jede Ebene ist ein Halbzug. Entsteht dabei ein neuer Name, steht er mit dem Zug da, sonst nur der Zug. Eine Partie zählt in jeder Ebene ihres Weges; „ohne weiteren Namen“: Partien, die das Buch vorher verlassen haben. „meine Wahl“ / „Gegner“: wer den Zug gespielt hat, mit dem der Name entstand. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
+    ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: jede Ebene ist ein Halbzug. Entsteht dabei ein neuer Name, steht er mit dem Zug da, sonst nur der Zug. Eine Partie zählt in jeder Ebene ihres Weges; „ohne weiteren Namen“: Partien, die das Buch vorher verlassen haben. „ich“ / „Gegner“: wer den Halbzug gespielt hat. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
     ${card('Erster Zug als Weiß', hbars(moveRows(white, '')), { cls: 'w4' })}
     ${card('Als Schwarz gegen …', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
     ${card('Stärkste und schwächste', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}

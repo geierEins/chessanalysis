@@ -2864,8 +2864,7 @@ tr.meta-otree.d0 td:first-child {
   white-space: nowrap;
 }
 .meta-otree-who.me {
-  border-color: var(--meta-accent);
-  color: var(--meta-accent);
+  color: var(--meta-muted);
 }
 .meta-otree-move {
   color: var(--meta-faint);
