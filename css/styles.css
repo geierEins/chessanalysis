@@ -2444,7 +2444,8 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 .meta-pop-hint-btn svg { width: 12px; height: 12px; }
 .meta-pop-hint-btn:hover { filter: brightness(1.12); }
 /* Accuracy cell of a game without moves (metaView's NO_MOVES). */
-.meta-nomoves { display: inline-flex; vertical-align: middle; color: var(--meta-muted); cursor: help; }
+/* Same box as .meta-analyze - the X sits exactly where other rows have their magnifier. */
+.meta-nomoves { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; vertical-align: middle; color: var(--meta-muted); cursor: help; }
 .meta-nomoves svg { width: 14px; height: 14px; }
 /* Under the "Partien" table: the next GAMES_STEP rows (metaView's gamesTab). */
 .meta-games-more {

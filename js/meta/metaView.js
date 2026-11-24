@@ -54,10 +54,12 @@ const avg = (rs, f) => {
 const pc = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 const f1 = (x) => (x == null ? '–' : x.toFixed(1).replace('.', ','));
 const f0 = (x) => (x == null ? '–' : String(Math.round(x)));
-// Accuracy of a game without a single move (see hasMoves): a crossed-out circle
-// instead of the "not analyzed yet" dash, the reason in the shared tooltip.
-const NO_MOVES_TIP = 'Partie ohne Züge (vor dem ersten Zug beendet) – es gibt nichts zu analysieren, daher keine Genauigkeit.';
-const NO_MOVES = `<span class="meta-nomoves" data-tip="${NO_MOVES_TIP}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Keine Züge"><circle cx="12" cy="12" r="8"/><line x1="6.5" y1="17.5" x2="17.5" y2="6.5"/></svg></span>`;
+// A game without a single move (see hasMoves): a gray X where the magnifier
+// would be (analyzeCell), the reason in the shared tooltip.
+const NO_MOVES_TIP = 'Diese Partie enthält keine Züge (vor dem ersten Zug beendet). Sie kann weder analysiert noch in der Spiel-Analyse geöffnet werden.';
+// A game row's tooltip - not on a game without moves, which can't be opened.
+const openTip = (r) => (hasMoves(r) ? ' title="In der Spiel-Analyse öffnen"' : '');
+const NO_MOVES = `<span class="meta-nomoves" data-tip="${NO_MOVES_TIP}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-label="Keine Züge"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></span>`;
 const groupBy = (rs, f) => {
   const m = new Map();
   for (const r of rs) {
@@ -743,7 +745,7 @@ function streakLink(games) {
 function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
-    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
+    return `<tr class="click" data-game="${esc(r.url)}"${openTip(r)}><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }
@@ -788,7 +790,7 @@ function recentGames(list, ctx) {
   const rows = list.map((r) => {
     const style = timeClassStyle(r.timeClass);
     const acc = ctx.engineOf(r)?.accuracy;
-    return `<tr class="click" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen">`
+    return `<tr class="click" data-game="${esc(r.url)}"${openTip(r)}>`
       + `<td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>`
       + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
       + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${withFlag(r.opponent)}</td>`
@@ -1582,7 +1584,7 @@ const CROSS = '<svg class="undo" viewBox="0 0 24 24" fill="none" stroke="current
  *  it waits - which turns into an X on hover and takes it back out of the queue. */
 function analyzeCell(r, ctx, cls = 'r') {
   if (ctx.engineOf(r)) return `<td class="${cls}"></td>`;
-  if (!hasMoves(r)) return `<td class="${cls}"></td>`; // nothing to analyze - the accuracy cell says why (NO_MOVES)
+  if (!hasMoves(r)) return `<td class="${cls}">${NO_MOVES}</td>`; // nothing to analyze - a gray X says why
   const state = ctx.queueState(r);
   if (state === 'running') return `<td class="${cls}"><span class="meta-analyze" title="Wird gerade analysiert"><span class="btn-spinner"></span></span></td>`;
   if (state === 'queued') return `<td class="${cls}"><button type="button" class="meta-analyze queued" data-unqueue="${esc(r.url)}" title="Wartet auf die Analyse - klicken, um sie zurückzunehmen">${HOURGLASS}${CROSS}</button></td>`;
@@ -1640,7 +1642,7 @@ function gamesTab(all, ctx) {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
           // g-* classes: phones lay each row out as two lines (css/styles.css "Phones: game list").
-          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}" title="In der Spiel-Analyse öffnen"><td class="g-date" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td class="g-type" style="color:${style.color}">${style.icon}<span class="g-type-l"> ${TC_LABEL[r.timeClass] ?? r.timeClass}</span></td><td class="g-color"><span class="meta-colordot ${r.color}"></span></td><td class="g-opp">${withFlag(r.opponent)}</td><td class="g-elo">${r.oppRating ?? '–'}</td><td class="g-open"${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r g-moves">${r.moves}</td>${hasMoves(r) ? `<td class="r g-acc">${f1(e?.accuracy)}</td><td class="r g-blund">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r g-acc">${NO_MOVES}</td><td class="r meta-faint g-blund">–</td>`}<td class="meta-res-elo g-res"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx, 'r g-an')}</tr>`;
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}"${openTip(r)}><td class="g-date" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td class="g-type" style="color:${style.color}">${style.icon}<span class="g-type-l"> ${TC_LABEL[r.timeClass] ?? r.timeClass}</span></td><td class="g-color"><span class="meta-colordot ${r.color}"></span></td><td class="g-opp">${withFlag(r.opponent)}</td><td class="g-elo">${r.oppRating ?? '–'}</td><td class="g-open"${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r g-moves">${r.moves}</td>${hasMoves(r) ? `<td class="r g-acc">${f1(e?.accuracy)}</td><td class="r g-blund">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r meta-faint g-acc">–</td><td class="r meta-faint g-blund">–</td>`}<td class="meta-res-elo g-res"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx, 'r g-an')}</tr>`;
         })
         .join('')}
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`
