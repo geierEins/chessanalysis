@@ -2824,3 +2824,46 @@ html[data-boot-mode="game"] #analyze-toggle-btn { display: none; }
   #meta-panel svg.meta-cols text { font-size: 19px; }
   .meta-gauge > svg { overflow: visible; } /* the "100" label at the right end */
 }
+
+/* "Eröffnungen": the opening tree (metaView's colorCard). */
+.meta-otree-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: calc(var(--depth, 0) * 18px);
+}
+.meta-otree-toggle {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--meta-muted);
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+.meta-otree-toggle:hover {
+  background: var(--meta-panel-2);
+  color: var(--meta-fg);
+}
+.meta-otree-leaf {
+  width: 20px;
+  flex: none;
+}
+tr.meta-otree.d0 td:first-child {
+  font-weight: 600;
+}
+.meta-otree-who {
+  padding: 0 6px;
+  border: 1px solid var(--meta-line);
+  border-radius: 999px;
+  color: var(--meta-faint);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.meta-otree-who.me {
+  border-color: var(--meta-accent);
+  color: var(--meta-accent);
+}

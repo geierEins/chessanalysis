@@ -97,6 +97,7 @@ export function initMetaMode(host) {
   let countrySearch = ''; // search text of "Woher kommen deine Gegner?" (metaView's data-country-search)
   let gameSearch = ''; // opponent search of the "Partien" tab (metaView's data-game-search)
   let openingSearch = { w: '', b: '' }; // "Eröffnungen": search per color card (metaView's data-opening-search)
+  const openingOpen = new Set(); // "Eröffnungen": keys of the opened tree nodes (metaView's data-otree)
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
@@ -154,6 +155,7 @@ export function initMetaMode(host) {
       countrySearch,
       gameSearch,
       openingSearch,
+      openingOpen,
       endings,
       heatmap,
       mateHeat,
@@ -425,6 +427,14 @@ export function initMetaMode(host) {
       const isOpenHere = !gamesPopEl.classList.contains('hidden') && gamesPopEl.dataset.for === countBtn.dataset.games;
       if (isOpenHere) closeGamesPop();
       else openGamesPop(countBtn);
+      return;
+    }
+    // "Eröffnungen": a tree node's toggle opens or closes it.
+    const otreeBtn = e.target.closest('[data-otree]');
+    if (otreeBtn) {
+      const key = otreeBtn.dataset.otree;
+      if (!openingOpen.delete(key)) openingOpen.add(key);
+      render();
       return;
     }
     // Sortable column head: first click sorts descending, a second one flips.

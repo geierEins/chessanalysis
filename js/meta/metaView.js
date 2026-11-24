@@ -892,45 +892,65 @@ function openings(rs, ctx) {
     acc: (l) => avg(l, (r) => ctx.engineOf(r)?.accuracy),
   }[sort.key] ?? ((l) => l.length);
   const sortTh = (key, label, cls) => sortHead('openings', sort, key, label, cls);
-  // One color's card: the openings the user chose ("Meine Wahl") and the ones the
-  // opponent chose (metaRecords' openingByMe), each grouped by openingGroup. The
-  // search (metaController's openingSearch.w / .b) narrows both tables by the
-  // opening's name and its played variations; case and accents don't matter.
+  // One color's card: the openings as a tree (metaRecords' openingPath) - the
+  // first move's name ("King's Pawn Game"), below it what the game became
+  // ("Italian Game"), below that its variations. A game counts in every node on
+  // its path. Nodes open and close by their toggle (metaController's
+  // openingOpen). The search (metaController's openingSearch.w / .b) keeps the
+  // matching nodes and opens their ancestors; case and accents don't matter.
   const colorCard = (list, color) => {
-    const named = list.filter((r) => r.openingByMe != null);
-    if (!named.length) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
+    const root = { children: new Map() };
+    for (const r of list) {
+      let node = root;
+      for (const step of r.openingPath ?? []) {
+        let child = node.children.get(step.name);
+        if (!child) {
+          child = { key: `${node.key ?? color}›${step.name}`, name: step.name, label: step.label, games: [], mine: 0, children: new Map() };
+          node.children.set(step.name, child);
+        }
+        child.games.push(r);
+        if (step.byMe) child.mine++;
+        node = child;
+      }
+    }
+    if (!root.children.size) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
     const raw = ctx.openingSearch?.[color] ?? '';
     const query = fold(raw.trim());
-    const rowsOf = (l) => sortRows([...groupBy(l, (r) => r.openingGroup)].map(([fam, g]) => ({ fam, l: g, v: sortValue(g) })), sort.dir);
-    const matches = ({ fam, l }) => fold(fam).includes(query) || l.some((r) => r.opening && fold(r.opening).includes(query));
-    const parts = [true, false].map((byMe) => {
-      const all = rowsOf(named.filter((r) => r.openingByMe === byMe));
-      return { byMe, all, rows: query ? all.filter(matches) : all };
-    });
-    const total = parts.reduce((n, p) => n + p.all.length, 0);
-    const shown = parts.reduce((n, p) => n + p.rows.length, 0);
+    let hits = 0;
+    // Marks node.hit (its name matches) and node.below (a descendant matches).
+    const mark = (node) => {
+      let below = false;
+      for (const c of node.children.values()) {
+        c.hit = fold(c.name).includes(query);
+        if (c.hit) hits++;
+        mark(c);
+        below ||= c.hit || c.below;
+      }
+      node.below = below;
+    };
+    if (query) mark(root);
     const search = `<input type="search" class="meta-country-search" data-opening-search="${color}" value="${esc(raw)}" placeholder="Eröffnung suchen …" aria-label="Eröffnung suchen (${color === 'w' ? 'Weiß' : 'Schwarz'})" autocomplete="off">`;
-    const hint = query ? `<p class="meta-muted">${shown ? `${shown} von ${total} Eröffnungen passen zur Suche.` : `Keine Eröffnung passt zu „${esc(raw.trim())}“.`}</p>` : '';
-    if (query && !shown) return `${search}${hint}`;
-    return `${search}${hint}${parts
-      .map(({ byMe, rows }) => `<h3>${byMe ? 'Meine Wahl' : 'Wahl des Gegners'}</h3>${rows.length ? table(rows) : `<p class="meta-muted">${query ? 'Keine passende Eröffnung.' : 'Keine Eröffnung.'}</p>`}`)
-      .join('')}`;
-  };
-  const table = (rows) => {
-    return `<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r ph-hide">Ø Theoriezüge</th></tr></thead><tbody>
-      ${rows
-        .map(({ fam, l }) => {
-          const variants = [...new Set(l.map((r) => r.opening).filter(Boolean))];
-          // Variations without the family prefix ("Scandinavian Defense: Panov Transfer" -> "Panov Transfer").
-          const others = variants.filter((v) => v !== fam).map((v) => v.slice(v.indexOf(':') + 1).trim());
-          const tip = l[0].openingGroup
-            ? ` data-opening="${esc(fam)}"${others.length ? ` data-variants="${esc(others.slice(0, 8).join(', '))}${others.length > 8 ? ', …' : ''}"` : ''}`
+    if (query && !hits) return `${search}<p class="meta-muted">Keine Eröffnung passt zu „${esc(raw.trim())}“.</p>`;
+    const hint = query ? `<p class="meta-muted">${hits} ${hits === 1 ? 'Eröffnung passt' : 'Eröffnungen passen'} zur Suche.</p>` : '';
+    const rows = (node, depth) =>
+      sortRows([...node.children.values()].filter((c) => !query || c.hit || c.below).map((c) => ({ c, l: c.games, v: sortValue(c.games) })), sort.dir)
+        .map(({ c }) => {
+          const kids = c.children.size > 0;
+          const open = kids && (ctx.openingOpen.has(c.key) || (query && c.below));
+          const toggle = kids
+            ? `<button type="button" class="meta-otree-toggle" data-otree="${esc(c.key)}" aria-expanded="${open}" aria-label="${open ? 'Zuklappen' : 'Aufklappen'}">${open ? '▾' : '▸'}</button>`
+            : '<span class="meta-otree-leaf"></span>';
+          // Who played the move that produced this name - by majority, as move orders can differ.
+          const me = c.mine * 2 >= c.games.length;
+          const who = depth
+            ? `<span class="meta-otree-who${me ? ' me' : ''}" data-tip="${me ? 'Deine Wahl: dein Zug hat zu diesem Namen geführt.' : 'Wahl des Gegners: sein Zug hat zu diesem Namen geführt.'}">${me ? 'meine Wahl' : 'Gegner'}</span>`
             : '';
-          const acc = avg(l, (r) => ctx.engineOf(r)?.accuracy);
-          return `<tr><td${tip}>${esc(fam)}</td><td class="r">${gamesCount(l)}</td><td>${wdlBar(l)}</td><td class="r">${pc(score(l))}</td><td class="r">${f1(acc)}</td><td class="r ph-hide">${f1(avg(l, (r) => r.bookPlies / 2))}</td></tr>`;
+          const acc = avg(c.games, (r) => ctx.engineOf(r)?.accuracy);
+          const row = `<tr class="meta-otree d${depth}"><td><span class="meta-otree-cell" style="--depth:${depth}">${toggle}<span data-opening="${esc(c.name)}">${esc(c.label)}</span>${who}</span></td><td class="r">${gamesCount(c.games)}</td><td>${wdlBar(c.games)}</td><td class="r">${pc(score(c.games))}</td><td class="r">${f1(acc)}</td><td class="r ph-hide">${f1(avg(c.games, (r) => r.bookPlies / 2))}</td></tr>`;
+          return row + (open ? rows(c, depth + 1) : '');
         })
-        .join('')}
-    </tbody></table></div>`;
+        .join('');
+    return `${search}${hint}<div class="meta-tbl"><table><thead><tr><th>Eröffnung</th>${sortTh('games', 'Partien', 'r')}${sortTh('result', 'Ergebnis', 'wide')}${sortTh('score', 'Quote', 'r')}${sortTh('acc', 'Ø Gen.', 'r')}<th class="r ph-hide">Ø Theoriezüge</th></tr></thead><tbody>${rows(root, 0)}</tbody></table></div>`;
   };
   const white = rs.filter((r) => r.color === 'w');
   const black = rs.filter((r) => r.color === 'b');
@@ -949,7 +969,7 @@ function openings(rs, ctx) {
       : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
     ${card('Mit Weiß', colorCard(white, 'w'), { cls: 'w12' })}
-    ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), gruppiert nach Eröffnung. „Meine Wahl“ / „Wahl des Gegners“: wer den Zug gespielt hat, mit dem der Eröffnungsname entstand (bei King\'s/Queen\'s Pawn Game: die Variante). Tooltip: Grundstellung der Eröffnung und gespielte Varianten. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
+    ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: oben der Name nach dem ersten Zug, darunter, was daraus wurde, darunter die Varianten. Eine Partie zählt in jeder Ebene ihres Weges. „meine Wahl“ / „Gegner“: wer den Zug gespielt hat, mit dem der Name entstand. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
     ${card('Erster Zug als Weiß', hbars(moveRows(white, '')), { cls: 'w4' })}
     ${card('Als Schwarz gegen …', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
     ${card('Stärkste und schwächste', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}

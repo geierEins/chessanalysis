@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
-import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, openingChoice, mateInOne, gameOpenState, MATE_LABEL } from '../js/meta/metaRecords.js';
+import { buildFastRecord, buildEngineRecord, nonPawnMaterial, phaseOf, openingFamily, openingChoice, openingTreePath, mateInOne, gameOpenState, MATE_LABEL } from '../js/meta/metaRecords.js';
 import { openingLine, namedNodesForLine } from '../js/analysis/openingBook.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -257,5 +257,30 @@ describe('metaRecords: openingChoice', () => {
     const r = buildFastRecord(rawGame(), 'alice');
     expectTrue(typeof r.openingGroup === 'string');
     expectTrue(typeof r.openingByMe === 'boolean');
+  });
+});
+
+describe('metaRecords: openingTreePath', () => {
+  const path = (sans, color) => openingTreePath(namedNodesForLine(sans), color);
+  const same = (a, b) => expectEqual(JSON.stringify(a), JSON.stringify(b));
+  test('first move family, then the group, then its variations (prefixes stripped)', () => {
+    const p = path(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5'], 'w');
+    same(p.map((s) => s.label), ["King's Pawn Game", 'Italian Game', 'Two Knights Defense', 'Knight Attack']);
+    same(p.map((s) => s.byMe), [true, true, false, true]);
+    expectEqual(p[3].name, 'Italian Game: Two Knights Defense, Knight Attack');
+  });
+  test('an umbrella variation is its own level under the umbrella name', () => {
+    const p = path(['e4', 'e5', 'Qh5', 'Nf6'], 'b');
+    same(p.map((s) => s.label), ["King's Pawn Game", 'Wayward Queen Attack', 'Kiddie Countergambit']);
+    same(p.map((s) => s.byMe), [false, false, true]);
+  });
+  test('a defense right after the first move', () => {
+    same(path(['e4', 'c5'], 'w').map((s) => s.label), ["King's Pawn Game", 'Sicilian Defense']);
+  });
+  test('only the first move: just the root', () => {
+    same(path(['e4'], 'b').map((s) => s.name), ["King's Pawn Game"]);
+  });
+  test('no moves: empty path', () => {
+    same(openingTreePath([], 'w'), []);
   });
 });

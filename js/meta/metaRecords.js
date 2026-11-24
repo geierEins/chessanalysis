@@ -125,8 +125,16 @@ const UMBRELLA_FAMILIES = new Set(["King's Pawn Game", "Queen's Pawn Game"]);
  * @returns {{group: string|null, byMe: boolean|null}}
  */
 export function openingChoice(named, color) {
+  const g = openingGroupOf(named);
+  return g ? { group: g.group, byMe: byColor(g.ply, color) } : { group: null, byMe: null };
+}
+
+const byColor = (ply, color) => (ply % 2 === 1) === (color === 'w');
+
+/** openingChoice()'s group and the ply that decides it; null without a named position. */
+function openingGroupOf(named) {
   const last = named.at(-1)?.name;
-  if (!last) return { group: null, byMe: null };
+  if (!last) return null;
   const family = openingFamily(last);
   let group = family;
   let first = named.find((n) => openingFamily(n.name) === family);
@@ -134,7 +142,42 @@ export function openingChoice(named, color) {
     group = `${family}: ${last.slice(last.indexOf(':') + 1).split(',')[0].trim()}`;
     first = named.find((n) => n.name === group || n.name.startsWith(`${group},`)) ?? first;
   }
-  return { group, byMe: (first.ply % 2 === 1) === (color === 'w') };
+  return { group, ply: first.ply };
+}
+
+/**
+ * The game's path through the Eröffnungen tab's opening tree: the family of
+ * its first named position ("King's Pawn Game" after 1.e4), then the group it
+ * ended up in (openingChoice's group, e.g. "Italian Game" - left out when it
+ * is that same family), then every later variation of that group the game
+ * passed, in order. `label` is the name without its parent's prefix; `byMe`
+ * says who played the move that first produced the name.
+ * @param {Array<{ply: number, name: string}>} named openingBook's namedNodesForLine()
+ * @param {'w'|'b'} color the user's color
+ * @returns {Array<{name: string, label: string, byMe: boolean}>}
+ */
+export function openingTreePath(named, color) {
+  const g = openingGroupOf(named);
+  if (!g) return [];
+  const rootFamily = openingFamily(named[0].name);
+  const steps = [{ name: rootFamily, ply: named[0].ply }];
+  if (g.group !== rootFamily) steps.push({ name: g.group, ply: g.ply });
+  const seen = new Set(steps.map((s) => s.name));
+  for (const n of named) {
+    if (n.ply <= g.ply || seen.has(n.name)) continue;
+    if (!n.name.startsWith(`${g.group}:`) && !n.name.startsWith(`${g.group},`)) continue;
+    seen.add(n.name);
+    steps.push(n);
+  }
+  return steps.map((s, i) => ({ name: s.name, label: stripParent(s.name, steps[i - 1]?.name), byMe: byColor(s.ply, color) }));
+}
+
+/** "Italian Game: Two Knights Defense, Knight Attack" under "Italian Game: Two Knights Defense" -> "Knight Attack". */
+function stripParent(name, parent) {
+  if (!parent) return name;
+  for (const sep of [', ', ': ']) if (name.startsWith(parent + sep)) return name.slice(parent.length + sep.length);
+  const colon = name.indexOf(':');
+  return colon < 0 ? name : name.slice(colon + 1).trim();
 }
 
 const MATERIAL_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
@@ -285,6 +328,7 @@ export function buildFastRecord(raw, username) {
     family: openingFamily(opening),
     openingGroup: choice.group, // the Eröffnungen tab's grouping (family, or variation of an umbrella name)
     openingByMe: choice.byMe, // who chose the opening (null: no named position)
+    openingPath: openingTreePath(named, color), // the Eröffnungen tab's tree path
     firstMove: sans[0] ?? null,
     bookPlies,
     initialClock,
