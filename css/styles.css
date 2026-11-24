@@ -2274,8 +2274,12 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 /* "Matt" tab's king board: a fixed size - it must not follow the height of
    "Gesetzt und kassiert", which changes with the filters. 244px fills the
    half-width card next to "Wann das Matt fällt" with every pattern listed. */
+/* The right column is only as tall as its content - it may end above "Gesetzt
+   und kassiert" instead of stretching its cards (and the board) to match it. */
+.mate-fit { align-self: start; }
+.mate-fit > .meta-card, .mate-fit > .meta-side-by-side { flex: none; }
 .mate-fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; }
-.mate-fit .meta-mate-board-wrap { flex: 1 1 auto; display: flex; justify-content: center; align-items: center; }
+.mate-fit .meta-mate-board-wrap { display: flex; justify-content: center; }
 .mate-fit .meta-mate-board { width: min(100%, 244px); margin: 0; }
 /* "Wo der König mattgesetzt wird": gesetzt/kassiert centered under the board. */
 .meta-mate-toggle { display: flex; justify-content: center; margin-top: 10px; }
