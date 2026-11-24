@@ -123,6 +123,7 @@ const DRAW_REASONS = new Set([
   'insufficient',
   '50move',
   'timevsinsufficient',
+  'aborted', // both sides gave up ("Double forfeit") - scored 1/2-1/2
 ]);
 
 /**

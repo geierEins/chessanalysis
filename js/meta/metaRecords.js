@@ -16,7 +16,8 @@ import { computeGameAccuracy } from '../analysis/accuracy.js';
 import { detectMate } from '../analysis/mateType.js';
 
 const LOSS_REASONS = { checkmated: 'checkmate', resigned: 'resign', timeout: 'timeout', abandoned: 'abandon' };
-const DRAW_REASONS = new Set(['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient']);
+// "aborted": both sides gave up (Chess.com's "Double forfeit") - scored 1/2-1/2.
+const DRAW_REASONS = new Set(['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient', 'aborted']);
 
 /** Checkmate patterns (js/analysis/mateType.js's MATE_TYPES) - the "Matt" tab's names. */
 export const MATE_LABEL = {
@@ -58,6 +59,7 @@ export const TERMINATION_LABEL = {
   insufficient: 'Ungenügendes Material',
   '50move': '50-Züge-Regel',
   timevsinsufficient: 'Zeit vs. ungenügendes Material',
+  aborted: 'Beidseitig verfallen',
   other: 'Sonstiges',
 };
 

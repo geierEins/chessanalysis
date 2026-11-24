@@ -1,9 +1,11 @@
-# Retries the games in the "skipped" lists of data/state/<user>.json - games
-# the other two workflows gave up on (per-game timeout or an error), which
-# otherwise stay unanalyzed forever. Started by hand (Actions -> "Run
-# workflow"). No per-game timeout here. A game that succeeds leaves the list;
-# one that fails again stays in it.
-name: 'Auto-Analyse: Übersprungene Partien'
+# Analyzes every game still missing from a player's master file (data/<user>.json),
+# read from all of their archives: the "skipped" ones the other workflows gave
+# up on (per-game timeout or an error), and any the scheduled run never saw -
+# it only reads the newest months, so a game Chess.com adds to an older month
+# later slips through. Started by hand (Actions -> "Run workflow"). No per-game
+# timeout here. A skipped game that succeeds leaves the list; one that fails
+# again (e.g. a game without moves) stays in it.
+name: 'Auto-Analyse: Fehlende Partien'
 
 on:
   workflow_dispatch:
@@ -32,7 +34,7 @@ jobs:
       - run: node scripts/auto-analysis/analyze.mjs
         timeout-minutes: 345
         env:
-          RETRY_SKIPPED: 1
+          MISSING: 1
           TIME_BUDGET_MINUTES: 320
       - if: ${{ !cancelled() }}
-        run: "sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: übersprungene Partien erneut analysiert'"
+        run: "sh scripts/auto-analysis/commit-data.sh 'Auto-Analyse: fehlende Partien nachanalysiert'"

@@ -8,15 +8,18 @@
 // returns the same Chess.com-shaped game objects. Each player's master file
 // holds only their own site's games.
 //
-// Two modes:
+// Three modes:
 //  - INITIAL=1 (.github/workflows/auto-analysis-initial.yml, started by hand):
 //    the one-time backlog of every configured player not initialized yet (e.g.
 //    one just added to config.json). A player counts as "initialized" once all
 //    their games are done - from then on only the scheduled run handles them;
-//  - RETRY_SKIPPED=1 (.github/workflows/auto-analysis-retry.yml, started by
-//    hand): only the games in data/state/<user>.json's "skipped" list (they
-//    timed out or failed before), with no per-game timeout - a game that now
-//    succeeds leaves the list;
+//  - MISSING=1 (.github/workflows/auto-analysis-missing.yml, started by hand):
+//    every game of the initialized players that is still missing from their
+//    master file, read from all archives - the "skipped" ones (they timed out or
+//    failed before) as well as any the scheduled run never saw (it only reads
+//    the newest months, so a game Chess.com adds to an older month later slips
+//    through). No per-game timeout; a skipped game that now succeeds leaves the
+//    "skipped" list;
 //  - otherwise (every three hours, .github/workflows/auto-analysis.yml): only the
 //    initialized players, i.e. just their new games.
 //
@@ -27,7 +30,7 @@
 //
 // Local run: INITIAL=1 node scripts/auto-analysis/analyze.mjs   (Node 22+)
 // Env: TIME_BUDGET_MINUTES (default 50), ENGINES (default: CPU cores),
-//      GAME_TIMEOUT_MINUTES (default 20, with RETRY_SKIPPED 0 = none), GRACE_MINUTES (default 15),
+//      GAME_TIMEOUT_MINUTES (default 20, with MISSING 0 = none), GRACE_MINUTES (default 15),
 //      MAX_GAMES (stop after n games, for testing).
 
 import { register } from 'node:module';
@@ -62,7 +65,7 @@ const lichessApi = await import('../../js/api/lichess.js');
 const apiFor = (player) => (player.site === 'lichess' ? lichessApi : chesscomApi);
 
 const initial = Boolean(process.env.INITIAL);
-const retry = Boolean(process.env.RETRY_SKIPPED);
+const missing = Boolean(process.env.MISSING);
 const deadline = Date.now() + Number(process.env.TIME_BUDGET_MINUTES ?? 50) * 60_000;
 const maxGames = Number(process.env.MAX_GAMES ?? Infinity);
 
@@ -111,17 +114,17 @@ async function preparePlayer(player, state) {
     // to 30 days before the newest analyzed one (Lichess filters by start, and
     // correspondence games run long); until then (backlog) every game.
     gameCount = await lichessGameCount(user);
-    const since = s.complete && !retry && newest ? newest * 1000 - 30 * 86_400_000 : null;
+    const since = s.complete && !missing && newest ? newest * 1000 - 30 * 86_400_000 : null;
     rawGames.push(...(await lichessApi.fetchGamesSince(user, since)));
   } else {
     // Once everything was analyzed, only the months since the newest analyzed
-    // game can hold new ones; until then (backlog) - and for the retry of
-    // skipped games, which may be months old - every archive.
+    // game can hold new ones; until then (backlog) - and when looking for
+    // missing games, which may be months old - every archive.
     const { data } = await getJson(`https://api.chess.com/pub/player/${key}/games/archives`);
     const archives = data.archives ?? [];
     const since = newest ? monthOfGame(newest) : '';
     const recent = recentArchiveUrls(user);
-    const urls = [...new Set([...(s.complete && !retry ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
+    const urls = [...new Set([...(s.complete && !missing ? archives.filter((u) => monthOf(u) >= since) : archives), ...recent])];
     for (const url of urls) {
       const { data: month, etag } = await getJson(url);
       if (recent.includes(url)) etags[url] = etag;
@@ -131,8 +134,8 @@ async function preparePlayer(player, state) {
 
   const targets = [];
   for (const raw of rawGames) {
-    // The retry takes exactly the skipped games, the other modes everything else.
-    if (done.has(raw.url) || skipped.has(raw.url) !== retry) continue;
+    // Skipped games only in the MISSING mode - the others gave up on them.
+    if (done.has(raw.url) || (skipped.has(raw.url) && !missing)) continue;
     const rec = buildFastRecord(raw, user);
     if (rec && !isCoachGame(rec)) targets.push({ key, rec });
   }
@@ -155,8 +158,8 @@ function saveMaster(p) {
 //    evaluate() rejects, the game counts as skipped, the worker starts a fresh engine);
 //  - GRACE_MS after the time budget, whatever still runs is abandoned and the
 //    run finishes regularly with what is done.
-//    0 = no limit - the default of the retry, which exists for exactly these games;
-const GAME_TIMEOUT_MS = Number(process.env.GAME_TIMEOUT_MINUTES ?? (retry ? 0 : 20)) * 60_000;
+//    0 = no limit - the default of the MISSING mode, which exists for exactly these games;
+const GAME_TIMEOUT_MS = Number(process.env.GAME_TIMEOUT_MINUTES ?? (missing ? 0 : 20)) * 60_000;
 const GRACE_MS = Number(process.env.GRACE_MINUTES ?? 15) * 60_000;
 const engines = new Set(); // every live engine, for the GRACE_MS cut-off
 let cuttingOff = false;
@@ -177,7 +180,7 @@ async function analyzeOne(engine, p, rec) {
     const opp = rec.opponent.toLowerCase();
     if (!(opp in p.master.countries)) p.master.countries[opp] = (await apiFor(p.player).fetchPlayerProfile(rec.opponent)).country ?? null;
     p.analyzed++;
-    if (retry) p.s.skipped = p.s.skipped.filter((u) => u !== rec.url);
+    if (missing) p.s.skipped = p.s.skipped.filter((u) => u !== rec.url);
     await saveMaster(p);
   } catch (err) {
     if (cuttingOff) return; // abandoned at the cut-off, not the game's fault - the next run tries again
@@ -194,18 +197,17 @@ async function analyzeOne(engine, p, rec) {
 }
 
 const state = await loadState();
-// The two modes never share a player, so both workflows may run at once
-// without touching the same files.
+// INITIAL never shares a player with the other two, so it may run alongside
+// them; the scheduled and the MISSING run share a concurrency group instead.
 const isInitialized = (pl) => state[pl.key]?.initialized && state[pl.key].engine === ENGINE_KEY;
-const hasSkipped = (pl) => state[pl.key]?.engine === ENGINE_KEY && state[pl.key].skipped?.length > 0;
-const selected = configuredPlayers.filter((pl) => (retry ? hasSkipped(pl) : initial ? !isInitialized(pl) : isInitialized(pl)));
+const selected = configuredPlayers.filter((pl) => (initial ? !isInitialized(pl) : isInitialized(pl)));
 const players = [];
 for (const player of selected) players.push(await preparePlayer(player, state));
 const byKey = new Map(players.map((p) => [p.player.key, p]));
 const queue = players.flatMap((p) => p.targets).sort((a, b) => b.rec.endTime - a.rec.endTime);
 const engineCount = Math.max(1, Math.min(Number(process.env.ENGINES ?? availableParallelism()), queue.length, maxGames));
-const modeLabel = retry ? 'Übersprungene Partien' : initial ? 'Erstanalyse' : 'Auto-Analyse';
-console.log(`${retry ? modeLabel : initial ? 'Erstanalyse' : 'Planmäßig'}: ${queue.length} Partien (${players.map((p) => `${p.user}: ${p.targets.length}`).join(', ') || 'keine Spieler'}), ${engineCount} Engines.`);
+const modeLabel = missing ? 'Fehlende Partien' : initial ? 'Erstanalyse' : 'Auto-Analyse';
+console.log(`${missing ? modeLabel : initial ? 'Erstanalyse' : 'Planmäßig'}: ${queue.length} Partien (${players.map((p) => `${p.user}: ${p.targets.length}`).join(', ') || 'keine Spieler'}), ${engineCount} Engines.`);
 
 let next = 0;
 async function engineWorker() {
@@ -230,9 +232,9 @@ let finished = false;
 async function finish() {
   if (finished) return;
   finished = true;
-  // The retry only touches the skipped lists - a player's progress (complete,
+  // The MISSING mode only touches the skipped lists - a player's progress (complete,
   // initialized, ETags) belongs to the other two modes.
-  for (const p of retry ? [] : players) {
+  for (const p of missing ? [] : players) {
     p.s.complete = p.open === 0;
     if (p.s.complete) p.s.initialized = true;
     // Only a finished player gets the ETags - check.mjs then sees 304 until a new game appears.
