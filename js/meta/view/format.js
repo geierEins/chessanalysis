@@ -1,5 +1,7 @@
 // Small formatting and grouping helpers shared by every Meta-Analyse tab (metaView.js and js/meta/view/).
 
+import { isCoachGame } from '../metaRecords.js';
+
 export const TC_ORDER = ['bullet', 'blitz', 'rapid', 'daily'];
 export const TC_LABEL = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', daily: 'Daily' };
 export const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
@@ -43,3 +45,9 @@ export const fmtDateTime = (ms) => {
   const d = new Date(ms);
   return `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
 };
+
+/** Rating of a game that actually counted for it - unrated games (e.g. against
+ *  Chess.com's coach bots) carry placeholder ratings that would distort every
+ *  rating-based stat. Coach games never get here (metaController drops them),
+ *  the check stays as a safety net. */
+export const hasRealRating = (r) => r.rated && !isCoachGame(r) && r.ownRating != null;

@@ -7,10 +7,10 @@
 import { timeClassStyle } from '../timeClassStyle.js';
 import { countryName } from '../ui/playerLabel.js';
 import { iconLabel } from './metaIcons.js';
-import { TERMINATION_LABEL, MATE_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame, hasMoves } from './metaRecords.js';
+import { TERMINATION_LABEL, MATE_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, hasMoves } from './metaRecords.js';
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { pieceUrl } from './openingBoard.js';
-import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, WEEKDAYS, DAY_MS, esc, pts, score, wdl, avg, pc, f1, f0, signed, groupBy, byCountDesc, fold, fmtDate, fmtDateTime } from './view/format.js';
+import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, WEEKDAYS, DAY_MS, esc, pts, score, wdl, avg, pc, f1, f0, signed, groupBy, byCountDesc, fold, fmtDate, fmtDateTime, hasRealRating } from './view/format.js';
 import { flag, withFlag, setOppFlag, wdlBar, WDL_LEGEND, hbars, card, EMPTY, kpi, GOOD, BAD, bigStats, sortHead, sortRows } from './view/cards.js';
 import { NO_MOVES, openTip, LISTED_GAMES_STEP, clearGameLists, gameListById, gamesCount, recordGames, gameListHtml, gameHintHtml, longestStreak, longestStreakGames, streakLink, topGamesTable, topGamesTile, analyzeCell } from './view/gameLists.js';
 
@@ -107,11 +107,6 @@ function moveTimeChart(rs) {
   return `<div class="meta-legend">${legend}</div>${fitChart(draw)}`;
 }
 
-/** Rating of a game that actually counted for it - unrated games (e.g. against
- *  Chess.com's coach bots) carry placeholder ratings that would distort every
- *  rating-based stat. Coach games never get here (metaController drops them),
- *  the check stays as a safety net. */
-const hasRealRating = (r) => r.rated && !isCoachGame(r) && r.ownRating != null;
 
 /** @returns {{legend: string, body: string}} the legend (for the card's title row) and the chart */
 function ratingChart(rs) {
