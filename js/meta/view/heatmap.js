@@ -57,6 +57,41 @@ function heatVerb(mode) {
     : '<span class="meta-heat-verb taken">schlägt</span>';
 }
 
+/** One tile per own piece, above the heatmap: what the pieces it took were worth on
+ *  average (value ÷ count). Always the user's captures, whatever the heatmap shows,
+ *  and without its piece filters - each tile is one piece already. */
+function captureRatioTiles(games, own) {
+  const stats = Object.fromEntries(Object.keys(PIECE_LABEL).map((p) => [p, { n: 0, v: 0 }]));
+  for (const r of games) {
+    for (const c of r.captures?.taken ?? []) {
+      const s = stats[c[2]];
+      if (!s) continue;
+      s.n++;
+      s.v += PIECE_VALUE[c[3]] ?? 0;
+    }
+  }
+  const tiles = Object.entries(PIECE_LABEL).map(([p, label]) => {
+    const { n, v } = stats[p];
+    const ratio = n ? v / n : null;
+    const art = p === 'q' ? 'Die' : 'Der';
+    const tip = n
+      ? `${art} ${label} hat ${n === 1 ? 'eine gegnerische Figur' : `${n} gegnerische Figuren`} geschlagen, zusammen ${v} Bauerneinheiten wert (${VALUE_KEY}).\n`
+        + `Verhältnis Wert ÷ Anzahl = ${v} ÷ ${n} = ${f1(ratio)}: So viel war eine geschlagene Figur im Schnitt wert.`
+      : `${art} ${label} hat in diesen Partien keine Figur geschlagen.`;
+    const detail = n ? `${v} Wert · ${n} ${n === 1 ? 'Schlag' : 'Schläge'}` : 'keine Schläge';
+    return `<div class="meta-kpi meta-ratio" style="--kpi-accent:var(--meta-s1)" data-tip="${esc(tip)}">`
+      + `<img class="meta-ratio-icon" src="${pieceUrl(`${own}${p.toUpperCase()}`)}" alt="">`
+      + `<span class="l">${label}</span><span class="v">${f1(ratio)}</span><span class="d">${detail}</span></div>`;
+  });
+  // The icons as outlines only (css .meta-ratio-icon): the piece's shape minus the same
+  // shape shrunk by 1.5px, filled in the text color - the same for every piece theme.
+  const outline = '<svg class="meta-svg-defs" aria-hidden="true"><filter id="meta-piece-outline">'
+    + '<feMorphology in="SourceAlpha" operator="erode" radius="1.5" result="in"/>'
+    + '<feComposite in="SourceAlpha" in2="in" operator="out" result="ring"/>'
+    + '<feFlood class="meta-outline-color"/><feComposite in2="ring" operator="in"/></filter></svg>';
+  return `<div class="meta-kpis six">${outline}${tiles.join('')}</div>`;
+}
+
 function piecePicker(side, chosen, mode) {
   const kingFits = side === 'own' ? mode === 'taken' : mode === 'lost';
   const btns = [...HEAT_PIECES, ...(kingFits ? ['k'] : [])].map((p) => {
@@ -151,7 +186,7 @@ export function heatmapTab(rs, ctx) {
 
   const topSquares = [...bySquare.entries()]
     .sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]))
-    .slice(0, 8)
+    .slice(0, 5)
     .map(([sq, e]) => ({ label: sq, v: e.n, tip: `${sq}: ${e.n} von ${total} (${pc(e.n / total)})`, color: modeColor }));
   // Own pieces, so icons in the own color (with both colors: white).
   const own = flipped ? 'b' : 'w';
@@ -169,7 +204,8 @@ export function heatmapTab(rs, ctx) {
   const what = mode === 'lost'
     ? 'Felder, auf denen der Gegner deine Figuren geschlagen hat. „Meine Figuren“ wählt deine geschlagene Figur, „Gegnerische Figuren“ die schlagende'
     : 'Felder, auf denen du gegnerische Figuren geschlagen hast. „Meine Figuren“ wählt deine schlagende Figur, „Gegnerische Figuren“ die geschlagene';
-  return `${controls}<div class="meta-grid">
+  // The filter bar sits in the grid right above the heatmap card, as wide as it (css .meta-heat-grid).
+  return `${captureRatioTiles(games, own)}<div class="meta-grid meta-heat-grid">${controls}
     ${card('Schlag-Heatmap', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
     <div class="meta-stack">
       ${card('Zusammenfassung', bigStats([
