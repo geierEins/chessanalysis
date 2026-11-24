@@ -2519,6 +2519,8 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 }
 
 /* Opening tooltip: board of the opening's defining position (js/meta/openingBoard.js). */
+/* A tip whose lines must not wrap (data-tip-wide, e.g. "Beste Partien"'s formula) - as wide as its longest line. */
+#meta-tip.wide { max-width: calc(100vw - 16px); white-space: pre; }
 #meta-tip.board { width: 194px; max-width: none; padding: 8px; white-space: normal; }
 .meta-ob-name { font-weight: 600; margin-bottom: 6px; }
 .meta-ob {

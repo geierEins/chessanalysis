@@ -545,6 +545,8 @@ export function initMetaMode(host) {
       tipSource = t;
       const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants, t.dataset.line) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
       tipEl.classList.toggle('board', Boolean(board));
+      // data-tip-wide: every line of the tip on one line (e.g. a list of bullet points).
+      tipEl.classList.toggle('wide', !board && t.hasAttribute('data-tip-wide'));
       if (board) tipEl.innerHTML = board;
       // Plain text, except **...** in a data-tip, which is shown bold.
       else tipEl.innerHTML = esc(t.getAttribute('data-tip') ?? t.dataset.opening).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');

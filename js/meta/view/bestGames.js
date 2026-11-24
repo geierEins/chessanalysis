@@ -28,7 +28,7 @@ const FORMULA_TIP = [
   '• + 2, wenn alle drei Phasen über 80 % liegen',
 ].join('\n');
 
-export const BEST_GAMES_NOTE = `Die 5 Partien mit der höchsten Wertung, berechnet aus eigener <span class="meta-tip-word" data-tip="${esc(FORMULA_TIP)}">Formel</span>. Klick öffnet die Partie.`;
+export const BEST_GAMES_NOTE = `Die 5 Partien mit der höchsten Wertung, berechnet aus eigener <span class="meta-tip-word" data-tip-wide data-tip="${esc(FORMULA_TIP)}">Formel</span>. Klick öffnet die Partie.`;
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
