@@ -104,6 +104,11 @@ export function clearFitCharts() {
   fitDraws.clear();
 }
 
+/** Leaving a tab: its charts start unzoomed the next time. */
+export function resetZooms() {
+  zoomMemory.clear();
+}
+
 /**
  * @param {(W: number, H: number, view?: {from: number, to: number}) => string} draw returns the chart's SVG
  * @param {{height?: number, zoom?: {key: string, min: number, max: number, minSpan: number, l: number, r: number}}} [opts]
@@ -131,6 +136,8 @@ function bindZoom(box, z) {
   const wrap = box.parentElement;
   const sel = wrap.querySelector('.meta-zoom-sel');
   const reset = wrap.querySelector('.meta-zoom-reset');
+  // The reset button sits at the right end of the card's title row, not over the chart.
+  box.closest('.meta-card')?.querySelector(':scope > .meta-card-head')?.append(reset);
   const xOf = (e) => e.clientX - box.getBoundingClientRect().left;
   const indexAt = (px) => {
     const x0 = z.l;

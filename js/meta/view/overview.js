@@ -53,6 +53,20 @@ function ratingChart(rs) {
         s += `<circle cx="${X(r.endTime).toFixed(1)}" cy="${Y(r.ownRating).toFixed(1)}" r="5" fill="transparent" data-tip="${TC_LABEL[tc]} · ${fmtDate(r.endTime)}\nWertung ${r.ownRating} · ${RES_WORD[r.result]} gegen ${esc(r.opponent)}"/>`;
       }
     }
+    // A small star on each game type's highest rating (the first game that reached it),
+    // on top of the hover targets so its own tooltip wins.
+    for (const [tc, sorted] of lines) {
+      const peak = sorted.reduce((best, r) => (r.ownRating > best.ownRating ? r : best));
+      if (peak.endTime < from || peak.endTime > to) continue;
+      const cx = X(peak.endTime);
+      const cy = Y(peak.ownRating);
+      const pts = Array.from({ length: 10 }, (_, i) => {
+        const a = (Math.PI / 5) * i - Math.PI / 2;
+        const rad = i % 2 ? 3.8 : 9;
+        return `${(cx + rad * Math.cos(a)).toFixed(1)},${(cy + rad * Math.sin(a)).toFixed(1)}`;
+      }).join(' ');
+      s += `<polygon class="meta-elo-peak" points="${pts}" fill="${timeClassStyle(tc).color}" data-tip="Höchste ${TC_LABEL[tc]}-Elo: ${peak.ownRating}\n${fmtDate(peak.endTime)} · ${RES_WORD[peak.result]} gegen ${esc(peak.opponent)}"/>`;
+    }
     return `<svg class="meta-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo-Verlauf">${s}</svg>`;
   };
   return {

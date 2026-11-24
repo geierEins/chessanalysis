@@ -58,6 +58,9 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Always keep room for the vertical scrollbar: a short page (e.g. the Heatmap
+     tab) would otherwise lose it and the centered layout jump sideways. */
+  scrollbar-gutter: stable;
 }
 
 /* Keeps every top-bar control (#filter-row) the same, compact height -
@@ -2055,8 +2058,9 @@ button.field-error {
   background: color-mix(in srgb, var(--meta-s1) 16%, transparent);
   border-left: 1px solid var(--meta-s1); border-right: 1px solid var(--meta-s1);
 }
+/* Moved into the card's title row by bindZoom (view/charts.js), at its right end. */
 .meta-zoom-reset {
-  position: absolute; top: 4px; right: 14px;
+  justify-self: end; grid-column: -2; grid-row: 1; white-space: nowrap;
   padding: 2px 8px; font-size: 11px; line-height: 16px;
   color: var(--meta-muted); background: var(--meta-panel);
   border: 1px solid color-mix(in srgb, var(--meta-muted) 35%, transparent); border-radius: 10px;
@@ -2878,4 +2882,11 @@ tr.meta-otree.d0 td:first-child {
 }
 .meta-otree-plain {
   color: var(--meta-muted);
+}
+
+/* "Elo-Verlauf": the small star on each game type's highest rating (view/overview.js ratingChart). */
+.meta-elo-peak {
+  stroke: var(--meta-panel);
+  stroke-width: 1;
+  stroke-linejoin: round;
 }

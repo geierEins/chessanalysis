@@ -18,7 +18,7 @@ const PHONE_QUERY = '(max-width: 640px)';
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { mateBoardHtml } from './mateBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
@@ -310,11 +310,12 @@ export function initMetaMode(host) {
     }).filter(Boolean).join('<span class="meta-status-dot">·</span>');
   }
 
-  /** Leaving a tab empties its search fields: every tab starts with the full list again. */
+  /** Leaving a tab empties its search fields and resets its charts' zoom: every tab starts with the full list again. */
   function clearSearches() {
     countrySearch = '';
     gameSearch = '';
     openingSearch = { w: '', b: '' };
+    resetZooms();
   }
 
   tabsEl.addEventListener('click', (e) => {

@@ -11,7 +11,7 @@
 
 import { flag, setOppFlag } from './view/cards.js';
 import { LISTED_GAMES_STEP, clearGameLists, gameListById, gameListHtml, gameHintHtml } from './view/gameLists.js';
-import { clearFitCharts, layoutFitCharts } from './view/charts.js';
+import { clearFitCharts, layoutFitCharts, resetZooms } from './view/charts.js';
 import { overview } from './view/overview.js';
 import { openings } from './view/openings.js';
 import { opponents } from './view/opponents.js';
@@ -22,7 +22,7 @@ import { timeTab } from './view/time.js';
 import { gamesTab, GAMES_STEP } from './view/games.js';
 
 // Used by metaController.js, which imports them from here.
-export { LISTED_GAMES_STEP, gameListById, gameListHtml, gameHintHtml, layoutFitCharts, GAMES_STEP };
+export { LISTED_GAMES_STEP, gameListById, gameListHtml, gameHintHtml, layoutFitCharts, resetZooms, GAMES_STEP };
 
 export const META_TABS = [
   { id: 'overview', label: 'Übersicht' },
