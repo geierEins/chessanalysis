@@ -1,9 +1,8 @@
 # Retries the games in the "skipped" lists of data/state/<user>.json - games
 # the other two workflows gave up on (per-game timeout or an error), which
 # otherwise stay unanalyzed forever. Started by hand (Actions -> "Run
-# workflow"). No per-game timeout here, and the log shows every position's
-# engine time, so a slow position can be found. A game that succeeds leaves
-# the list; one that fails again stays in it.
+# workflow"). No per-game timeout here. A game that succeeds leaves the list;
+# one that fails again stays in it.
 name: 'Auto-Analyse: Übersprungene Partien'
 
 on:

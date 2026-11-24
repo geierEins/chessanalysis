@@ -15,8 +15,8 @@
 //    their games are done - from then on only the scheduled run handles them;
 //  - RETRY_SKIPPED=1 (.github/workflows/auto-analysis-retry.yml, started by
 //    hand): only the games in data/state/<user>.json's "skipped" list (they
-//    timed out or failed before), with no per-game timeout and a log line per
-//    move with its time - a game that now succeeds leaves the list;
+//    timed out or failed before), with no per-game timeout - a game that now
+//    succeeds leaves the list;
 //  - otherwise (every three hours, .github/workflows/auto-analysis.yml): only the
 //    initialized players, i.e. just their new games.
 //
@@ -167,19 +167,10 @@ async function analyzeOne(engine, p, rec) {
     console.warn(`  Zeitüberschreitung nach ${GAME_TIMEOUT_MS / 60_000} Min.: ${rec.url} - Engine wird neu gestartet`);
     engine.terminate();
   }, GAME_TIMEOUT_MS) : null;
-  // Retry: one line per position with its engine time - shows which move is the slow one.
-  let lastPly = Date.now();
-  const onProgress = retry
-    ? (done, total) => {
-        const now = Date.now();
-        console.log(`  ${rec.url.split('/').pop()} Stellung ${done}/${total}: ${((now - lastPly) / 1000).toFixed(1)} s`);
-        lastPly = now;
-      }
-    : undefined;
   try {
     const avgRating = rec.ownRating && rec.oppRating ? (rec.ownRating + rec.oppRating) / 2 : null;
     const recorder = recordingEngine(engine);
-    const analysis = await analyzeGame(rec.raw.pgn, recorder, { depth: config.depth, avgRating, onProgress });
+    const analysis = await analyzeGame(rec.raw.pgn, recorder, { depth: config.depth, avgRating });
     const record = { ...buildEngineRecord(analysis, rec.color, rec.initialClock), evals: String(recorder) };
     p.master.games = p.master.games.filter((g) => g.game.url !== rec.url);
     p.master.games.push({ game: rec.raw, engine: record });
