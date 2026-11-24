@@ -228,3 +228,12 @@ export function timeTicks(from, to, width, gap) {
   const every = Math.max(1, Math.ceil(out.length / Math.max(2, Math.floor(width / gap))));
   return out.filter((_, i) => i % every === 0);
 }
+
+export const FILES = 'abcdefgh';
+
+/** Heat for a share t (0..1) of the busiest square, in the mode's color like
+ *  the mode switch: light to dark blue for "taken", light to dark red for "lost". */
+export function heatColor(t, mode) {
+  const [h0, h1] = mode === 'lost' ? [12, 0] : [200, 222];
+  return `hsl(${Math.round(h0 + (h1 - h0) * t)} 85% ${Math.round(72 - 34 * t)}% / ${(0.35 + 0.6 * t).toFixed(2)})`;
+}

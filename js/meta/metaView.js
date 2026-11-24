@@ -15,7 +15,7 @@ import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, WEEKDAYS, DAY_MS, esc, pts, s
 import { flag, withFlag, setOppFlag, wdlBar, WDL_LEGEND, hbars, card, EMPTY, kpi, GOOD, BAD, bigStats, sortHead, sortRows, segPicker } from './view/cards.js';
 import { NO_MOVES, openTip, LISTED_GAMES_STEP, clearGameLists, gameListById, gamesCount, recordGames, gameListHtml, gameHintHtml, longestStreak, longestStreakGames, streakLink, topGamesTable, topGamesTile, analyzeCell } from './view/gameLists.js';
 
-import { resultPie, shade, pie, columns, clearFitCharts, fitChart, layoutFitCharts, ZOOM_NOTE, timeTicks } from './view/charts.js';
+import { resultPie, shade, pie, columns, clearFitCharts, fitChart, layoutFitCharts, ZOOM_NOTE, timeTicks, FILES, heatColor } from './view/charts.js';
 
 // Used by metaController.js, which imports them from here.
 export { LISTED_GAMES_STEP, gameListById, gameListHtml, gameHintHtml, layoutFitCharts };
@@ -933,7 +933,6 @@ const HEAT_MEASURES = [
   ['value', 'Wert', `Zählt den Materialwert der geschlagenen Figuren statt ihrer Anzahl (${VALUE_KEY}).`, 'text'],
 ];
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }; // the king is never captured
-const FILES = 'abcdefgh';
 
 
 /** Toggle chips, one per piece type; none on = all pieces.
@@ -980,13 +979,6 @@ function piecePicker(side, chosen, mode) {
   });
   const label = side === 'own' ? 'Meine Figuren' : 'Gegnerische Figuren';
   return `<span class="meta-seg" role="group" aria-label="${label}"><span class="meta-seg-l">${label}</span>${btns.join('')}</span>`;
-}
-
-/** Heat for a share t (0..1) of the busiest square, in the mode's color like
- *  the mode switch: light to dark blue for "taken", light to dark red for "lost". */
-function heatColor(t, mode) {
-  const [h0, h1] = mode === 'lost' ? [12, 0] : [200, 222];
-  return `hsl(${Math.round(h0 + (h1 - h0) * t)} 85% ${Math.round(72 - 34 * t)}% / ${(0.35 + 0.6 * t).toFixed(2)})`;
 }
 
 function heatmapTab(rs, ctx) {
