@@ -1847,6 +1847,8 @@ button.field-error {
 /* Engine coverage in the status line (metaController's renderStatus): a tinted chip -
    jade = all analyzed, amber = some, crimson = none. Shades kept apart from the game
    types' text colors (js/timeClassStyle.js: rapid #4ade80, daily #f2c94c, bullet #f87171). */
+/* Status line parts with an explanation on hover (e.g. games without moves). */
+#meta-status-text [title] { cursor: help; }
 .meta-cov { --cov: #2bb594; display: inline-block; padding: 0 7px; border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--cov); background: color-mix(in srgb, var(--cov) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cov) 45%, transparent); }
 .meta-cov.part { --cov: #e8912d; }
 .meta-cov.none { --cov: #e5484d; }

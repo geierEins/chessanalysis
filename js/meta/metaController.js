@@ -277,19 +277,25 @@ export function initMetaMode(host) {
     // One set of facts, said twice: in full (desktop) and as just the counts
     // (phones, css/styles.css .meta-status-short: "411/411 Partien · [404/411] Engine").
     const total = have + missing;
+    // Games without a single move (hasMoves) can't be analyzed - they count among
+    // the loaded/filtered games but not in the engine total, so the two numbers differ.
+    const noMoves = rs.length - total;
+    const noMovesTip = noMoves
+      ? ` title="${noMoves === 1 ? '1 dieser Partien enthält' : `${noMoves} dieser Partien enthalten`} keine Züge (vor dem ersten Zug beendet) und ${noMoves === 1 ? 'kann' : 'können'} nicht analysiert werden. Deshalb ${noMoves === 1 ? 'zählt sie' : 'zählen sie'} bei den Engine-Werten nicht mit: ${total} statt ${rs.length} Partien."`
+      : '';
     // Colored at a glance: all analyzed (full), some (part), none (none) - css/styles.css .meta-cov.
     const state = !missing ? 'full' : have ? 'part' : 'none';
     const coverage = `${esc(label)}: ${have} von ${total} Partien mit Engine-Werten`;
     const hint = !missing ? 'Alles analysiert.' : have ? `Die Lupe analysiert die ${missing} fehlenden.` : 'Tabs ohne Engine sind trotzdem fertig.';
     const olderMissing = 'Der Zeitraum reicht weiter zurück als die geladenen Partien – „Spiele laden“ holt die älteren.';
     const long = [
-      rs.length ? `<b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern.` : `Keine der ${records.length} geladenen Partien passt zu den Filtern.`,
-      rs.length ? `<b>${esc(label)}</b>: <span class="meta-cov ${state}">${have} von ${total} Partien</span> mit Engine-Werten. ${hint}` : '',
+      rs.length ? `<span${noMovesTip}><b>${rs.length}</b> von ${records.length} geladenen Partien passen zu den Filtern.</span>` : `Keine der ${records.length} geladenen Partien passt zu den Filtern.`,
+      rs.length ? `<b>${esc(label)}</b>: <span class="meta-cov ${state}"${noMovesTip}>${have} von ${total} Partien</span> mit Engine-Werten. ${hint}` : '',
       wider ? `<span class="meta-warn">${olderMissing}</span>` : '',
     ];
     const short = [
-      `<b>${rs.length}</b>/${records.length} Partien`,
-      rs.length ? `<span class="meta-cov ${state}" title="${coverage}">${have}/${total}</span> Engine` : '',
+      `<span${noMovesTip}><b>${rs.length}</b>/${records.length} Partien</span>`,
+      rs.length ? `<span class="meta-cov ${state}" title="${coverage}${noMovesTip ? ` – ${noMoves} ohne Züge zählen nicht mit` : ''}">${have}/${total}</span> Engine` : '',
       wider ? `<span class="meta-warn" title="${olderMissing}">ältere fehlen</span>` : '',
     ];
     statusEl.innerHTML = `<span class="meta-status-long">${long.filter(Boolean).join(' ')}</span><span class="meta-status-short">${short.filter(Boolean).join(' · ')}</span>`;
