@@ -17,6 +17,7 @@ function decodeScore(token, multipv) {
 export function recordingEngine(engine) {
   const entries = [];
   return {
+    newGame: () => engine.newGame?.(),
     async evaluate(fen, options) {
       const result = await engine.evaluate(fen, options);
       const pv1 = result.lines.find((l) => l.multipv === 1) ?? result.lines[0];

@@ -73,6 +73,8 @@ export async function analyzeGame(pgn, engine, { depth = 14, onProgress, avgRati
   const positions = [replay.fen()];
   const moveRecords = [];
 
+  // A fresh hash table per game (StockfishEngine.newGame) - the replay engine has none.
+  await engine.newGame?.();
   let currentEval = await engine.evaluate(replay.fen(), { depth, multiPv: 2 });
   // The best FIRST move - the root node's counterpart of each record's
   // nextBestMoveSquares below (js/main.js's "show best move before" setting).

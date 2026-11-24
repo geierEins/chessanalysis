@@ -99,6 +99,38 @@ export class StockfishEngine {
     return result;
   }
 
+  /**
+   * Starts a new game: clears Stockfish's hash table, so a game's analysis never
+   * depends on whatever positions this engine analyzed before (its search, and
+   * with it how long a position takes, would otherwise change with that history).
+   * Serialized with evaluate(); resolves once the engine answers readyok.
+   */
+  newGame() {
+    const run = () => this.#newGameNow();
+    const result = this.#queue.then(run, run);
+    this.#queue = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  }
+
+  #newGameNow() {
+    if (!this.#ready) return Promise.reject(new Error('Engine nicht bereit'));
+    return new Promise((resolve, reject) => {
+      const onMessage = (e) => {
+        if (e.data !== 'readyok') return;
+        this.#worker.removeEventListener('message', onMessage);
+        this.#pendingReject = null;
+        resolve();
+      };
+      this.#pendingReject = reject;
+      this.#worker.addEventListener('message', onMessage);
+      this.#worker.postMessage('ucinewgame');
+      this.#worker.postMessage('isready');
+    });
+  }
+
   #evaluateNow(fen, depth, multiPv) {
     if (!this.#ready) return Promise.reject(new Error('Engine nicht bereit'));
 
