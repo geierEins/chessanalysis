@@ -440,9 +440,10 @@ export function initMetaMode(host) {
       render();
       return;
     }
-    const heatBtn = e.target.closest('[data-heat-mode], [data-heat-piece]');
+    const heatBtn = e.target.closest('[data-heat-mode], [data-heat-piece], [data-heat-measure]');
     if (heatBtn) {
       if (heatBtn.dataset.heatMode) heatmap.mode = heatBtn.dataset.heatMode;
+      else if (heatBtn.dataset.heatMeasure) heatmap.measure = heatBtn.dataset.heatMeasure;
       else {
         const p = heatBtn.dataset.heatPiece;
         const key = heatBtn.dataset.heatSide === 'opp' ? 'oppPieces' : 'pieces';

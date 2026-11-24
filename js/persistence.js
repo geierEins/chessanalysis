@@ -233,7 +233,7 @@ export function saveCountryLimit(limit) {
 // Piece letters of a saved Heatmap piece filter (anything else dropped).
 const pieceList = (xs) => (Array.isArray(xs) ? xs.filter((p) => typeof p === 'string' && p.length === 1 && 'pnbrqk'.includes(p)) : []);
 
-/** @returns {{mode: 'lost'|'taken', pieces: string[], oppPieces: string[]}} the Heatmap tab's last selection */
+/** @returns {{mode: 'lost'|'taken', measure: 'count'|'value', pieces: string[], oppPieces: string[]}} the Heatmap tab's last selection */
 export function loadHeatmap() {
   let saved = {};
   try {
@@ -243,12 +243,13 @@ export function loadHeatmap() {
   }
   return {
     mode: saved.mode === 'lost' ? 'lost' : 'taken',
+    measure: saved.measure === 'value' ? 'value' : 'count',
     pieces: pieceList(saved.pieces),
     oppPieces: pieceList(saved.oppPieces),
   };
 }
 
-/** @param {{mode: string, pieces: string[], oppPieces: string[]}} selection */
-export function saveHeatmap({ mode, pieces, oppPieces }) {
-  safeSet(HEATMAP_KEY, JSON.stringify({ mode, pieces, oppPieces }));
+/** @param {{mode: string, measure: string, pieces: string[], oppPieces: string[]}} selection */
+export function saveHeatmap({ mode, measure, pieces, oppPieces }) {
+  safeSet(HEATMAP_KEY, JSON.stringify({ mode, measure, pieces, oppPieces }));
 }

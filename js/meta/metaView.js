@@ -1379,6 +1379,10 @@ const HEAT_MODES = [
   ['lost', '💀', 'Zeigt an, wie oft eine meiner Figuren auf diesem Feld geschlagen wurde'],
 ];
 const HEAT_PIECES = ['p', 'n', 'b', 'r', 'q']; // + the king where it can capture (piecePicker)
+// The summary card's switch (metaController's heatmap.measure): how many pieces, or what they were worth.
+const HEAT_MEASURES = [['count', 'Anzahl'], ['value', 'Material']];
+const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }; // the king is never captured
+const VALUE_KEY = 'Bauer 1, Springer und Läufer 3, Turm 5, Dame 9';
 const FILES = 'abcdefgh';
 
 /** Segmented control; attr: the data attribute metaController listens for.
@@ -1472,10 +1476,33 @@ function heatmapTab(rs, ctx) {
   const total = [...bySquare.values()].reduce((a, e) => a + e.n, 0);
   const modeColor = mode === 'lost' ? 'var(--meta-loss)' : 'var(--meta-s1)'; // as the mode switch (css .meta-seg [data-heat-mode])
   // Both directions for the summary, whichever the board shows.
+  // value: the captured pieces' worth - the opponent's piece when you take, yours when you lose one.
   const count = { lost: 0, taken: 0 };
-  for (const r of games) for (const k of ['lost', 'taken']) count[k] += (r.captures?.[k] ?? []).filter(counts).length;
+  const value = { lost: 0, taken: 0 };
+  for (const r of games) {
+    for (const k of ['lost', 'taken']) {
+      for (const c of (r.captures?.[k] ?? []).filter(counts)) {
+        count[k]++;
+        value[k] += PIECE_VALUE[k === 'taken' ? c[3] : c[2]] ?? 0;
+      }
+    }
+  }
   const perGame = (n) => f1(games.length ? n / games.length : null);
   const sentence = heatSentences(ownSel, oppSel, count); // the same filters as the counts
+  const byValue = ctx.heatmap.measure === 'value';
+  const summaryRow = (k, label, color) => {
+    if (!byValue) {
+      return [
+        [count[k], label, color, sentence[k]],
+        [perGame(count[k]), 'pro Partie', color, `Im Schnitt ${perGame(count[k])}-mal pro Partie (${games.length} Partien).`],
+      ];
+    }
+    const worth = `Zusammen ${value[k]} Bauerneinheiten (${VALUE_KEY}).`;
+    return [
+      [value[k], k === 'taken' ? 'Material geschlagen' : 'Material verloren', color, `${sentence[k]} ${worth}`],
+      [perGame(value[k]), 'pro Partie', color, `Im Schnitt ${perGame(value[k])} Bauerneinheiten pro Partie (${games.length} Partien).`],
+    ];
+  };
   const max = Math.max(1, ...[...bySquare.values()].map((e) => e.n));
   const pieceList = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${PIECE_LABEL[p]} ${n}`).join(', ');
   const [ownLabel, oppLabel] = mode === 'lost' ? ['Verloren', 'Geschlagen von'] : ['Geschlagen mit', 'Geschlagen wurde'];
@@ -1527,11 +1554,9 @@ function heatmapTab(rs, ctx) {
     ${card('Schlag-Heatmap', board, { cls: 'w8', note: `${what}. Farbe = Anzahl Schläge auf dem Feld, der Tooltip zeigt, welche Figuren beteiligt waren.${flipped ? ' Brett aus Sicht von Schwarz.' : ''}` })}
     <div class="meta-stack">
       ${card('Zusammenfassung', bigStats([
-        [count.taken, 'gegnerische Figuren geschlagen', 'var(--meta-s1)', sentence.taken],
-        [perGame(count.taken), 'pro Partie', 'var(--meta-s1)', `Im Schnitt ${perGame(count.taken)}-mal pro Partie (${games.length} Partien).`],
-        [count.lost, 'eigene Figuren verloren', 'var(--meta-loss)', sentence.lost],
-        [perGame(count.lost), 'pro Partie', 'var(--meta-loss)', `Im Schnitt ${perGame(count.lost)}-mal pro Partie (${games.length} Partien).`],
-      ], 'two'))}
+        ...summaryRow('taken', 'gegnerische Figuren geschlagen', 'var(--meta-s1)'),
+        ...summaryRow('lost', 'eigene Figuren verloren', 'var(--meta-loss)'),
+      ], 'two'), { head: segPicker(HEAT_MEASURES, byValue ? 'value' : 'count', 'heat-measure', 'Anzahl oder Materialwert') })}
       ${card(mode === 'lost' ? 'Welche Figuren du verlierst' : 'Womit du schlägst', hbars(pieceRows, { color: modeColor }))}
       ${card('Die heißesten Felder', hbars(topSquares))}
     </div>
