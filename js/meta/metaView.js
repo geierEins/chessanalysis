@@ -976,7 +976,7 @@ function openings(rs, ctx) {
       ? `<div class="meta-rows">${arr.map((r) => `<div class="meta-card-head small"><span data-opening="${esc(r.fam)}">${esc(r.fam)}</span><span class="meta-muted">${pc(r.s)} · ${r.n} P.</span></div>`).join('')}</div>`
       : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
-    ${card('Mit Weiß', colorCard(white, 'w'), { cls: 'w12' })}
+    ${card('Mit Weiss', colorCard(white, 'w'), { cls: 'w12' })}
     ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: jede Ebene ist ein Halbzug. Entsteht dabei ein neuer Name, steht er mit dem Zug da, sonst nur der Zug. Eine Partie zählt in jeder Ebene ihres Weges; „ohne weiteren Namen“: Partien, die das Buch vorher verlassen haben. „ich“ / „Gegner“: wer den Halbzug gespielt hat. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
     ${card('Erster Zug als Weiß', hbars(moveRows(white, '')), { cls: 'w4' })}
     ${card('Als Schwarz gegen …', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
