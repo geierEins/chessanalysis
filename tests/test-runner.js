@@ -1,6 +1,5 @@
-// Minimal in-browser test harness - no Node/npm available in this project,
-// so this runs as plain ES modules loaded directly by tests/index.html via
-// the same local dev server the app itself uses.
+// Minimal test harness as plain ES modules: in the browser via tests/index.html
+// (served by the same local dev server as the app), in CI via tests/run-node.mjs.
 
 const results = [];
 let currentSuite = '';
@@ -48,4 +47,9 @@ export function render(rootEl) {
           `</div>`
       )
       .join('');
+}
+
+/** All results so far - for the Node runner (tests/run-node.mjs, used by CI). */
+export function testResults() {
+  return results;
 }

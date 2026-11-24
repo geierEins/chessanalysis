@@ -1,0 +1,25 @@
+# Runs the test suite (tests/*.test.js, the same as tests/index.html in the
+# browser) under Node on every push and pull request that touches code. The
+# auto-analysis commits only change data/, so they don't start it.
+name: Tests
+
+on:
+  push:
+    paths: ['js/**', 'tests/**', 'scripts/**', '.github/workflows/tests.yml']
+  pull_request:
+    paths: ['js/**', 'tests/**', 'scripts/**', '.github/workflows/tests.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/run-node.mjs
