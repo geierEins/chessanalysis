@@ -58,9 +58,11 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Always keep room for the vertical scrollbar: a short page (e.g. the Heatmap
-     tab) would otherwise lose it and the centered layout jump sideways. */
-  scrollbar-gutter: stable;
+  /* Always show the vertical scrollbar: a short page (e.g. the Heatmap tab)
+     would otherwise lose it and the centered layout jump sideways. Not
+     scrollbar-gutter: stable - its empty gutter on short pages is page
+     background, so the top bar's tint stopped short of the right edge. */
+  overflow-y: scroll;
 }
 
 /* Keeps every top-bar control (#filter-row) the same, compact height -
