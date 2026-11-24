@@ -2,8 +2,8 @@
 // .meta-tabs-rook, css/styles.css .meta-tabs-wrap) - one per tab, the overview
 // all six in a row (a tab's piece in its overview spot). The pieces are traced from a line drawing (centerlines,
 // one shared scale, so their sizes keep their proportions): each stands with
-// its base on the line (y 55.5) in a box of its own width and H high, and the
-// line runs on under it unbroken.
+// its base on the line (y 55.5) in a box of its own width and H high; the line
+// itself is css/styles.css's (.meta-tabs-wrap::before), unbroken under them.
 
 const H = 56;
 const GAP = 10; // line between two pieces on the overview
@@ -57,11 +57,13 @@ export function tabPieceSvg(tabId, fromTab = null) {
   const motion = tabId === 'mate' ? 'king-falls' : tabId === 'time' && fromTab === 'mate' ? 'king-rises' : null;
   if (motion) {
     const piece = BY_TAB.time;
-    const body = `<path d="M0 55.5H${ROW_W}"/><g transform="translate(${OFFSET[piece]} 0)"><g class="${motion}"><path d="${PIECES[piece].d}"/></g></g>`;
+    const body = `<g transform="translate(${OFFSET[piece]} 0)"><g class="${motion}"><path d="${PIECES[piece].d}"/></g></g>`;
     return { width: ROW_W, height: H, body, all: true };
   }
   const shown = BY_TAB[tabId] ? [BY_TAB[tabId]] : ALL;
-  const body = `<path d="M0 55.5H${ROW_W}"/>`
-    + shown.map((p) => `<g transform="translate(${OFFSET[p]} 0)"><path d="${PIECES[p].d}"/></g>`).join('');
+  // No line of its own: css/styles.css draws it edge to edge under the pieces
+  // (an SVG line beside a CSS border rounded differently on fractional pixel
+  // positions - a 1px step at the piece's left edge).
+  const body = shown.map((p) => `<g transform="translate(${OFFSET[p]} 0)"><path d="${PIECES[p].d}"/></g>`).join('');
   return { width: ROW_W, height: H, body, all: true };
 }

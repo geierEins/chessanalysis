@@ -1864,13 +1864,14 @@ button.field-error {
 }
 
 /* The line under the tabs runs edge to edge like the top filter bar, not just
-   as wide as the content - and draws the tab's chess piece on its way
-   (js/meta/tabPieces.js; the overview all six), its right edge on the
-   content's (= the last overview tile's) right edge: ::before is the part left
-   of the piece, ::after the part right of it, the SVG the piece in between.
+   as wide as the content - one border (::before), unbroken, with the tab's
+   chess piece standing on it (js/meta/tabPieces.js; the overview all six), its
+   right edge on the content's (= the last overview tile's) right edge.
    --piece-w is set with the piece (metaController's renderTabs). The border
-   images' outset paints them past the page edges (ink only - no horizontal
-   scrolling). */
+   image's outset paints it past the page edges (ink only - no horizontal
+   scrolling). One border, not border + the SVG's own baseline: while the
+   analysis progress shows, the tabs sit on a fractional pixel, and the two
+   rounded differently - a 1px step at the piece's left edge. */
 .meta-tabs-wrap {
   --piece-shift: 48px; /* how far the piece(s) stand left of the content's right edge */
   --piece-x: calc(100% - var(--piece-w, 44px) - var(--piece-shift)); /* the piece's left edge */
@@ -1924,16 +1925,11 @@ button.field-error {
 
 .meta-tabs-wrap::before {
   left: 0;
-  width: var(--piece-x);
-  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 0 0 100vmax;
+  width: 100%;
+  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 100vmax 0 100vmax;
 }
 
-.meta-tabs-wrap::after {
-  /* 1px over the piece's last baseline pixel - a 0-wide box might not paint its border image at all. */
-  left: calc(100% - var(--piece-shift) - 1px);
-  width: 1px;
-  border-image: linear-gradient(var(--meta-line), var(--meta-line)) 0 0 1 / 0 0 1px / 0 100vmax 0 0;
-}
+.meta-tabs-wrap::after { display: none; }
 
 .meta-tabs-rook {
   position: absolute;
