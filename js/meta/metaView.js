@@ -11,6 +11,7 @@ import { TERMINATION_LABEL, MATE_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOn
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { MATE_TYPES } from '../analysis/mateType.js';
 import { pieceUrl } from './openingBoard.js';
+import { TC_ORDER, TC_LABEL, RES_LETTER, RES_BADGE, RES_WORD, WEEKDAYS, DAY_MS, esc, pts, score, wdl, avg, pc, f1, f0, signed, groupBy, byCountDesc, fold, fmtDate, fmtDateTime } from './view/format.js';
 
 export const META_TABS = [
   { id: 'overview', label: 'Übersicht' },
@@ -28,56 +29,16 @@ export const META_TABS = [
   { id: 'games', label: 'Partien' },
 ];
 
-const TC_ORDER = ['bullet', 'blitz', 'rapid', 'daily'];
-const TC_LABEL = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', daily: 'Daily' };
-const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
-// The game list popup marks results with the same S/R/N badges as the game picker (css .outcome-badge).
-const RES_BADGE = { W: 'win', D: 'draw', L: 'loss' };
-const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
-const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const HEAT_RAMP = ['#1d2a3d', '#184f95', '#1c5cab', '#256abf', '#2a78d6', '#3987e5', '#5598e7', '#86b6ef'];
 
 // ---------- small helpers ----------
 
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const pts = (r) => (r.result === 'W' ? 1 : r.result === 'D' ? 0.5 : 0);
-const score = (rs) => (rs.length ? rs.reduce((a, r) => a + pts(r), 0) / rs.length : null);
-const wdl = (rs) => {
-  const c = { W: 0, D: 0, L: 0 };
-  for (const r of rs) c[r.result]++;
-  return c;
-};
-const avg = (rs, f) => {
-  const v = rs.map(f).filter((x) => x != null && Number.isFinite(x));
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-};
-const pc = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
-const f1 = (x) => (x == null ? '–' : x.toFixed(1).replace('.', ','));
-const f0 = (x) => (x == null ? '–' : String(Math.round(x)));
 // A game without a single move (see hasMoves): a gray X where the magnifier
 // would be (analyzeCell), the reason in the shared tooltip.
 const NO_MOVES_TIP = 'Diese Partie enthält keine Züge (vor dem ersten Zug beendet). Sie kann weder analysiert noch in der Spiel-Analyse geöffnet werden.';
 // A game row's tooltip - not on a game without moves, which can't be opened.
 const openTip = (r) => (hasMoves(r) ? ' title="In der Spiel-Analyse öffnen"' : '');
 const NO_MOVES = `<span class="meta-nomoves" data-tip="${NO_MOVES_TIP}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-label="Keine Züge"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></span>`;
-const groupBy = (rs, f) => {
-  const m = new Map();
-  for (const r of rs) {
-    const k = f(r);
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(r);
-  }
-  return m;
-};
-const byCountDesc = (a, b) => b[1].length - a[1].length;
-// Search text and names compared without case and accents ("osterreich" finds "Österreich").
-const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-const fmtDate = (ms) => new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-// When the game ended, e.g. "Mi., 12.11.2026, 14:37 Uhr" - the "Partien" table's date tooltip.
-const fmtDateTime = (ms) => {
-  const d = new Date(ms);
-  return `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
-};
 const flag = (code) => (code ? flagHtml(code).trim() : '');
 // The opponent's flag behind their name in game lists - renderMetaTab points it at the render's ctx.countryOf.
 let oppFlag = () => '';
@@ -226,7 +187,6 @@ function recordGames(list, key, pickMax) {
   return { games: list.filter((r) => r[key] === value), value };
 }
 
-const signed = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
 
 /** The floating game list behind gamesCount() - styled like the game picker:
  *  the first `shown` games of `list` in a scroll box, plus a "more" button
@@ -589,7 +549,6 @@ function ratingChart(rs) {
   };
 }
 
-const DAY_MS = 864e5;
 const ZOOM_NOTE = 'Zoomen: Bereich mit der Maus aufziehen oder Strg + Mausrad; Doppelklick setzt zurück.';
 
 /** Date labels for a time axis from..to (ms), about gap px apart over width px:
