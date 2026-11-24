@@ -17,7 +17,7 @@
 //    hand): only the games in data/state/<user>.json's "skipped" list (they
 //    timed out or failed before), with no per-game timeout and a log line per
 //    move with its time - a game that now succeeds leaves the list;
-//  - otherwise (four times a day, .github/workflows/auto-analysis.yml): only the
+//  - otherwise (every three hours, .github/workflows/auto-analysis.yml): only the
 //    initialized players, i.e. just their new games.
 //
 // Newest games first, across all players, on one engine process per CPU
