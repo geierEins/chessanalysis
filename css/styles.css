@@ -2283,7 +2283,7 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 .mate-fit > .meta-side-by-side > .meta-card { display: flex; flex-direction: column; }
 .mate-fit .meta-mate-board-wrap { display: flex; justify-content: center; }
 .mate-fit .meta-mate-board { width: min(100%, 244px); margin: 0; }
-/* "Wo der König mattgesetzt wird": gesetzt/kassiert centered under the board. */
+/* "Wo der gegnerische / dein König mattgesetzt wird": gesetzt/kassiert centered under the board. */
 .meta-mate-toggle { display: flex; justify-content: center; margin-top: 10px; }
 /* A card title with an explanation on hover (card()'s tip). */
 .meta-card-head h2.meta-has-tip { cursor: help; white-space: nowrap; }

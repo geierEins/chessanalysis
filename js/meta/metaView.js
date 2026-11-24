@@ -149,7 +149,8 @@ const CARD_ICONS = {
   'Gesetzt und kassiert': '⚖️',
   'Matt nach Figur': '♟️',
   'Wann das Matt fällt': '⏱️',
-  'Wo der König mattgesetzt wird': '🎯',
+  'Wo der gegnerische König mattgesetzt wird': '🎯',
+  'Wo dein König mattgesetzt wird': '🎯',
   'Keine Mattpartien': '♚',
   'Uhr': '⏰',
   'Zeit pro Zug': '⏱️',
@@ -1430,18 +1431,24 @@ const HEAT_MODES = [
   ['lost', '💀', 'Zeigt an, wie oft eine meiner Figuren auf diesem Feld geschlagen wurde'],
 ];
 const HEAT_PIECES = ['p', 'n', 'b', 'r', 'q']; // + the king where it can capture (piecePicker)
-// The summary card's switch (metaController's heatmap.measure): how many pieces, or what they were worth.
-const HEAT_MEASURES = [['count', 'Anzahl'], ['value', 'Material']];
-const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }; // the king is never captured
 const VALUE_KEY = 'Bauer 1, Springer und Läufer 3, Turm 5, Dame 9';
+// The summary card's switch (metaController's heatmap.measure): how many pieces, or what they were worth.
+const HEAT_MEASURES = [
+  ['count', 'Anzahl', 'Zählt die geschlagenen Figuren, jede Figur einmal.', 'text'],
+  ['value', 'Wert', `Zählt den Materialwert der geschlagenen Figuren statt ihrer Anzahl (${VALUE_KEY}).`, 'text'],
+];
+const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }; // the king is never captured
 const FILES = 'abcdefgh';
 
 /** Segmented control; attr: the data attribute metaController listens for.
  *  options: [key, text, tip?] - with a tip, the text is only an icon and the tip names it. */
+/** options: [key, text, tip?, kind?] - with a tip, text is an icon (the tip is its label) unless kind is 'text'. */
 function segPicker(options, current, attr, label) {
-  const btns = options.map(([key, text, tip]) => {
+  const btns = options.map(([key, text, tip, kind]) => {
     const on = key === current;
-    const tipAttrs = tip ? ` class="${on ? 'on ' : ''}icon" data-tip="${esc(tip)}" aria-label="${esc(tip)}"` : ` class="${on ? 'on' : ''}"`;
+    const icon = tip && kind !== 'text';
+    const cls = [on && 'on', icon && 'icon'].filter(Boolean).join(' ');
+    const tipAttrs = ` class="${cls}"${tip ? ` data-tip="${esc(tip)}"` : ''}${icon ? ` aria-label="${esc(tip)}"` : ''}`;
     return `<button type="button"${tipAttrs} data-${attr}="${key}" aria-pressed="${on}">${text}</button>`;
   });
   return `<span class="meta-seg" role="group" aria-label="${label}">${btns.join('')}</span>`;
@@ -1548,9 +1555,10 @@ function heatmapTab(rs, ctx) {
         [perGame(count[k]), 'pro Partie', color, `Im Schnitt ${perGame(count[k])}-mal pro Partie (${games.length} Partien).`],
       ];
     }
-    const worth = `Zusammen ${value[k]} Bauerneinheiten (${VALUE_KEY}).`;
+    const n = count[k];
+    const worth = `${k === 'taken' ? 'Geschlagenes' : 'Verlorenes'} Material im Wert von ${value[k]} Bauerneinheiten, aus ${n === 1 ? 'einem Schlag' : `${n} Schlägen`} (${VALUE_KEY}).`;
     return [
-      [value[k], k === 'taken' ? 'Material geschlagen' : 'Material verloren', color, `${sentence[k]} ${worth}`],
+      [value[k], k === 'taken' ? 'Materialwert geschlagen' : 'Materialwert verloren', color, worth],
       [perGame(value[k]), 'pro Partie', color, `Im Schnitt ${perGame(value[k])} Bauerneinheiten pro Partie (${games.length} Partien).`],
     ];
   };
@@ -1791,7 +1799,7 @@ function mateKingCard(mated, mode) {
     ? `<div class="meta-mate-board-wrap"><div class="meta-heat-board meta-mate-board">${squares}</div></div>`
     : `<p class="meta-muted">Keine ${mode === 'set' ? 'gesetzten' : 'kassierten'} Matts.</p>`;
   // The switch under the board; the explanation on the title, so the title fits in one line.
-  return card('Wo der König mattgesetzt wird', `${body}<div class="meta-mate-toggle">${segPicker(MATE_HEAT_MODES, mode, 'mate-heat', 'Gesetzt oder kassiert')}</div>`, {
+  return card(mode === 'set' ? 'Wo der gegnerische König mattgesetzt wird' : 'Wo dein König mattgesetzt wird', `${body}<div class="meta-mate-toggle">${segPicker(MATE_HEAT_MODES, mode, 'mate-heat', 'Gesetzt oder kassiert')}</div>`, {
     tip: `${mode === 'set' ? 'Feld des gegnerischen Königs bei deinen Matts' : 'Feld deines Königs, wenn du mattgesetzt wurdest'} - aus deiner Sicht: deine Grundreihe ist unten (Reihe 1), auch in Partien mit Schwarz. Zahl anklicken: die Partien.`,
   });
 }
