@@ -300,11 +300,18 @@ export function initMetaMode(host) {
     }).filter(Boolean).join('<span class="meta-status-dot">·</span>');
   }
 
+  /** Leaving a tab empties its search fields: every tab starts with the full list again. */
+  function clearSearches() {
+    countrySearch = '';
+    gameSearch = '';
+  }
+
   tabsEl.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
     marked = null;
     gamesShown = GAMES_STEP;
+    clearSearches();
     setFiltersOpen(false);
     const fromTab = tab;
     tab = b.dataset.tab;
@@ -320,6 +327,7 @@ export function initMetaMode(host) {
   function showStreak(games) {
     if (!games.length) return;
     marked = new Set(games.map((r) => r.url));
+    clearSearches(); // a leftover opponent search could hide the streak's games
     tab = 'games';
     saveMetaTab(tab);
     sorts.games = { key: 'date', dir: 'desc' };
