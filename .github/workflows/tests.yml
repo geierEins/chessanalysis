@@ -1,7 +1,7 @@
 # Runs the test suite (tests/*.test.js, the same as tests/index.html in the
 # browser) under Node on every push and pull request that touches code. The
 # auto-analysis commits only change data/, so they don't start it.
-# On branches other than main, render-diff also renders every Meta-Analyse tab
+# On refactoring branches (refactoring*), render-diff also renders every Meta-Analyse tab
 # with main's code and with the branch's and fails on any difference - the
 # safety net for refactorings that must not change what the app shows.
 name: Tests
@@ -28,7 +28,9 @@ jobs:
       - run: node tests/run-node.mjs
 
   render-diff:
-    if: github.ref != 'refs/heads/main'
+    # Only for refactoring branches (refactoring*) or when started by hand - a
+    # feature branch changes the tabs on purpose and would always fail here.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref || github.ref_name, 'refactoring')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
