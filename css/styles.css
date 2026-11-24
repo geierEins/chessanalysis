@@ -2171,6 +2171,10 @@ button.field-error {
 .meta-top .meta-top-opp { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* "Die letzten 7 Partien": accuracy column as wide as "100.0 %", also when it only holds a magnifier. */
 .meta-top .meta-recent-acc { min-width: 4.5em; }
+/* "Beste Partien" (view/bestGames.js): medals instead of rank numbers. */
+.meta-best .meta-rank { width: auto; font-weight: 400; text-align: center; }
+/* A word in a note with a tooltip behind it (e.g. "Formel"). */
+.meta-tip-word { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
 
 /* Zugqualität: stacked bars (you vs. opponents) and one chip per category */
 .meta-kpi.mix { gap: 8px; }

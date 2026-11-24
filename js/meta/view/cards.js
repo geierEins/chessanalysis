@@ -50,6 +50,7 @@ export const CARD_ICONS = {
   'Partien pro Tag': '📅',
   'Beste Tage': '🏆',
   'Schlechteste Tage': '💔',
+  'Beste Partien': '⭐',
   'Eröffnungen': '📖',
   'Mit Weiß': 'piece:wP',
   'Mit Schwarz': 'piece:bP',

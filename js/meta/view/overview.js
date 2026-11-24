@@ -6,6 +6,7 @@ import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, DAY_MS, esc, score, wdl, avg,
 import { withFlag, wdlBar, WDL_LEGEND, card, EMPTY, kpi } from './cards.js';
 import { NO_MOVES, openTip, gamesCount, longestStreakGames, streakLink, analyzeCell } from './gameLists.js';
 import { resultPie, fitChart, ZOOM_NOTE, timeTicks } from './charts.js';
+import { bestGamesList, BEST_GAMES_NOTE } from './bestGames.js';
 
 /** @returns {{legend: string, body: string}} the legend (for the card's title row) and the chart */
 function ratingChart(rs) {
@@ -227,7 +228,6 @@ export function overview(rs, ctx) {
     ${kpi('♟️ Partien', rs.length, wdlDetail, '', 'var(--meta-s1)')}
     ${gamesPerDayKpi(chrono, ctx)}
     ${kpi('🧠 Genauigkeit', f1(avg(withEngine, (r) => ctx.engineOf(r).accuracy)), withEngine.length ? `Gegner ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}` : 'noch keine Engine-Werte', '', '#4bc2a3')}
-    ${kpi('🎯 Punkte-Quote', pc(score(rs)), 'Sieg = 1, Remis = ½', '', '#e2b84a')}
     ${kpi('🔥 Längste Siegesserie', streakLink(longestStreakGames(chrono, 'W')), 'Partien in Folge', '', '#f08a3c')}
     ${kpi('💔 Niederlagen in Folge', streakLink(longestStreakGames(chrono, 'L')), 'längste Serie', '', 'var(--meta-loss)')}
     ${kpi('♛ Umgewandelte Bauern', gamesCount(promoted, promotions), `in ${promoted.length} ${promoted.length === 1 ? 'Partie' : 'Partien'}`, '', '#9b7fe0')}
@@ -249,8 +249,9 @@ export function overview(rs, ctx) {
       ${card('Die letzten 7 Partien', recentGames(chrono.slice(-7).reverse(), ctx), { note: 'Die 7 neuesten Partien zu den Filtern. Genauigkeit nur mit Engine-Werten, sonst analysiert die Lupe die Partie.' })}
     </div>
     ${card('Elo-Verlauf', rating.body, { cls: 'w12', mid: rating.legend, note: ZOOM_NOTE })}
+    ${card('Beste Tage', days.best, { cls: 'w4', note: DAYS_NOTE })}
+    ${card('Beste Partien', bestGamesList(rs, ctx.engineOf), { cls: 'w4', note: BEST_GAMES_NOTE })}
+    ${card('Schlechteste Tage', days.worst, { cls: 'w4', note: DAYS_NOTE })}
     ${card('Partien pro Tag', perDay.body, { cls: 'w12', mid: perDay.legend, note: ZOOM_NOTE })}
-    ${card('Beste Tage', days.best, { cls: 'w6', note: DAYS_NOTE })}
-    ${card('Schlechteste Tage', days.worst, { cls: 'w6', note: DAYS_NOTE })}
   </div>`;
 }
