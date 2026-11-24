@@ -146,38 +146,35 @@ function openingGroupOf(named) {
 }
 
 /**
- * The game's path through the Eröffnungen tab's opening tree: the family of
- * its first named position ("King's Pawn Game" after 1.e4), then the group it
- * ended up in (openingChoice's group, e.g. "Italian Game" - left out when it
- * is that same family), then every later variation of that group the game
- * passed, in order. `label` is the name without its parent's prefix; `byMe`
- * says who played the move that first produced the name.
+ * The game's path through the Eröffnungen tab's opening tree: every named
+ * position it passed, in order, each name once - so a deeper level is always
+ * a later move ("King's Pawn Game" 1.e4 → "King's Knight Opening" 2.Nf3 →
+ * "Normal Variation" 2…Nc6 → "Italian Game" 3.Bc4 → …). `label` is the name
+ * without its parent's prefix, `move` the move that produced the name, `byMe`
+ * whether the user played it.
  * @param {Array<{ply: number, name: string}>} named openingBook's namedNodesForLine()
  * @param {'w'|'b'} color the user's color
- * @returns {Array<{name: string, label: string, byMe: boolean}>}
+ * @param {string[]} sans the game's moves (SAN), for `move`
+ * @returns {Array<{name: string, label: string, move: string, byMe: boolean}>}
  */
-export function openingTreePath(named, color) {
-  const g = openingGroupOf(named);
-  if (!g) return [];
-  const rootFamily = openingFamily(named[0].name);
-  const steps = [{ name: rootFamily, ply: named[0].ply }];
-  if (g.group !== rootFamily) steps.push({ name: g.group, ply: g.ply });
-  const seen = new Set(steps.map((s) => s.name));
-  for (const n of named) {
-    if (n.ply <= g.ply || seen.has(n.name)) continue;
-    if (!n.name.startsWith(`${g.group}:`) && !n.name.startsWith(`${g.group},`)) continue;
-    seen.add(n.name);
-    steps.push(n);
-  }
-  return steps.map((s, i) => ({ name: s.name, label: stripParent(s.name, steps[i - 1]?.name), byMe: byColor(s.ply, color) }));
+export function openingTreePath(named, color, sans) {
+  const steps = [];
+  for (const n of named) if (!steps.some((s) => s.name === n.name)) steps.push(n);
+  return steps.map((s, i) => ({
+    name: s.name,
+    label: stripParent(s.name, steps[i - 1]?.name),
+    move: `${Math.ceil(s.ply / 2)}${s.ply % 2 ? '.' : '…'}${sans[s.ply - 1]}`,
+    byMe: byColor(s.ply, color),
+  }));
 }
 
-/** "Italian Game: Two Knights Defense, Knight Attack" under "Italian Game: Two Knights Defense" -> "Knight Attack". */
+/** "Italian Game: Two Knights Defense, Knight Attack" under "Italian Game: Two Knights Defense" -> "Knight Attack";
+ *  "Italian Game: Giuoco Piano" under "Italian Game" -> "Giuoco Piano"; a new family keeps its full name. */
 function stripParent(name, parent) {
   if (!parent) return name;
   for (const sep of [', ', ': ']) if (name.startsWith(parent + sep)) return name.slice(parent.length + sep.length);
   const colon = name.indexOf(':');
-  return colon < 0 ? name : name.slice(colon + 1).trim();
+  return colon >= 0 && openingFamily(name) === openingFamily(parent) ? name.slice(colon + 1).trim() : name;
 }
 
 const MATERIAL_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
@@ -328,7 +325,7 @@ export function buildFastRecord(raw, username) {
     family: openingFamily(opening),
     openingGroup: choice.group, // the Eröffnungen tab's grouping (family, or variation of an umbrella name)
     openingByMe: choice.byMe, // who chose the opening (null: no named position)
-    openingPath: openingTreePath(named, color), // the Eröffnungen tab's tree path
+    openingPath: openingTreePath(named, color, sans), // the Eröffnungen tab's tree path
     firstMove: sans[0] ?? null,
     bookPlies,
     initialClock,

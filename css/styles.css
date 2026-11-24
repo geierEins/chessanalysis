@@ -2867,3 +2867,13 @@ tr.meta-otree.d0 td:first-child {
   border-color: var(--meta-accent);
   color: var(--meta-accent);
 }
+.meta-otree-move {
+  color: var(--meta-faint);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.meta-otree-rest {
+  color: var(--meta-muted);
+  font-style: italic;
+}

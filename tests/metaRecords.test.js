@@ -261,15 +261,16 @@ describe('metaRecords: openingChoice', () => {
 });
 
 describe('metaRecords: openingTreePath', () => {
-  const path = (sans, color) => openingTreePath(namedNodesForLine(sans), color);
+  const path = (sans, color) => openingTreePath(namedNodesForLine(sans), color, sans);
   const same = (a, b) => expectEqual(JSON.stringify(a), JSON.stringify(b));
-  test('first move family, then the group, then its variations (prefixes stripped)', () => {
+  test('every named position is a level, deeper means later (prefixes stripped)', () => {
     const p = path(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5'], 'w');
-    same(p.map((s) => s.label), ["King's Pawn Game", 'Italian Game', 'Two Knights Defense', 'Knight Attack']);
-    same(p.map((s) => s.byMe), [true, true, false, true]);
-    expectEqual(p[3].name, 'Italian Game: Two Knights Defense, Knight Attack');
+    same(p.map((s) => s.label), ["King's Pawn Game", "King's Knight Opening", 'Normal Variation', 'Italian Game', 'Two Knights Defense', 'Knight Attack']);
+    same(p.map((s) => s.move), ['1.e4', '2.Nf3', '2…Nc6', '3.Bc4', '3…Nf6', '4.Ng5']);
+    same(p.map((s) => s.byMe), [true, true, false, true, false, true]);
+    expectEqual(p[5].name, 'Italian Game: Two Knights Defense, Knight Attack');
   });
-  test('an umbrella variation is its own level under the umbrella name', () => {
+  test('a name repeated on the path (1.e4 e5 is King\'s Pawn Game again) is one level', () => {
     const p = path(['e4', 'e5', 'Qh5', 'Nf6'], 'b');
     same(p.map((s) => s.label), ["King's Pawn Game", 'Wayward Queen Attack', 'Kiddie Countergambit']);
     same(p.map((s) => s.byMe), [false, false, true]);
@@ -281,6 +282,6 @@ describe('metaRecords: openingTreePath', () => {
     same(path(['e4'], 'b').map((s) => s.name), ["King's Pawn Game"]);
   });
   test('no moves: empty path', () => {
-    same(openingTreePath([], 'w'), []);
+    same(openingTreePath([], 'w', []), []);
   });
 });
