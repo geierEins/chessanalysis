@@ -5,13 +5,14 @@
 // Chart.js) so a re-render is just one innerHTML swap.
 
 import { timeClassStyle } from '../timeClassStyle.js';
-import { flagHtml, countryName } from '../ui/playerLabel.js';
-import { metaIcon, iconLabel } from './metaIcons.js';
+import { countryName } from '../ui/playerLabel.js';
+import { iconLabel } from './metaIcons.js';
 import { TERMINATION_LABEL, MATE_LABEL, PIECE_LABEL, OPENING_LAST_MOVE, mateInOne, isCoachGame, hasMoves } from './metaRecords.js';
 import { CATEGORIES, CATEGORY_ORDER } from '../analysis/categories.js';
 import { MATE_TYPES } from '../analysis/mateType.js';
 import { pieceUrl } from './openingBoard.js';
 import { TC_ORDER, TC_LABEL, RES_LETTER, RES_BADGE, RES_WORD, WEEKDAYS, DAY_MS, esc, pts, score, wdl, avg, pc, f1, f0, signed, groupBy, byCountDesc, fold, fmtDate, fmtDateTime } from './view/format.js';
+import { flag, withFlag, setOppFlag, wdlBar, WDL_LEGEND, hbars, card, EMPTY, kpi, GOOD, BAD, bigStats, sortHead, sortRows, segPicker } from './view/cards.js';
 
 export const META_TABS = [
   { id: 'overview', label: 'Übersicht' },
@@ -39,126 +40,6 @@ const NO_MOVES_TIP = 'Diese Partie enthält keine Züge (vor dem ersten Zug been
 // A game row's tooltip - not on a game without moves, which can't be opened.
 const openTip = (r) => (hasMoves(r) ? ' title="In der Spiel-Analyse öffnen"' : '');
 const NO_MOVES = `<span class="meta-nomoves" data-tip="${NO_MOVES_TIP}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-label="Keine Züge"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></span>`;
-const flag = (code) => (code ? flagHtml(code).trim() : '');
-// The opponent's flag behind their name in game lists - renderMetaTab points it at the render's ctx.countryOf.
-let oppFlag = () => '';
-const withFlag = (name) => `${esc(name)} ${oppFlag(name)}`;
-
-function wdlBar(rs) {
-  const c = wdl(rs);
-  const n = rs.length || 1;
-  const seg = (k, cls, label) =>
-    c[k] ? `<span class="${cls}" style="width:${(c[k] / n) * 100}%" data-tip="${label}: ${c[k]} (${pc(c[k] / n)})"></span>` : '';
-  return `<div class="meta-wdl">${seg('W', 'w', 'Siege')}${seg('D', 'd', 'Remis')}${seg('L', 'l', 'Niederlagen')}</div>`;
-}
-
-const WDL_LEGEND = `<div class="meta-legend"><span><i style="background:var(--meta-win)"></i>Sieg</span><span><i style="background:var(--meta-draw)"></i>Remis</span><span><i style="background:var(--meta-loss)"></i>Niederlage</span></div>`;
-
-/** Horizontal bars. rows: {label, labelHtml?, v, valHtml?, tip?, color?} */
-function hbars(rows, { color = 'var(--meta-s1)', fmt = (v) => v, max } = {}) {
-  if (!rows.length) return '<p class="meta-muted">Keine Daten.</p>';
-  const m = max ?? Math.max(1, ...rows.map((r) => r.v));
-  return `<div class="meta-rows">${rows
-    .map(
-      (r) => `<div class="meta-hrow"><span class="meta-lab" title="${esc(r.label)}">${r.labelHtml ?? esc(r.label)}</span>`
-        + `<div class="meta-hbar"><i style="width:${(r.v / m) * 100}%;background:${r.color ?? color}" data-tip="${esc(r.tip ?? `${r.label}: ${fmt(r.v)}`)}"></i></div>`
-        + `<span class="meta-val">${r.valHtml ?? fmt(r.v)}</span></div>`
-    )
-    .join('')}</div>`;
-}
-
-// Icon in front of each card title: a piece from the user's piece theme
-// (string starting with "piece:") or an emoji. Titles with a dynamic part
-// (opponent name, game count) match by prefix.
-const CARD_ICONS = {
-  'Noch keine Engine-Werte': '⚙️',
-  'Übersicht': '🧾',
-  'Sieg, Remis, Niederlage': '📊',
-  'Nach Farbe und Spielart': '🎨',
-  'Die letzten 7 Partien': '🕑',
-  'Elo-Verlauf': '📈',
-  'Partien pro Tag': '📅',
-  'Beste Tage': '🏆',
-  'Schlechteste Tage': '💔',
-  'Eröffnungen': '📖',
-  'Mit Weiß': 'piece:wP',
-  'Mit Schwarz': 'piece:bP',
-  'Erster Zug als Weiß': 'piece:wN',
-  'Als Schwarz gegen …': 'piece:bN',
-  'Stärkste und schwächste': '🏅',
-  'Gegner': '👥',
-  'Direktvergleich': '⚔️',
-  'Woher kommen deine Gegner?': '🌍',
-  'Quote nach Land': '🗺️',
-  'Häufigste Gegner': '🔁',
-  'Gegen Stärkere und Schwächere': '💪',
-  'Spielqualität': '🎯',
-  'Schlag-Heatmap': '🔥',
-  'Zusammenfassung': '🧮',
-  'Die heißesten Felder': '📍',
-  'Welche Figuren du verlierst': '💀',
-  'Womit du schlägst': '⚔️',
-  'Verteilung der Genauigkeit': '📶',
-  'Genauigkeit nach Phase': '🧭',
-  'Verlauf der Genauigkeit': '📈',
-  'Verwertung': '🏁',
-  'Wann passieren deine Patzer?': '💥',
-  'Zeit': '⏱️',
-  'Wie du gewinnst': '🏆',
-  'Wie du verlierst': '💔',
-  'Wie Remis entstehen': '🤝',
-  'Gesetzt und kassiert': '⚖️',
-  'Matt nach Figur': '♟️',
-  'Wann das Matt fällt': '⏱️',
-  'Wo der gegnerische König mattgesetzt wird': '🎯',
-  'Wo dein König mattgesetzt wird': '🎯',
-  'Keine Mattpartien': '♚',
-  'Uhr': '⏰',
-  'Zeit pro Zug': '⏱️',
-  'Längste Partien': '📏',
-  'Kürzeste Partien': '⚡',
-  'Längste Königsreisen': '👑',
-  'Dauer der Partien': '⌛',
-  'Quote nach Partielänge': '📏',
-  'Wann du spielst': '📅',
-  'Quote nach Tageszeit': '🕒',
-  'Serien und Tilt': '🔥',
-  'Partien': '📋',
-};
-
-function cardIcon(title) {
-  const icon = CARD_ICONS[title] ?? Object.entries(CARD_ICONS).find(([k]) => title.startsWith(`${k} `))?.[1];
-  if (!icon) return '';
-  return icon.startsWith('piece:')
-    ? `<img class="meta-card-icon" src="${pieceUrl(icon.slice(6))}" alt="">`
-    : `<span class="meta-card-icon" aria-hidden="true">${metaIcon(icon) || icon}</span>`;
-}
-
-/** head: extra controls at the right end of the title row (e.g. limitPicker). */
-/** accent: optional color for the same colored top edge and glow as a stat tile (kpi()). */
-/** mid: content centered in the title row, between title and head (e.g. a chart's legend). */
-/** tip: tooltip on the title (the shared data-tip tooltip), e.g. instead of a note. */
-function card(title, body, { cls = 'w6', note = '', head = '', accent = '', mid = '', tip = '' } = {}) {
-  const right = head ? `<span class="meta-card-tools">${head}</span>` : '';
-  const attrs = accent ? `class="meta-card ${cls} accent" style="--kpi-accent:${accent}"` : `class="meta-card ${cls}"`;
-  const headCls = mid ? 'meta-card-head has-mid' : 'meta-card-head';
-  return `<section ${attrs}><div class="${headCls}"><h2${tip ? ` class="meta-has-tip" data-tip="${esc(tip)}"` : ''}>${cardIcon(title)}${title}</h2>${mid ? `<div class="meta-card-mid">${mid}</div>` : ''}${right}</div>${body}${
-    note ? `<p class="meta-note">${note}</p>` : ''
-  }</section>`;
-}
-
-const EMPTY = '<p class="meta-muted">Keine Partien für diese Filter.</p>';
-
-/** A stat tile. accent: its color (top edge and a soft glow), any CSS color. */
-function kpi(label, value, detail = '', cls = '', accent = '') {
-  const style = accent ? ` style="--kpi-accent:${accent}"` : '';
-  return `<div class="meta-kpi"${style}><span class="l">${iconLabel(label)}</span><span class="v ${cls}">${value}</span><span class="d">${detail}</span></div>`;
-}
-
-// Tile accents for stats in your favor / against you.
-const GOOD = 'var(--meta-win)';
-const BAD = 'var(--meta-loss)';
-
 /** How many games the list behind a count shows at first, and adds per "more" click. */
 export const LISTED_GAMES_STEP = 10;
 
@@ -220,13 +101,6 @@ export function gameHintHtml(r, state) {
   const btn = state === 'analyze' ? `<button type="button" class="meta-pop-hint-btn" data-hint-analyze="${esc(r.url)}">${MAGNIFIER} Analysieren</button>` : '';
   return `<p class="meta-pop-head" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}${elo} — ${esc(r.summary.dateLabel)}</p>`
     + `<div class="meta-pop-hint"><p>${HINT_TEXT[state]}</p>${btn}</div>`;
-}
-
-/** items: [value, label, color?, tip?]; cls: extra class, e.g. 'two' for a fixed 2-column grid. */
-function bigStats(items, cls = '') {
-  return `<div class="meta-big${cls ? ` ${cls}` : ''}">${items
-    .map(([v, l, color, tip]) => `<div${tip ? ` data-tip="${esc(tip)}"` : ''}><b${color ? ` style="color:${color}"` : ''}>${v}</b><span>${l}</span></div>`)
-    .join('')}</div>`;
 }
 
 /** Wins, draws and losses as a pie like "Zeit & Partieende"'s, each count opening its games. */
@@ -825,18 +699,6 @@ function overview(rs, ctx) {
   </div>`;
 }
 
-/** A sortable column head of `table` - metaController flips ctx.sorts[table] on click. */
-function sortHead(table, sort, key, label, cls) {
-  const on = key === sort.key;
-  const aria = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-  return `<th class="sort${cls ? ` ${cls}` : ''}${on ? ' on' : ''}" data-sort-table="${table}" data-sort="${key}" aria-sort="${aria}" title="Sortieren">${label}${on ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</th>`;
-}
-
-/** Rows {v, l} by v - rows without a value (e.g. no engine accuracy yet) always last, ties by game count. */
-function sortRows(rows, dir) {
-  return rows.sort((a, b) => (a.v == null) - (b.v == null) || (dir === 'asc' ? a.v - b.v : b.v - a.v) || b.l.length - a.l.length);
-}
-
 function openings(rs, ctx) {
   if (!rs.length) return card('Eröffnungen', EMPTY, { cls: 'w12' });
   const name = (r) => r.family ?? 'Ohne Eröffnungsnamen';
@@ -1399,19 +1261,6 @@ const HEAT_MEASURES = [
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }; // the king is never captured
 const FILES = 'abcdefgh';
 
-/** Segmented control; attr: the data attribute metaController listens for.
- *  options: [key, text, tip?] - with a tip, the text is only an icon and the tip names it. */
-/** options: [key, text, tip?, kind?] - with a tip, text is an icon (the tip is its label) unless kind is 'text'. */
-function segPicker(options, current, attr, label) {
-  const btns = options.map(([key, text, tip, kind]) => {
-    const on = key === current;
-    const icon = tip && kind !== 'text';
-    const cls = [on && 'on', icon && 'icon'].filter(Boolean).join(' ');
-    const tipAttrs = ` class="${cls}"${tip ? ` data-tip="${esc(tip)}"` : ''}${icon ? ` aria-label="${esc(tip)}"` : ''}`;
-    return `<button type="button"${tipAttrs} data-${attr}="${key}" aria-pressed="${on}">${text}</button>`;
-  });
-  return `<span class="meta-seg" role="group" aria-label="${label}">${btns.join('')}</span>`;
-}
 
 /** Toggle chips, one per piece type; none on = all pieces.
  *  side: 'own' | 'opp' - which piece of a capture (metaController's heatmap.pieces / oppPieces).
@@ -1774,6 +1623,6 @@ const RENDERERS = { overview, openings, opponents, quality, heatmap: heatmapTab,
 export function renderMetaTab(tab, records, ctx) {
   fitDraws.clear(); // the previous render's charts are about to be replaced
   gameLists.clear(); // ... and so are its counts
-  oppFlag = (name) => flag(ctx.countryOf(name));
+  setOppFlag((name) => flag(ctx.countryOf(name)));
   return (RENDERERS[tab] ?? overview)(records, ctx);
 }
