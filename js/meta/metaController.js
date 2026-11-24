@@ -96,6 +96,7 @@ export function initMetaMode(host) {
   let countryLimit = loadCountryLimit() ?? 25; // rows in the two country cards (metaView's limitPicker), 0 = all
   let countrySearch = ''; // search text of "Woher kommen deine Gegner?" (metaView's data-country-search)
   let gameSearch = ''; // opponent search of the "Partien" tab (metaView's data-game-search)
+  let openingSearch = { w: '', b: '' }; // "Eröffnungen": search per color card (metaView's data-opening-search)
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
@@ -152,6 +153,7 @@ export function initMetaMode(host) {
       countryLimit,
       countrySearch,
       gameSearch,
+      openingSearch,
       endings,
       heatmap,
       mateHeat,
@@ -247,7 +249,7 @@ export function initMetaMode(host) {
     // The search fields re-render on every keystroke (and countries keep
     // arriving while typing) - keep focus and cursor across the new HTML.
     const focused = document.activeElement;
-    const searchSel = ['[data-country-search]', '[data-game-search]'].find((s) => focused?.matches?.(s));
+    const searchSel = ['[data-country-search]', '[data-game-search]', '[data-opening-search="w"]', '[data-opening-search="b"]'].find((s) => focused?.matches?.(s));
     const caret = searchSel ? focused.selectionStart : null;
     tabPanelEl.innerHTML = renderMetaTab(tab, rs, ctx());
     if (caret != null) {
@@ -310,6 +312,7 @@ export function initMetaMode(host) {
   function clearSearches() {
     countrySearch = '';
     gameSearch = '';
+    openingSearch = { w: '', b: '' };
   }
 
   tabsEl.addEventListener('click', (e) => {
@@ -509,6 +512,7 @@ export function initMetaMode(host) {
   // "Partien": the opponent search, the table starts again at its first rows.
   tabPanelEl.addEventListener('input', (e) => {
     if (e.target.matches('[data-country-search]')) countrySearch = e.target.value;
+    else if (e.target.matches('[data-opening-search]')) openingSearch = { ...openingSearch, [e.target.dataset.openingSearch]: e.target.value };
     else if (e.target.matches('[data-game-search]')) {
       gameSearch = e.target.value;
       gamesShown = GAMES_STEP;
