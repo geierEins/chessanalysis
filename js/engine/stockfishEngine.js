@@ -8,6 +8,14 @@ export const ENGINES = {
   sf11: { label: 'Stockfish 11 (klassisch)', path: './vendor/sf11/stockfish.js' },
 };
 
+// Upper bound on the nodes searched per position, on top of the depth. A normal
+// position reaches depth 16 with a fraction of this; in rare simple endgames
+// (e.g. KRPP vs KB) Stockfish's search can explode and take hours for one
+// depth - there the search stops at this limit and answers with its deepest
+// finished iteration. A node count, unlike a time limit, gives the same result
+// on every machine (browser and GitHub job alike).
+export const MAX_NODES_PER_POSITION = 20_000_000;
+
 function parseInfoLine(line) {
   if (!line.startsWith('info') || !line.includes(' pv ')) return null;
 
@@ -164,7 +172,7 @@ export class StockfishEngine {
       this.#worker.addEventListener('error', onError, { once: true });
       this.#worker.postMessage('setoption name MultiPV value ' + multiPv);
       this.#worker.postMessage('position fen ' + fen);
-      this.#worker.postMessage('go depth ' + depth);
+      this.#worker.postMessage(`go depth ${depth} nodes ${MAX_NODES_PER_POSITION}`);
     });
   }
 
