@@ -53,7 +53,9 @@ describe('accuracy: computeGameAccuracy', () => {
   });
 
   test('a perfectly-played game scores each side near 100', () => {
-    const winPercents = [50, 52, 55, 58, 60, 63, 66, 69, 72, 75, 78];
+    // Nobody gives anything away: White's moves raise its win%, Black's keep it
+    // where it was (a rise after a Black move would be Black losing win%).
+    const winPercents = [50, 52, 52, 55, 55, 58, 58, 60, 60, 63, 63];
     const colors = ['w', 'b', 'w', 'b', 'w', 'b', 'w', 'b', 'w', 'b'];
     const result = computeGameAccuracy(winPercents, colors);
     expectTrue(result.white > 95, `expected near-perfect white accuracy, got ${result.white}`);
