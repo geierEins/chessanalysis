@@ -1694,6 +1694,8 @@ button.field-error {
   --meta-muted: rgb(var(--n-400));
   --meta-faint: rgb(var(--n-500));
   --meta-accent: rgb(var(--accent-500));
+  /* The top filter bar's Meta tint (#loader-panel --tint-meta) - the running analysis's frame and bar. */
+  --meta-violet: rgb(150 120 246);
   --meta-win: #81b64c;
   --meta-draw: #8b8a86;
   --meta-loss: #e66767;
@@ -1796,7 +1798,7 @@ button.field-error {
   display: grid;
   gap: 10px;
   background: var(--meta-panel);
-  border: 1px solid var(--meta-accent);
+  border: 1px solid var(--meta-violet);
   border-radius: 8px;
   padding: 14px;
 }
@@ -1817,7 +1819,7 @@ button.field-error {
 
 .meta-bar { height: 8px; background: var(--meta-panel-2); border-radius: 4px; overflow: hidden; }
 .meta-bar.thin { height: 4px; }
-.meta-bar > i { display: block; height: 100%; width: 0; background: var(--meta-accent); border-radius: 4px; transition: width 0.25s ease-out; }
+.meta-bar > i { display: block; height: 100%; width: 0; background: var(--meta-violet); border-radius: 4px; transition: width 0.25s ease-out; }
 
 .meta-confirm {
   display: flex;
