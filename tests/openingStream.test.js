@@ -178,6 +178,15 @@ describe('openingStream: svg', () => {
     expectTrue(s.includes('>1.</text>') && s.includes('>1…</text>'), 'short labels');
     expectTrue(svg(1).includes('1. Zug Weiß'), 'wide keeps long labels');
   });
+
+  test('a start line marks the left edge of the first bands', () => {
+    const top = L.top.get(root);
+    const line = svg(1).match(/<line class="ostream-start" x1="([\d.]+)" x2="[\d.]+" y1="([\d.]+)" y2="([\d.]+)"/);
+    expectTrue(line, 'start line drawn');
+    expectClose(Number(line[1]), L.x(0), 0.1);
+    expectClose(Number(line[2]), top, 0.1);
+    expectClose(Number(line[3]), top + root.n * L.k, 0.1);
+  });
 });
 
 describe('openingStream: card', () => {

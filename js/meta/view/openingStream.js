@@ -185,7 +185,12 @@ export function streamSvg(root, layout, view, { W, H }) {
     if (!inView(x0, x0 + w, y0, y0 + hs)) continue;
     shapes += `<rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(Math.max(hs, 0.5))}" fill="${scoreColor(s.node.score)}" mask="url(#ostream-fade)"/>`;
   }
-  return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eröffnungsstrom"><defs>${defs}</defs>${grid}${shapes}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
+  // The start line: a thick stroke along the left edge of the first bands, where all games begin.
+  const sx0 = sx(x(0));
+  const st0 = sy(layout.top.get(root));
+  const st1 = sy(layout.top.get(root) + root.n * k);
+  const start = sx0 >= -4 && sx0 <= W + 4 ? `<line class="ostream-start" x1="${f(sx0)}" x2="${f(sx0)}" y1="${f(st0)}" y2="${f(st1)}" stroke="var(--meta-fg)" stroke-width="4" stroke-linecap="round"/>` : '';
+  return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eröffnungsstrom"><defs>${defs}</defs>${grid}${shapes}${start}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
 }
 
 // The view per color ({zoom, x, y}, see streamSvg) - kept across re-renders of
