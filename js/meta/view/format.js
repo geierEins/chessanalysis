@@ -9,7 +9,7 @@ export const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
 export const RES_BADGE = { W: 'win', D: 'draw', L: 'loss' };
 export const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
 // On a result badge (S/R/N): hovering shows the game's final position (metaController, openingBoard's finalBoardHtml).
-export const finalTip = (r) => ` data-final="${esc(r.url)}"`;
+export const finalTip = (r) => ` data-final="${esc(r.url)}" title=""`; // title="": no inherited native title (e.g. the row's "In der Spiel-Analyse öffnen") on top
 export const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 export const DAY_MS = 864e5;
 

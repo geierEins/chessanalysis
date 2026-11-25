@@ -1,5 +1,6 @@
 import { describe, test, expectEqual, expectTrue } from './test-runner.js';
 import { boardGridHtml } from '../js/meta/boardGrid.js';
+import { finalTip } from '../js/meta/view/format.js';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const url = (code) => `p/${code}.png`;
@@ -22,5 +23,12 @@ describe('boardGrid', () => {
   test('the last move is highlighted', () => {
     const html = boardGridHtml(START, { lastMove: 'e2e4', pieceUrl: url });
     expectEqual(html.split(' hl"').length - 1, 2);
+  });
+});
+
+describe('result badge tooltip', () => {
+  // The row's native title ("In der Spiel-Analyse öffnen") would show on top of the board.
+  test('the badge blocks inherited native titles', () => {
+    expectEqual(finalTip({ url: 'u' }), ' data-final="u" title=""');
   });
 });
