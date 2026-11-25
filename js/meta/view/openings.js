@@ -1,12 +1,11 @@
-// The "Eröffnungen" tab: the opening tree per color, first moves, strongest and weakest openings.
+// The "Eröffnungen" tab: the opening tree per color.
 
-import { esc, wdl, score, avg, pc, f1, groupBy, byCountDesc, fold } from './format.js';
-import { card, EMPTY, wdlBar, hbars, sortHead, sortRows } from './cards.js';
+import { esc, wdl, score, avg, pc, f1, fold } from './format.js';
+import { card, EMPTY, wdlBar, sortHead, sortRows } from './cards.js';
 import { gamesCount } from './gameLists.js';
 
 export function openings(rs, ctx) {
   if (!rs.length) return card('Eröffnungen', EMPTY, { cls: 'w12' });
-  const name = (r) => r.family ?? 'Ohne Eröffnungsnamen';
   const sort = ctx.sorts.openings;
   // "Ergebnis" sorts by share of wins, then of draws.
   const sortValue = {
@@ -88,24 +87,8 @@ export function openings(rs, ctx) {
   };
   const white = rs.filter((r) => r.color === 'w');
   const black = rs.filter((r) => r.color === 'b');
-  const moveRows = (list, prefix) =>
-    [...groupBy(list.filter((r) => r.firstMove), (r) => r.firstMove)]
-      .sort(byCountDesc)
-      .slice(0, 8)
-      .map(([mv, l]) => ({ label: `${prefix}1. ${mv}`, v: l.length, tip: `${prefix}1. ${mv}: ${l.length} Partien, Quote ${pc(score(l))}` }));
-  const ranked = [...groupBy(rs.filter((r) => r.family), name)]
-    .filter(([, l]) => l.length >= 5)
-    .map(([fam, l]) => ({ fam, s: score(l), n: l.length }))
-    .sort((a, b) => b.s - a.s);
-  const list = (arr) =>
-    arr.length
-      ? `<div class="meta-rows">${arr.map((r) => `<div class="meta-card-head small"><span data-opening="${esc(r.fam)}">${esc(r.fam)}</span><span class="meta-muted">${pc(r.s)} · ${r.n} P.</span></div>`).join('')}</div>`
-      : '<p class="meta-muted">Noch keine Eröffnung mit 5 oder mehr Partien.</p>';
   return `<div class="meta-grid">
     ${card('Mit Weiß', colorCard(white, 'w'), { cls: 'w12' })}
     ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: jede Ebene ist ein Halbzug. Entsteht dabei ein neuer Name, steht er mit dem Zug da, sonst nur der Zug. Eine Partie zählt in jeder Ebene ihres Weges; „ohne weiteren Namen“: Partien, die das Buch vorher verlassen haben. „ich“ / „Gegner“: wer den Halbzug gespielt hat. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
-    ${card('Erster Zug als Weiß', hbars(moveRows(white, '')), { cls: 'w4' })}
-    ${card('Als Schwarz gegen …', hbars(moveRows(black, 'gegen '), { color: 'var(--meta-s2)' }), { cls: 'w4' })}
-    ${card('Stärkste und schwächste', `<h3>Beste Quote</h3>${list(ranked.slice(0, 3))}<h3>Schwächste Quote</h3>${list(ranked.length > 3 ? ranked.slice(-3).reverse() : [])}`, { cls: 'w4', note: 'Nur Eröffnungen mit mindestens 5 Partien.' })}
   </div>`;
 }
