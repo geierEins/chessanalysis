@@ -54,6 +54,7 @@ export const CARD_ICONS = {
   'Eröffnungen': '📖',
   'Mit Weiß': 'piece:wP',
   'Mit Schwarz': 'piece:bP',
+  'Eröffnungsstrom': '🌊',
   'Gegner': '👥',
   'Direktvergleich': '⚔️',
   'Woher kommen deine Gegner?': '🌍',

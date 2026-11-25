@@ -18,7 +18,7 @@ const PHONE_QUERY = '(max-width: 640px)';
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms, resetStreamViews } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { mateBoardHtml } from './mateBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
@@ -98,6 +98,7 @@ export function initMetaMode(host) {
   let gameSearch = ''; // opponent search of the "Partien" tab (metaView's data-game-search)
   let openingSearch = { w: '', b: '' }; // "Eröffnungen": search per color card (metaView's data-opening-search)
   const openingOpen = new Set(); // "Eröffnungen": keys of the opened tree nodes (metaView's data-otree)
+  let streamColor = 'w'; // "Eröffnungsstrom": the color shown ('w' / 'b', metaView's data-stream-color)
   // Endings chosen above "Längste Partien" / "Kürzeste Partien" (metaView's endingPicker), empty = all.
   const endings = { longest: new Set(), shortest: new Set(['checkmate']) };
   // Heatmap tab: whose captured pieces ('lost' = own, 'taken' = the opponent's)
@@ -156,6 +157,7 @@ export function initMetaMode(host) {
       gameSearch,
       openingSearch,
       openingOpen,
+      streamColor,
       endings,
       heatmap,
       mateHeat,
@@ -315,6 +317,8 @@ export function initMetaMode(host) {
     countrySearch = '';
     gameSearch = '';
     openingSearch = { w: '', b: '' };
+    streamColor = 'w';
+    resetStreamViews();
     resetZooms();
   }
 
@@ -459,6 +463,12 @@ export function initMetaMode(host) {
     if (limitBtn) {
       countryLimit = Number(limitBtn.dataset.countryLimit);
       saveCountryLimit(countryLimit);
+      render();
+      return;
+    }
+    const streamColorBtn = e.target.closest('[data-stream-color]');
+    if (streamColorBtn) {
+      streamColor = streamColorBtn.dataset.streamColor;
       render();
       return;
     }

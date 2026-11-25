@@ -1,7 +1,8 @@
-// The "Eröffnungen" tab: the opening tree per color.
+// The "Eröffnungen" tab: the opening tree per color and the opening stream (view/openingStream.js).
 
 import { esc, wdl, score, avg, pc, f1, fold } from './format.js';
-import { card, EMPTY, wdlBar, sortHead, sortRows } from './cards.js';
+import { card, EMPTY, wdlBar, sortHead, sortRows, segPicker } from './cards.js';
+import { streamCard } from './openingStream.js';
 import { gamesCount } from './gameLists.js';
 
 export function openings(rs, ctx) {
@@ -87,8 +88,10 @@ export function openings(rs, ctx) {
   };
   const white = rs.filter((r) => r.color === 'w');
   const black = rs.filter((r) => r.color === 'b');
+  const streamColor = ctx.streamColor === 'b' ? 'b' : 'w';
   return `<div class="meta-grid">
     ${card('Mit Weiß', colorCard(white, 'w'), { cls: 'w12' })}
     ${card('Mit Schwarz', colorCard(black, 'b'), { cls: 'w12', note: 'Namen aus dem Eröffnungsbuch der App (Lichess-ECO-Daten), als Baum: jede Ebene ist ein Halbzug. Entsteht dabei ein neuer Name, steht er mit dem Zug da, sonst nur der Zug. Eine Partie zählt in jeder Ebene ihres Weges; „ohne weiteren Namen“: Partien, die das Buch vorher verlassen haben. „ich“ / „Gegner“: wer den Halbzug gespielt hat. Tooltip: Grundstellung und Züge der Eröffnung. „Ø Theoriezüge“: wie lange die Partie im Buch blieb.' })}
+    ${card('Eröffnungsstrom', streamCard(streamColor === 'b' ? black : white, streamColor), { cls: 'w12', head: segPicker([['w', 'Weiß'], ['b', 'Schwarz']], streamColor, 'stream-color', 'Farbe'), note: 'Jedes Band ist ein Weg durch die Eröffnung, so dick wie seine Partienzahl; die Farbe zeigt die Quote (rot schwach, grün stark). Dünne Wege erscheinen beim Hineinzoomen, ausblassende Enden zeigen, wo Partien das Buch verlassen. Zoomen: Strg + Mausrad, verschieben: ziehen, Doppelklick setzt zurück. Tooltip: die Stellung am Ende des Wegs.' })}
   </div>`;
 }

@@ -42,6 +42,7 @@ const ctx = {
   gameSearch: '',
   openingSearch: { w: '', b: '' },
   openingOpen: { has: () => true },
+  streamColor: 'w',
   endings: { longest: new Set(), shortest: new Set(['checkmate']) },
   heatmap: { mode: 'taken', measure: 'count', pieces: [], oppPieces: [] },
   mateHeat: 'set',

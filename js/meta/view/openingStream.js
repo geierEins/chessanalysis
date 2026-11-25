@@ -134,12 +134,14 @@ export function streamSvg(root, layout, view, { W, H }) {
   const inView = (x0, x1, y0, y1) => x1 >= 0 && x0 <= W && y1 >= 0 && y0 <= H;
   let defs = '<linearGradient id="ostream-fade-g" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
     + '<mask id="ostream-fade" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#ostream-fade-g)"/></mask>';
+  // "1. Zug Weiß" - or "1." / "1…" when the columns are too narrow for it (phones).
+  const plyLabel = (p) => (colW * z < 72 ? `${Math.ceil(p / 2)}${p % 2 ? '.' : '…'}` : `${Math.ceil(p / 2)}. Zug ${p % 2 ? 'Weiß' : 'Schwarz'}`);
   let grid = '';
   for (let p = 1; p <= Math.max(maxPly, layout.cols0); p++) {
     const gx = sx(x(p));
     if (gx < 0 || gx > W) continue;
     grid += `<line x1="${f(gx)}" x2="${f(gx)}" y1="0" y2="${H - 18}" stroke="var(--meta-line)" stroke-width="1"/>`
-      + `<text x="${f(gx)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--meta-faint)">${Math.ceil(p / 2)}. Zug ${p % 2 ? 'Weiß' : 'Schwarz'}</text>`;
+      + `<text x="${f(gx)}" y="${H - 6}" text-anchor="middle">${plyLabel(p)}</text>`;
   }
   let shapes = '';
   let labels = '';
@@ -155,22 +157,25 @@ export function streamSvg(root, layout, view, { W, H }) {
     const xm = (xa + xb) / 2;
     const d = `M${f(xa)},${f(a0)} C${f(xm)},${f(a0)} ${f(xm)},${f(b0)} ${f(xb)},${f(b0)} L${f(xb)},${f(b0 + hs)} C${f(xm)},${f(b0 + hs)} ${f(xm)},${f(a0 + hs)} ${f(xa)},${f(a0 + hs)} Z`;
     shapes += `<path class="ostream-band" d="${d}" fill="${scoreColor(n.score)}" stroke="var(--meta-panel)" stroke-width="0.6" data-opening="${esc(n.name ?? '')}" data-line="${esc(n.line)}"/>`;
-    // The label: along the band's middle, if readable and short enough.
+    // The label: along the band's middle, if readable and short enough -
+    // move and name, or just the move when the name doesn't fit.
     const font = Math.min(MAX_FONT_PX, hs * 0.5);
-    const text = n.named ? `${n.move} ${n.label}` : n.move;
     const ya = a0 + hs / 2;
     const yb = b0 + hs / 2;
     const chord = Math.hypot(xb - xa - 2 * LABEL_INSET, yb - ya);
-    if (font < MIN_FONT_PX || text.length * CHAR_W * font > 0.94 * chord) continue;
+    const fits = (text) => text.length * CHAR_W * font <= 0.94 * chord;
+    if (font < MIN_FONT_PX || !fits(n.move)) continue;
+    const withName = n.named && fits(`${n.move} ${n.label}`);
     const id = `ostream-p${pathId++}`;
     const la = xa + LABEL_INSET;
     const lb = xb - LABEL_INSET;
     const lm = (la + lb) / 2;
     defs += `<path id="${id}" d="M${f(la)},${f(ya)} C${f(lm)},${f(ya)} ${f(lm)},${f(yb)} ${f(lb)},${f(yb)}"/>`;
-    const body = n.named
-      ? `<tspan font-weight="500" opacity=".75">${esc(n.move)}</tspan> <tspan font-weight="700">${esc(n.label)}</tspan>`
+    const body = withName
+      ?`<tspan font-weight="500" opacity=".75">${esc(n.move)}</tspan> <tspan font-weight="700">${esc(n.label)}</tspan>`
       : `<tspan font-weight="700">${esc(n.move)}</tspan>`;
-    labels += `<text font-size="${f(font)}" dy="${f(font * 0.36)}" fill="#141414"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${body}</textPath></text>`;
+    // Inline style: #meta-panel svg text (css/styles.css) would beat attributes.
+    labels += `<text style="font-size:${f(font)}px;fill:#141414" dy="${f(font * 0.36)}"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${body}</textPath></text>`;
   }
   for (const s of stubs) {
     const x0 = sx(x(s.node.ply));
@@ -180,7 +185,7 @@ export function streamSvg(root, layout, view, { W, H }) {
     if (!inView(x0, x0 + w, y0, y0 + hs)) continue;
     shapes += `<rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(Math.max(hs, 0.5))}" fill="${scoreColor(s.node.score)}" mask="url(#ostream-fade)"/>`;
   }
-  return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${defs}</defs>${grid}${shapes}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
+  return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eröffnungsstrom"><defs>${defs}</defs>${grid}${shapes}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
 }
 
 // The view per color ({zoom, x, y}, see streamSvg) - kept across re-renders of

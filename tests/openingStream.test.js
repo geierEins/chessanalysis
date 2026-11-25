@@ -152,6 +152,26 @@ describe('openingStream: svg', () => {
   test('colors follow the score', () => {
     expectTrue(svg(1).includes('fill="hsl(125, 68%, 52%)"'));
   });
+
+  test('a name too long for its band falls back to the move', () => {
+    const narrow = { W: 600, H: 460 };
+    const s = streamSvg(root, layoutStream(root, narrow), { zoom: 1, x: 0, y: 0 }, narrow);
+    expectTrue(s.includes('1.e4'), 'move shown');
+    expectTrue(!s.includes('Pawn Game</tspan>'), 'name left out');
+  });
+
+  // #meta-panel svg text (css/styles.css) sets fill and font-size, which beat SVG attributes.
+  test('labels set size and color inline', () => {
+    expectTrue(/<text style="font-size:13px;fill:#141414"/.test(svg(1)));
+  });
+
+  test('narrow columns get short ply labels', () => {
+    const narrow = { W: 360, H: 280 };
+    const s = streamSvg(root, layoutStream(root, narrow), { zoom: 1, x: 0, y: 0 }, narrow);
+    expectTrue(!s.includes('Zug Weiß'), 'no long labels');
+    expectTrue(s.includes('>1.</text>') && s.includes('>1…</text>'), 'short labels');
+    expectTrue(svg(1).includes('1. Zug Weiß'), 'wide keeps long labels');
+  });
 });
 
 describe('openingStream: card', () => {
