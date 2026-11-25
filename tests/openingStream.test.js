@@ -1,5 +1,5 @@
-import { describe, test, expectEqual } from './test-runner.js';
-import { buildStream } from '../js/meta/view/openingStream.js';
+import { describe, test, expectEqual, expectClose, expectTrue } from './test-runner.js';
+import { buildStream, layoutStream, visibleBands } from '../js/meta/view/openingStream.js';
 
 // A record with one openingPath step per move; the first step is named.
 function rec(result, moves, color = 'w') {
@@ -67,3 +67,52 @@ describe('openingStream: buildStream', () => {
   });
 });
 
+
+describe('openingStream: layout', () => {
+  const SIZE = { W: 1200, H: 460 };
+
+  test('bands are exactly proportional', () => {
+    const root = buildStream([rec('W', ['e4', 'e5']), rec('W', ['e4', 'e5']), rec('L', ['e4', 'c5']), rec('D', ['d4'])]);
+    const { k } = layoutStream(root, SIZE);
+    const e4 = child(root, 'e4');
+    expectClose((e4.n * k) / (root.n * k), 3 / 4, 0.001);
+    expectClose(root.children.reduce((a, c) => a + c.n * k, 0), root.n * k, 0.001);
+  });
+
+  test('children stack inside the parent from its top', () => {
+    const root = buildStream([rec('W', ['e4', 'e5']), rec('W', ['e4', 'e5']), rec('L', ['e4', 'c5']), rec('D', ['d4'])]);
+    const L = layoutStream(root, SIZE);
+    const e4 = child(root, 'e4');
+    const d4 = child(root, 'd4');
+    expectClose(L.srcTop.get(e4), L.top.get(root), 0.001);
+    expectClose(L.srcTop.get(d4), L.srcTop.get(e4) + e4.n * L.k, 0.001);
+  });
+
+  test('thin bands become a stub', () => {
+    const root = buildStream([...times(199, () => rec('W', ['e4'])), rec('W', ['d4'])]);
+    const L = layoutStream(root, SIZE);
+    const d4 = child(root, 'd4');
+    const at1 = visibleBands(root, L, 1);
+    expectTrue(!at1.bands.includes(d4), 'd4 hidden at 1x');
+    expectEqual(at1.stubs.find((s) => s.node === root)?.n, 1);
+    const at3 = visibleBands(root, L, 3);
+    expectTrue(at3.bands.includes(d4), 'd4 shown at 3x');
+    expectEqual(at3.stubs.find((s) => s.node === root), undefined);
+  });
+
+  test('games leaving the book end in a stub', () => {
+    const root = buildStream([rec('W', ['e4', 'e5']), rec('W', ['e4'])]);
+    const L = layoutStream(root, SIZE);
+    const e4 = child(root, 'e4');
+    const stub = visibleBands(root, L, 1).stubs.find((s) => s.node === e4);
+    expectEqual(stub?.n, 1);
+    expectClose(stub.top, L.top.get(e4) + 1 * L.k, 0.001);
+  });
+
+  test('start view shows at least 6 columns', () => {
+    expectEqual(layoutStream(buildStream([rec('W', ['e4'])]), SIZE).cols0, 6);
+    const line = (k) => times(k, (_, i) => `m${i}`);
+    expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(12)))), SIZE).cols0, 12);
+    expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(20)))), SIZE).cols0, 16);
+  });
+});
