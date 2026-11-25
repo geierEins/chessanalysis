@@ -2,6 +2,7 @@ import { describe, test, expectEqual, expectTrue } from './test-runner.js';
 import { boardGridHtml } from '../js/meta/boardGrid.js';
 import { finalTip } from '../js/meta/view/format.js';
 import { finalBoardHtml } from '../js/meta/openingBoard.js';
+import { bestGamesList } from '../js/meta/view/bestGames.js';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const url = (code) => `p/${code}.png`;
@@ -41,5 +42,14 @@ describe('final board', () => {
     const html = finalBoardHtml(game);
     expectTrue(html.includes('<div class="meta-ob-moves">Aufgabe</div>'), 'termination');
     expectTrue(!html.includes('Bob'), 'no opponent');
+  });
+});
+
+describe('best games', () => {
+  // "Beste Partien" has no result badge (only wins) - the opponent's name carries the board.
+  test('hovering the opponent shows the final position', () => {
+    const r = { url: 'g1', result: 'W', rated: true, moves: 30, timeClass: 'blitz', opponent: 'Bob', oppRating: 1500, ownRating: 1500, endTime: 1760000000 };
+    const html = bestGamesList([r], () => ({ accuracy: 90, counts: { BOOK: 5 } }));
+    expectTrue(/<span data-final="g1" title="">[^<]*Bob\s*<\/span>/.test(html), html);
   });
 });

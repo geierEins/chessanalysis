@@ -3,7 +3,7 @@
 
 import { timeClassStyle } from '../../timeClassStyle.js';
 import { withFlag } from './cards.js';
-import { TC_LABEL, esc, f1, avg, fmtDate } from './format.js';
+import { TC_LABEL, esc, f1, avg, fmtDate, finalTip } from './format.js';
 
 // Stage 1: which games qualify.
 const MIN_MOVES = 25; // own moves - a resignation after 4 moves is no "best game"
@@ -103,7 +103,8 @@ export function bestGamesList(rs, engineOf) {
     const style = timeClassStyle(r.timeClass);
     const tip = `**Platz ${i + 1}** · Wertung ${f1(score)}\n${TC_LABEL[r.timeClass] ?? r.timeClass} gegen ${r.opponent} · ${fmtDate(r.endTime)}\n\n${reasons.map((t) => `• ${t}`).join('\n')}`;
     return `<tr class="click" data-game="${esc(r.url)}" data-tip="${esc(tip)}"><td class="meta-rank">${MEDALS[i]}</td>`
-      + `<td class="meta-top-opp" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}</td>`
+      // The name shows the final position (no result badge here - all wins).
+      + `<td class="meta-top-opp" style="color:${style.color}">${style.icon} vs <span${finalTip(r)}>${withFlag(r.opponent)}</span></td>`
       + `<td class="r meta-muted">${r.moves} Zg.</td><td class="r"><b>${f1(e.accuracy)}</b> %</td><td class="r meta-muted">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length
