@@ -2,7 +2,7 @@
 // flowing left to right, as thick as their game count and colored by score.
 // buildStream() makes the tree (the same nodes as the tab's opening trees).
 
-import { score, esc } from './format.js';
+import { score, esc, pc } from './format.js';
 import { fitChart } from './charts.js';
 
 export const MAX_PLY = 16; // the stream never goes deeper than this
@@ -169,24 +169,39 @@ export function streamSvg(root, layout, view, { W, H }) {
     const d = `M${f(xa)},${f(a0)} C${f(xm)},${f(a0)} ${f(xm)},${f(b0)} ${f(xb)},${f(b0)} L${f(xb)},${f(b0 + hs)} C${f(xm)},${f(b0 + hs)} ${f(xm)},${f(a0 + hs)} ${f(xa)},${f(a0 + hs)} Z`;
     shapes += `<path class="ostream-band" d="${d}" fill="${scoreColor(n.score)}" stroke="var(--meta-panel)" stroke-width="0.6" data-opening="${esc(n.name ?? '')}" data-line="${esc(n.line)}"/>`;
     // The label: along the band's middle, if readable and short enough -
-    // move and name, or just the move when the name doesn't fit.
+    // move and name, or just the move when the name doesn't fit. The score
+    // (what the color shows) goes on a second line when the band is tall
+    // enough, else after the label when it fits; it is the first to go.
     const font = Math.min(MAX_FONT_PX, hs * 0.5);
     const ya = a0 + hs / 2;
     const yb = b0 + hs / 2;
     const chord = Math.hypot(xb - xa - 2 * LABEL_INSET, yb - ya);
-    const fits = (text) => text.length * CHAR_W * font <= 0.94 * chord;
+    const fits = (text, size = font) => text.length * CHAR_W * size <= 0.94 * chord;
     if (font < MIN_FONT_PX || !fits(n.move)) continue;
-    const withName = n.named && fits(`${n.move} ${n.label}`);
+    const pct = pc(n.score);
+    const named = n.named ? `${n.move} ${n.label}` : null;
+    const twoLines = hs >= font * 2.8;
+    const pctFont = font * 0.85;
+    let withName;
+    let inline = false;
+    if (twoLines) withName = Boolean(named && fits(named));
+    else if (named && fits(`${named} · ${pct}`)) [withName, inline] = [true, true];
+    else if (named && fits(named)) withName = true;
+    else [withName, inline] = [false, fits(`${n.move} · ${pct}`)];
     const id = `ostream-p${pathId++}`;
     const la = xa + LABEL_INSET;
     const lb = xb - LABEL_INSET;
     const lm = (la + lb) / 2;
     defs += `<path id="${id}" d="M${f(la)},${f(ya)} C${f(lm)},${f(ya)} ${f(lm)},${f(yb)} ${f(lb)},${f(yb)}"/>`;
-    const body = withName
-      ?`<tspan font-weight="500" opacity=".75">${esc(n.move)}</tspan> <tspan font-weight="700">${esc(n.label)}</tspan>`
-      : `<tspan font-weight="700">${esc(n.move)}</tspan>`;
+    const body = (withName
+      ? `<tspan font-weight="500" opacity=".75">${esc(n.move)}</tspan> <tspan font-weight="700">${esc(n.label)}</tspan>`
+      : `<tspan font-weight="700">${esc(n.move)}</tspan>`)
+      + (inline ? `<tspan font-weight="500" opacity=".75"> · ${pct}</tspan>` : '');
     // Inline style: #meta-panel svg text (css/styles.css) would beat attributes.
-    labels += `<text style="font-size:${f(font)}px;fill:#141414" dy="${f(font * 0.36)}"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${body}</textPath></text>`;
+    labels += `<text style="font-size:${f(font)}px;fill:#141414" dy="${f(font * (twoLines ? -0.24 : 0.36))}"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${body}</textPath></text>`;
+    if (twoLines && fits(pct, pctFont)) {
+      labels += `<text style="font-size:${f(pctFont)}px;fill:#141414" dy="${f(font * 0.96)}"><textPath href="#${id}" startOffset="50%" text-anchor="middle"><tspan font-weight="500" opacity=".75">${pct}</tspan></textPath></text>`;
+    }
   }
   for (const s of stubs) {
     const x0 = sx(x(s.node.ply));

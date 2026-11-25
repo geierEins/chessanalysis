@@ -145,6 +145,17 @@ describe('openingStream: svg', () => {
     expectTrue(s.includes('Pawn Game'), 'name');
   });
 
+  test('a tall band shows its score below the label', () => {
+    // e4: all 97 games won, about 340px tall at 1x - room for a second line.
+    const s = svg(1);
+    expectTrue(/<text style="font-size:[\d.]+px;fill:#141414" dy="[\d.]+"><textPath href="#ostream-p0"[^>]*><tspan[^>]*>100 %<\/tspan>/.test(s), 'second line with the score');
+  });
+
+  test('a flat band appends its score to the label when it fits', () => {
+    // d4 at 2.2x: about 23px tall - one line, long enough for name and score.
+    expectTrue(svg(2.2, 300).includes("Queen&#39;s Pawn Game</tspan><tspan font-weight=\"500\" opacity=\".75\"> · 100 %</tspan>"));
+  });
+
   test('labels appear only when readable', () => {
     // y = 300: the d4 band (near the bottom) is inside the zoomed view.
     expectTrue(svg(2.2, 300).includes('1.d4'), 'readable at 2.2x');
