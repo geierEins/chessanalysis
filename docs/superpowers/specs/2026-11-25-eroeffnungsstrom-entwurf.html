@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eröffnungsstrom – Entwürfe 3</title>
+<style>
+  :root { --bg:#141414; --panel:#1c1c1c; --text:#e2e2e2; --muted:#8f8f8f; --line:#333; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, "Segoe UI", sans-serif; padding:24px 16px 48px; max-width:1400px; margin-inline:auto; }
+  h1 { font-size:21px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 24px; max-width:980px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; margin-bottom:22px; }
+  .card h2 { font-size:15px; margin:0 0 2px; }
+  .card p { color:var(--muted); margin:0 0 10px; font-size:13px; }
+  svg { width:100%; height:auto; display:block; cursor:grab; touch-action:none; border-radius:8px; user-select:none; }
+  svg.drag { cursor:grabbing; }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; display:flex; justify-content:space-between; }
+  svg text { font-family: system-ui, "Segoe UI", sans-serif; }
+  svg .lbl { transition: opacity .15s; pointer-events:none; }
+</style>
+</head>
+<body>
+<h1>Eröffnungsstrom: links nach rechts, Runde 3</h1>
+<p class="sub">Die Namen stehen jetzt direkt auf den Wegen, zum Beispiel „1.e4 King's Pawn Game“. Ein Name erscheint, sobald er auf seinen Weg passt und groß genug zu lesen ist. Dicke Wege sind also sofort beschriftet, dünne erst, wenn du hineinzoomst. Zoomen mit dem Mausrad, verschieben durch Ziehen, zurücksetzen per Doppelklick. Die Daten sind Beispieldaten mit echten Eröffnungsnamen; Hintergrund wie in der App.</p>
+
+<div class="card"><h2>1 · Bänder, Familienfarben</h2><p>Lückenlose Bänder wie Flussarme: Ein Band ist genau so dick wie seine Partienzahl, die Zweige teilen es auf. Jede Antwort auf deinen ersten Zug hat ihre eigene Farbe.</p><svg id="v1" viewBox="0 0 1200 460"></svg><div class="hint"><span>Mausrad: zoomen · ziehen: verschieben · Doppelklick: zurück</span><span class="z"></span></div></div>
+
+<div class="card"><h2>2 · Linien, Familienfarben</h2><p>Wie der Strom aus Runde 2, aber bunt nach Familie. Luftiger, der Name steht über der Linie.</p><svg id="v2" viewBox="0 0 1200 460"></svg><div class="hint"><span>Mausrad: zoomen · ziehen: verschieben · Doppelklick: zurück</span><span class="z"></span></div></div>
+
+<div class="card"><h2>3 · Bänder, Neon</h2><p>Bänder mit leuchtenden Verläufen: Jede Familie läuft von ihrer Farbe nach außen in einen dunkleren Ton aus, mit leichtem Glühen.</p><svg id="v3" viewBox="0 0 1200 460"></svg><div class="hint"><span>Mausrad: zoomen · ziehen: verschieben · Doppelklick: zurück</span><span class="z"></span></div></div>
+
+<div class="card"><h2>4 · Bänder, nach Quote</h2><p>Gleiche Form wie 1, die Farbe zeigt aber, wie gut der Weg für dich läuft: Rot schwach, Gelb ausgeglichen, Grün stark.</p><svg id="v4" viewBox="0 0 1200 460"></svg><div class="hint"><span>Mausrad: zoomen · ziehen: verschieben · Doppelklick: zurück</span><span class="z"></span></div></div>
+
+<script>
+// --- Beispieldaten: [Zug, Name oder null, Partien, Kinder] -----------------
+const T = ['', null, 140, [
+  ['1.e4', "King's Pawn Game", 122, [
+    ['1…e5', null, 48, [
+      ['2.Nf3', "King's Knight Opening", 40, [
+        ['2…Nc6', 'Normal Variation', 34, [
+          ['3.Bc4', 'Italian Game', 20, [
+            ['3…Bc5', 'Giuoco Piano', 9, [['4.c3', 'Main Line', 6, []], ['4.d3', 'Giuoco Pianissimo', 3, []]]],
+            ['3…Nf6', 'Two Knights Defense', 8, [['4.Ng5', 'Knight Attack', 5, []], ['4.d3', "Modern Bishop's Opening", 3, []]]],
+            ['3…Be7', 'Hungarian Defense', 3, []]]],
+          ['3.Bb5', 'Ruy Lopez', 10, [['3…a6', 'Morphy Defense', 7, [['4.Ba4', null, 6, []]]], ['3…Nf6', 'Berlin Defense', 3, []]]],
+          ['3.d4', 'Scotch Game', 4, [['3…exd4', null, 4, []]]]]],
+        ['2…d6', 'Philidor Defense', 4, []],
+        ['2…Nf6', "Petrov's Defense", 2, []]]],
+      ['2.Nc3', 'Vienna Game', 8, [['2…Nf6', 'Falkbeer Variation', 5, []], ['2…Nc6', 'Max Lange Defense', 3, []]]]]],
+    ['1…c5', 'Sicilian Defense', 34, [
+      ['2.Nf3', null, 22, [['2…d6', 'Modern Variations', 12, [['3.d4', 'Open', 10, [['3…cxd4', null, 10, []]]]]], ['2…Nc6', 'Old Sicilian', 7, [['3.d4', 'Open', 5, []]]], ['2…e6', 'French Variation', 3, []]]],
+      ['2.Nc3', 'Closed', 8, [['2…Nc6', 'Traditional', 6, [['3.g3', null, 4, []]]]]],
+      ['2.c3', 'Alapin Variation', 4, []]]],
+    ['1…e6', 'French Defense', 18, [
+      ['2.d4', 'Normal Variation', 15, [['2…d5', null, 14, [['3.Nc3', 'Paulsen Variation', 7, []], ['3.e5', 'Advance Variation', 5, []], ['3.exd5', 'Exchange Variation', 2, []]]]]],
+      ['2.Qe2', 'Chigorin Variation', 3, []]]],
+    ['1…d5', 'Scandinavian Defense', 12, [['2.exd5', null, 12, [['2…Qxd5', 'Main Line', 8, [['3.Nc3', 'Mieses-Kotroc Variation', 7, []]]], ['2…Nf6', 'Modern Variation', 4, []]]]]],
+    ['1…c6', 'Caro-Kann Defense', 10, [['2.d4', null, 8, [['2…d5', null, 8, [['3.e5', 'Advance Variation', 4, []], ['3.Nc3', 'Main Line', 4, []]]]]], ['2.Nc3', 'Two Knights Attack', 2, []]]]]],
+  ['1.d4', "Queen's Pawn Game", 14, [
+    ['1…d5', null, 8, [['2.c4', "Queen's Gambit", 6, [['2…e6', 'Declined', 4, []], ['2…dxc4', 'Accepted', 2, []]]], ['2.Bf4', 'London System', 2, []]]],
+    ['1…Nf6', 'Indian Defense', 6, [['2.c4', null, 6, [['2…g6', 'East Indian Defense', 4, []], ['2…e6', null, 2, []]]]]]]],
+  ['1.Nf3', 'Zukertort Opening', 4, [['1…d5', null, 4, []]]]]];
+
+let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+function build(a, parent, d) {
+  const n = { move: a[0], name: a[1], n: a[2], d, parent, score: parent ? Math.min(.92, Math.max(.1, parent.score + (rnd() - .5) * .32)) : .55 };
+  n.children = a[3].map((c) => build(c, n, d + 1));
+  return n;
+}
+const DEPTH = 7, X0 = 30, X1 = 1170, Y0 = 18, H = 424;
+const xOf = (d) => X0 + d / DEPTH * (X1 - X0);
+function makeNodes() {
+  seed = 5;
+  const root = build(T, null, 0), out = [];
+  (function lay(n, t0, t1) {
+    n.t0 = t0; n.t1 = t1; out.push(n);
+    let t = t0; for (const c of n.children) { const s = (t1 - t0) * c.n / n.n; lay(c, t, t + s); t += s; }
+  })(root, 0, 1);
+  // family = answer to the first move (depth 2), its hue
+  const hues = [205, 280, 340, 28, 160, 48, 250, 120, 190];
+  out.filter((n) => n.d === 2).forEach((f, i) => (f.hue = hues[i % hues.length]));
+  for (const n of out) { let f = n; while (f.d > 2) f = f.parent; n.fam = f; }
+  return out;
+}
+
+const NS = 'http://www.w3.org/2000/svg';
+const el = (p, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); p.appendChild(e); return e; };
+let uid = 0;
+
+// --- Labels on paths: visible when they fit and are readable ----------------
+function addLabel(svg, layer, n, pathD, fontSize, fill, offset, halo) {
+  const id = `p${uid++}`;
+  el(svg.querySelector('defs'), 'path', { id, d: pathD });
+  const t = el(layer, 'text', { class: 'lbl', 'font-size': fontSize, fill, dy: offset, 'paint-order': 'stroke', stroke: halo ?? 'none', 'stroke-width': halo ? fontSize * .3 : 0, 'stroke-linejoin': 'round' });
+  const tp = el(t, 'textPath', { href: `#${id}`, startOffset: '50%', 'text-anchor': 'middle' });
+  const m = el(tp, 'tspan', { 'font-weight': n.name ? 400 : 700, opacity: n.name ? .75 : 1 }); m.textContent = n.move;
+  if (n.name) { const s = el(tp, 'tspan', { 'font-weight': 700 }); s.textContent = ' ' + n.name; }
+  return { t, fontSize, id };
+}
+function fitLabels(svg, labels) {
+  for (const l of labels) {
+    const len = svg.querySelector('#' + l.id).getTotalLength();
+    l.fits = l.t.getComputedTextLength() <= len * .94;
+  }
+}
+
+// --- Zoom/Pan ---------------------------------------------------------------
+function zoomable(svg, labels) {
+  const b = svg.viewBox.baseVal, init = { x: b.x, y: b.y, w: b.width, h: b.height };
+  let vb = { ...init };
+  const zl = svg.parentElement.querySelector('.z');
+  const apply = () => {
+    svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    const px = svg.clientWidth / vb.w; // screen px per unit
+    for (const l of labels) l.t.style.opacity = l.fits && l.fontSize * px >= 8.5 ? 1 : 0;
+    zl.textContent = `Zoom ${(init.w / vb.w).toFixed(1)}×`;
+  };
+  const pt = (e) => { const r = svg.getBoundingClientRect(); return [vb.x + (e.clientX - r.left) / r.width * vb.w, vb.y + (e.clientY - r.top) / r.height * vb.h]; };
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const [mx, my] = pt(e), w = Math.min(init.w, Math.max(init.w / 14, vb.w * Math.exp(e.deltaY * .0015))), s = w / vb.w;
+    vb = { x: mx - (mx - vb.x) * s, y: my - (my - vb.y) * s, w, h: vb.h * s };
+    if (w === init.w) vb = { ...init };
+    apply();
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vb: { ...vb } }; svg.setPointerCapture(e.pointerId); svg.classList.add('drag'); });
+  svg.addEventListener('pointermove', (e) => { if (!drag) return; const r = svg.getBoundingClientRect(); vb.x = drag.vb.x - (e.clientX - drag.x) / r.width * vb.w; vb.y = drag.vb.y - (e.clientY - drag.y) / r.height * vb.h; apply(); });
+  svg.addEventListener('pointerup', () => { drag = null; svg.classList.remove('drag'); });
+  svg.addEventListener('dblclick', () => { vb = { ...init }; apply(); });
+  window.addEventListener('resize', apply);
+  apply();
+}
+function grid(svg) {
+  for (let d = 1; d <= DEPTH; d++) {
+    const x = xOf(d);
+    el(svg, 'line', { x1: x, y1: 8, x2: x, y2: 446, stroke: '#262626' });
+    el(svg, 'text', { x, y: 456, fill: '#5a5a5a', 'font-size': 9, 'text-anchor': 'middle' }).textContent = `${Math.ceil(d / 2)}. Zug ${d % 2 ? 'Weiß' : 'Schwarz'}`;
+  }
+}
+
+// --- Band geometry: each node's band = its share of the parent band at the
+// parent's x, flowing to its own band (k * n tall, centered in its t-span).
+function bands(nodes, k) {
+  for (const n of nodes) { n.h = n.n * k; n.cy = Y0 + (n.t0 + n.t1) / 2 * H; n.top = n.cy - n.h / 2; }
+  for (const n of nodes) { let y = n.top; for (const c of n.children) { c.srcTop = y; y += c.h; } }
+}
+function bandPath(n) {
+  const p = n.parent, xa = xOf(p.d), xb = xOf(n.d), xm = (xa + xb) / 2;
+  const a0 = n.srcTop, a1 = n.srcTop + n.h, b0 = n.top, b1 = n.top + n.h;
+  return `M${xa},${a0} C${xm},${a0} ${xm},${b0} ${xb},${b0} L${xb},${b1} C${xm},${b1} ${xm},${a1} ${xa},${a1} Z`;
+}
+function centerPath(n, inset = 4) {
+  const p = n.parent, xa = xOf(p.d) + inset, xb = xOf(n.d) - inset, xm = (xa + xb) / 2;
+  const ya = n.srcTop + n.h / 2, yb = n.cy;
+  return `M${xa},${ya} C${xm},${ya} ${xm},${yb} ${xb},${yb}`;
+}
+
+function drawBands(svg, color, opts = {}) {
+  svg.insertAdjacentHTML('afterbegin', '<defs></defs>');
+  if (opts.bg) svg.insertAdjacentHTML('beforeend', opts.bg);
+  grid(svg);
+  const nodes = makeNodes(), k = H * .82 / nodes[0].n;
+  bands(nodes, k);
+  const g = el(svg, 'g', opts.filter ? { filter: opts.filter } : {});
+  const lay = el(svg, 'g', {});
+  const labels = [];
+  for (const n of nodes) if (n.parent) {
+    el(g, 'path', { d: bandPath(n), fill: color(n, svg), stroke: opts.edge ?? '#1c1c1c', 'stroke-width': .6 });
+    const fs = Math.min(13, Math.max(2.2, n.h * .5));
+    labels.push(addLabel(svg, lay, n, centerPath(n), fs, opts.text ?? '#141414', fs * .36, opts.halo));
+  }
+  fitLabels(svg, labels);
+  zoomable(svg, labels);
+}
+
+const fam = (n, l = 62) => n.d === 1 ? 'hsl(0,0%,78%)' : `hsl(${n.fam.hue}, 68%, ${Math.round(l - (n.d - 2) * 4)}%)`;
+const quote = (s) => `hsl(${Math.round(s * 125)}, 68%, 52%)`;
+
+// 1 · Bänder, Familienfarben
+drawBands(document.getElementById('v1'), (n) => fam(n));
+
+// 2 · Linien, Familienfarben
+(() => {
+  const svg = document.getElementById('v2');
+  svg.insertAdjacentHTML('afterbegin', '<defs></defs>');
+  grid(svg);
+  const nodes = makeNodes();
+  for (const n of nodes) n.cy = Y0 + (n.t0 + n.t1) / 2 * H;
+  const w = (n) => .8 + Math.sqrt(n.n) * 1.5;
+  const path = (n) => { const xa = xOf(n.parent.d), xb = xOf(n.d), xm = (xa + xb) / 2; return `M${xa},${n.parent.cy} C${xm},${n.parent.cy} ${xm},${n.cy} ${xb},${n.cy}`; };
+  const g = el(svg, 'g', {}), lay = el(svg, 'g', {}), labels = [];
+  for (const n of [...nodes].sort((a, b) => a.n - b.n)) if (n.parent) {
+    el(g, 'path', { d: path(n), fill: 'none', stroke: fam(n, 64), 'stroke-width': w(n), 'stroke-linecap': 'round', opacity: .92 });
+    const fs = Math.min(11, Math.max(2.4, w(n) * .75));
+    labels.push(addLabel(svg, lay, n, path(n), fs, '#ececec', -(w(n) / 2 + fs * .35), '#1c1c1c'));
+  }
+  for (const n of nodes) if (n.d) el(g, 'circle', { cx: xOf(n.d), cy: n.cy, r: 1 + Math.sqrt(n.n) * .35, fill: '#f0f0f0' });
+  el(g, 'circle', { cx: xOf(0), cy: nodes[0].cy, r: 6, fill: '#f0f0f0' });
+  fitLabels(svg, labels);
+  zoomable(svg, labels);
+})();
+
+// 3 · Bänder, Neon
+(() => {
+  const svg = document.getElementById('v3');
+  const grads = new Map();
+  drawBands(svg, (n, s) => {
+    const key = n.d === 1 ? 'root' : n.fam.hue;
+    if (!grads.has(key)) {
+      const id = `ng${uid++}`, h = key === 'root' ? 190 : key;
+      s.querySelector('defs').insertAdjacentHTML('beforeend', `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${X0}" x2="${X1}" y1="0" y2="0"><stop offset="0" stop-color="hsl(${h},100%,72%)"/><stop offset=".55" stop-color="hsl(${h + 25},90%,55%)"/><stop offset="1" stop-color="hsl(${h + 45},80%,32%)"/></linearGradient>`);
+      grads.set(key, id);
+    }
+    return `url(#${grads.get(key)})`;
+  }, {
+    filter: 'url(#neon)', edge: '#0b0b12', text: '#ffffff', halo: 'rgba(0,0,0,.55)',
+    bg: `<defs><filter id="neon" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="nbg" x1="0" x2="1"><stop offset="0" stop-color="#121226"/><stop offset="1" stop-color="#16161a"/></linearGradient></defs><rect x="-4000" y="-4000" width="9000" height="9000" fill="url(#nbg)"/>`,
+  });
+})();
+
+// 4 · Bänder nach Quote
+drawBands(document.getElementById('v4'), (n) => quote(n.score));
+</script>
+</body>
+</html>
