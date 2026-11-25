@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectClose, expectTrue } from './test-runner.js';
-import { buildStream, layoutStream, visibleBands, streamSvg } from '../js/meta/view/openingStream.js';
+import { buildStream, layoutStream, visibleBands, streamSvg, streamCard } from '../js/meta/view/openingStream.js';
 import { esc } from '../js/meta/view/format.js';
 
 // A record with one openingPath step per move; the first step is named.
@@ -151,5 +151,17 @@ describe('openingStream: svg', () => {
 
   test('colors follow the score', () => {
     expectTrue(svg(1).includes('fill="hsl(125, 68%, 52%)"'));
+  });
+});
+
+describe('openingStream: card', () => {
+  test('a color without games says so', () => {
+    expectTrue(streamCard([], 'w').includes('Keine Partien mit dieser Farbe.'));
+  });
+
+  test('a color with games gets a drawing box and a reset button', () => {
+    const s = streamCard([rec('W', ['e4'])], 'w');
+    expectTrue(s.includes('data-fit='), 'fit box');
+    expectTrue(s.includes('meta-zoom-reset'), 'reset button');
   });
 });

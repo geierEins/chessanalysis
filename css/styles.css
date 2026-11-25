@@ -2078,6 +2078,12 @@ button.field-error {
 }
 .meta-zoom-reset:hover { opacity: 1; color: inherit; }
 
+/* "Eröffnungsstrom" (view/openingStream.js): wide, at least 280px tall on phones; dragged to pan, Ctrl + wheel zooms. */
+.meta-ostream { position: relative; }
+.meta-ostream > .meta-fit { aspect-ratio: 1200 / 460; min-height: 280px; cursor: grab; user-select: none; touch-action: pan-y; }
+.meta-ostream.drag > .meta-fit { cursor: grabbing; }
+.meta-ostream.zoomed > .meta-fit { touch-action: none; }
+
 @media (min-width: 901px) {
   /* min-content: overflow:hidden would otherwise let the card shrink to 0. */
   .meta-stack.fit > .meta-card { display: flex; flex-direction: column; flex: 1 1 0; min-height: min-content; overflow: hidden; }

@@ -95,6 +95,8 @@ export function columns(bins, { color = 'var(--meta-s1)', H = 170, W = 640 } = {
 const fitDraws = new Map();
 // Zoomable charts: id -> {key, min, max, minSpan, l, r, from, to} (from/to: the visible x range).
 const fitZooms = new Map();
+// Charts with their own mouse handling: id -> bind(box, redraw), see fitChart's bind.
+const fitBinds = new Map();
 // The last zoom per chart key, so a re-render with the same points keeps it.
 const zoomMemory = new Map();
 let fitSeq = 0;
@@ -102,6 +104,7 @@ let fitSeq = 0;
 /** renderMetaTab: the previous render's charts are about to be replaced. */
 export function clearFitCharts() {
   fitDraws.clear();
+  fitBinds.clear();
 }
 
 /** Leaving a tab: its charts start unzoomed the next time. */
@@ -116,10 +119,13 @@ export function resetZooms() {
  *   zoom: makes the x axis zoomable (drag a range, Ctrl + wheel, double-click resets);
  *   min/max: the full x range, minSpan: the narrowest zoom, l/r: the plot's left/right
  *   padding in px. draw then gets the visible range as its third argument.
+ * @param {(box: HTMLElement, redraw: () => void) => void} [opts.bind] wires the box's own
+ *   mouse handling, once per rendered box before its first drawing; redraw draws it again.
  */
-export function fitChart(draw, { height, zoom } = {}) {
+export function fitChart(draw, { height, zoom, bind } = {}) {
   const id = `fit${++fitSeq}`;
   fitDraws.set(id, draw);
+  if (bind) fitBinds.set(id, bind);
   const style = height ? ` style="aspect-ratio:auto;height:${height}px"` : '';
   const box = `<div class="meta-fit" data-fit="${id}"${style}></div>`;
   if (!zoom) return box;
@@ -203,6 +209,14 @@ export function layoutFitCharts(root) {
     if (z && !box.dataset.zoomBound) {
       box.dataset.zoomBound = '1';
       bindZoom(box, z);
+    }
+    const bind = fitBinds.get(box.dataset.fit);
+    if (bind && !box.dataset.bound) {
+      box.dataset.bound = '1';
+      bind(box, () => {
+        delete box.dataset.size;
+        layoutFitCharts(box.parentElement);
+      });
     }
     const W = Math.max(240, Math.floor(box.clientWidth));
     const H = Math.max(90, Math.floor(box.clientHeight));

@@ -3,6 +3,7 @@
 // buildStream() makes the tree (the same nodes as the tab's opening trees).
 
 import { score, esc } from './format.js';
+import { fitChart } from './charts.js';
 
 export const MAX_PLY = 16; // the stream never goes deeper than this
 
@@ -180,4 +181,133 @@ export function streamSvg(root, layout, view, { W, H }) {
     shapes += `<rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(Math.max(hs, 0.5))}" fill="${scoreColor(s.node.score)}" mask="url(#ostream-fade)"/>`;
   }
   return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${defs}</defs>${grid}${shapes}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
+}
+
+// The view per color ({zoom, x, y}, see streamSvg) - kept across re-renders of
+// the tab, reset when it is left (resetStreamViews).
+const streamViews = new Map();
+const START = { zoom: 1, x: 0, y: 0 };
+
+/** Leaving the tab: both colors start unzoomed the next time. */
+export function resetStreamViews() {
+  streamViews.clear();
+}
+
+/** A view kept inside the stream: zoom 1..MAX_ZOOM, no panning past its drawn end or edges. */
+function clampView(v, root, layout, { W, H }) {
+  const zoom = Math.min(MAX_ZOOM, Math.max(1, v.zoom));
+  const { maxPly } = visibleBands(root, layout, zoom);
+  const contentW = layout.x(maxPly) + STUB * layout.colW + PAD_X;
+  const x = Math.min(Math.max(0, contentW - W / zoom), Math.max(0, v.x));
+  const y = Math.min(H - H / zoom, Math.max(0, v.y));
+  return { zoom, x, y };
+}
+
+/**
+ * The card body for one color's games: the stream drawn at its box's pixel
+ * size (fitChart), zoomed with Ctrl + wheel or two fingers, panned by
+ * dragging (on touch only while zoomed), reset by double-click or the
+ * "Zoom zurücksetzen" button (moved into the card's title row).
+ */
+export function streamCard(records, color) {
+  const root = buildStream(records);
+  if (!root.n) return '<p class="meta-muted">Keine Partien mit dieser Farbe.</p>';
+  let layout = null;
+  let size = null;
+  const view = () => streamViews.get(color) ?? START;
+  const draw = (W, H) => {
+    if (size?.W !== W || size?.H !== H) {
+      size = { W, H };
+      layout = layoutStream(root, size);
+    }
+    const v = clampView(view(), root, layout, size);
+    streamViews.set(color, v);
+    return streamSvg(root, layout, v, size);
+  };
+  const bind = (box, redraw) => {
+    const wrap = box.parentElement;
+    const reset = wrap.querySelector('.meta-zoom-reset');
+    const head = box.closest('.meta-card')?.querySelector(':scope > .meta-card-head');
+    const tools = head?.querySelector('.meta-card-tools');
+    if (tools) tools.prepend(reset);
+    else head?.append(reset);
+    const sync = () => {
+      const zoomed = view().zoom > 1;
+      reset.classList.toggle('hidden', !zoomed);
+      wrap.classList.toggle('zoomed', zoomed);
+    };
+    let frame = 0;
+    const set = (v) => {
+      streamViews.set(color, v);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        redraw();
+        sync();
+      });
+    };
+    // Zooms by factor around the box point (px, py): the content under it stays put.
+    const zoomAround = (base, factor, px, py, to = { px, py }) => {
+      const zoom = Math.min(MAX_ZOOM, Math.max(1, base.zoom * factor));
+      set({ zoom, x: base.x + px / base.zoom - to.px / zoom, y: base.y + py / base.zoom - to.py / zoom });
+    };
+    const local = (e) => {
+      const r = box.getBoundingClientRect();
+      return { px: e.clientX - r.left, py: e.clientY - r.top };
+    };
+    box.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return; // a plain wheel keeps scrolling the page
+      e.preventDefault();
+      const { px, py } = local(e);
+      zoomAround(view(), Math.exp(-e.deltaY * 0.0015), px, py);
+    }, { passive: false });
+    const pointers = new Map();
+    let drag = null;
+    let pinch = null;
+    const startDrag = () => {
+      const [p] = pointers.values();
+      drag = p ? { ...p, view: view() } : null;
+    };
+    box.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pointers.set(e.pointerId, local(e));
+      // Touch: one finger scrolls the page until the stream is zoomed.
+      if (e.pointerType !== 'mouse' && pointers.size === 1 && view().zoom <= 1) return;
+      box.setPointerCapture(e.pointerId);
+      wrap.classList.add('drag');
+      if (pointers.size === 2) {
+        const [a, b] = pointers.values();
+        pinch = { dist: Math.hypot(a.px - b.px, a.py - b.py), mid: { px: (a.px + b.px) / 2, py: (a.py + b.py) / 2 }, view: view() };
+        drag = null;
+      } else startDrag();
+    });
+    box.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, local(e));
+      if (pinch && pointers.size === 2) {
+        const [a, b] = pointers.values();
+        const dist = Math.hypot(a.px - b.px, a.py - b.py);
+        zoomAround(pinch.view, dist / Math.max(1, pinch.dist), pinch.mid.px, pinch.mid.py, { px: (a.px + b.px) / 2, py: (a.py + b.py) / 2 });
+      } else if (drag) {
+        const p = pointers.get(e.pointerId);
+        set({ ...drag.view, x: drag.view.x - (p.px - drag.px) / drag.view.zoom, y: drag.view.y - (p.py - drag.py) / drag.view.zoom });
+      }
+    });
+    const end = (e) => {
+      if (!pointers.delete(e.pointerId)) return;
+      if (pointers.size < 2) pinch = null;
+      if (pointers.size === 1) startDrag();
+      if (!pointers.size) {
+        drag = null;
+        wrap.classList.remove('drag');
+      }
+    };
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+    box.addEventListener('dblclick', () => set(START));
+    reset.addEventListener('click', () => set(START));
+    sync();
+  };
+  const zoomed = view().zoom > 1;
+  return `<div class="meta-ostream${zoomed ? ' zoomed' : ''}">${fitChart(draw, { bind })}<button type="button" class="meta-zoom-reset${zoomed ? '' : ' hidden'}">Zoom zurücksetzen</button></div>`;
 }
