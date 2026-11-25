@@ -1,5 +1,6 @@
 import { describe, test, expectEqual, expectClose, expectTrue } from './test-runner.js';
-import { buildStream, layoutStream, visibleBands } from '../js/meta/view/openingStream.js';
+import { buildStream, layoutStream, visibleBands, streamSvg } from '../js/meta/view/openingStream.js';
+import { esc } from '../js/meta/view/format.js';
 
 // A record with one openingPath step per move; the first step is named.
 function rec(result, moves, color = 'w') {
@@ -114,5 +115,41 @@ describe('openingStream: layout', () => {
     const line = (k) => times(k, (_, i) => `m${i}`);
     expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(12)))), SIZE).cols0, 12);
     expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(20)))), SIZE).cols0, 16);
+  });
+});
+
+describe('openingStream: svg', () => {
+  const SIZE = { W: 1200, H: 460 };
+  const step = (key, move, name, named) => ({ key, move, name, label: name, line: key, named, byMe: true });
+  const e4 = () => ({ result: 'W', openingPath: [step('e4', '1.e4', "King's Pawn Game", true)] });
+  const d4 = () => ({ result: 'W', openingPath: [step('d4', '1.d4', "Queen's Pawn Game", true)] });
+  const root = buildStream([...times(97, e4), ...times(3, d4)]);
+  const L = layoutStream(root, SIZE);
+  const svg = (zoom, y = 0) => streamSvg(root, L, { zoom, x: 0, y }, SIZE);
+
+  test('bands carry the board-preview attributes', () => {
+    const s = svg(1);
+    expectTrue(s.includes('data-line="e4"'), 'data-line');
+    expectTrue(s.includes(`data-opening="${esc("King's Pawn Game")}"`), 'data-opening');
+  });
+
+  test('thick bands are labelled at once', () => {
+    const s = svg(1);
+    expectTrue(s.includes('1.e4'), 'move');
+    expectTrue(s.includes('Pawn Game'), 'name');
+  });
+
+  test('labels appear only when readable', () => {
+    // y = 300: the d4 band (near the bottom) is inside the zoomed view.
+    expectTrue(svg(2.2, 300).includes('1.d4'), 'readable at 2.2x');
+    expectTrue(!svg(1.2, 300).includes('1.d4'), 'too small at 1.2x');
+  });
+
+  test('stubs fade out', () => {
+    expectEqual(svg(1).split('mask="url(#ostream-fade)"').length - 1, 2);
+  });
+
+  test('colors follow the score', () => {
+    expectTrue(svg(1).includes('fill="hsl(125, 68%, 52%)"'));
   });
 });

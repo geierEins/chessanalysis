@@ -2,7 +2,7 @@
 // flowing left to right, as thick as their game count and colored by score.
 // buildStream() makes the tree (the same nodes as the tab's opening trees).
 
-import { score } from './format.js';
+import { score, esc } from './format.js';
 
 export const MAX_PLY = 16; // the stream never goes deeper than this
 
@@ -104,4 +104,80 @@ export function visibleBands(root, layout, zoom) {
   };
   walk(root);
   return { bands, stubs, maxPly };
+}
+
+const STUB = 0.35; // a stub's length, in columns
+const MIN_FONT_PX = 8.5;
+const MAX_FONT_PX = 13;
+const CHAR_W = 0.56; // estimated glyph width per font px (no measuring: the output must be deterministic)
+const LABEL_INSET = 4;
+
+/** Score 0..1 as red (weak) - yellow - green (strong). */
+const scoreColor = (s) => `hsl(${Math.round((s ?? 0.5) * 125)}, 68%, 52%)`;
+const f = (v) => Math.round(v * 10) / 10;
+
+/**
+ * The stream as SVG, drawn in screen px: content point (cx, cy) lands at
+ * ((cx - view.x) * zoom, (cy - view.y) * zoom), so font sizes and thresholds
+ * are px. Bands and stubs outside the W x H view are left out. A band's label
+ * ("1.e4 King's Pawn Game", or just the move) runs along its middle when it
+ * is at least MIN_FONT_PX tall and fits the band's length.
+ * @param {{zoom: number, x: number, y: number}} view x/y: the content point at the view's top left
+ */
+export function streamSvg(root, layout, view, { W, H }) {
+  const { zoom: z } = view;
+  const sx = (cx) => (cx - view.x) * z;
+  const sy = (cy) => (cy - view.y) * z;
+  const { k, colW, x } = layout;
+  const { bands, stubs, maxPly } = visibleBands(root, layout, z);
+  const inView = (x0, x1, y0, y1) => x1 >= 0 && x0 <= W && y1 >= 0 && y0 <= H;
+  let defs = '<linearGradient id="ostream-fade-g" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    + '<mask id="ostream-fade" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#ostream-fade-g)"/></mask>';
+  let grid = '';
+  for (let p = 1; p <= Math.max(maxPly, layout.cols0); p++) {
+    const gx = sx(x(p));
+    if (gx < 0 || gx > W) continue;
+    grid += `<line x1="${f(gx)}" x2="${f(gx)}" y1="0" y2="${H - 18}" stroke="var(--meta-line)" stroke-width="1"/>`
+      + `<text x="${f(gx)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--meta-faint)">${Math.ceil(p / 2)}. Zug ${p % 2 ? 'Weiß' : 'Schwarz'}</text>`;
+  }
+  let shapes = '';
+  let labels = '';
+  let pathId = 0;
+  for (const n of bands) {
+    const h = n.n * k;
+    const xa = sx(x(n.ply - 1));
+    const xb = sx(x(n.ply));
+    const a0 = sy(layout.srcTop.get(n));
+    const b0 = sy(layout.top.get(n));
+    const hs = h * z;
+    if (!inView(xa, xb, Math.min(a0, b0), Math.max(a0, b0) + hs)) continue;
+    const xm = (xa + xb) / 2;
+    const d = `M${f(xa)},${f(a0)} C${f(xm)},${f(a0)} ${f(xm)},${f(b0)} ${f(xb)},${f(b0)} L${f(xb)},${f(b0 + hs)} C${f(xm)},${f(b0 + hs)} ${f(xm)},${f(a0 + hs)} ${f(xa)},${f(a0 + hs)} Z`;
+    shapes += `<path class="ostream-band" d="${d}" fill="${scoreColor(n.score)}" stroke="var(--meta-panel)" stroke-width="0.6" data-opening="${esc(n.name ?? '')}" data-line="${esc(n.line)}"/>`;
+    // The label: along the band's middle, if readable and short enough.
+    const font = Math.min(MAX_FONT_PX, hs * 0.5);
+    const text = n.named ? `${n.move} ${n.label}` : n.move;
+    const ya = a0 + hs / 2;
+    const yb = b0 + hs / 2;
+    const chord = Math.hypot(xb - xa - 2 * LABEL_INSET, yb - ya);
+    if (font < MIN_FONT_PX || text.length * CHAR_W * font > 0.94 * chord) continue;
+    const id = `ostream-p${pathId++}`;
+    const la = xa + LABEL_INSET;
+    const lb = xb - LABEL_INSET;
+    const lm = (la + lb) / 2;
+    defs += `<path id="${id}" d="M${f(la)},${f(ya)} C${f(lm)},${f(ya)} ${f(lm)},${f(yb)} ${f(lb)},${f(yb)}"/>`;
+    const body = n.named
+      ? `<tspan font-weight="500" opacity=".75">${esc(n.move)}</tspan> <tspan font-weight="700">${esc(n.label)}</tspan>`
+      : `<tspan font-weight="700">${esc(n.move)}</tspan>`;
+    labels += `<text font-size="${f(font)}" dy="${f(font * 0.36)}" fill="#141414"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${body}</textPath></text>`;
+  }
+  for (const s of stubs) {
+    const x0 = sx(x(s.node.ply));
+    const w = STUB * colW * z;
+    const y0 = sy(s.top);
+    const hs = s.h * z;
+    if (!inView(x0, x0 + w, y0, y0 + hs)) continue;
+    shapes += `<rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(Math.max(hs, 0.5))}" fill="${scoreColor(s.node.score)}" mask="url(#ostream-fade)"/>`;
+  }
+  return `<svg class="meta-svg ostream" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${defs}</defs>${grid}${shapes}<g class="ostream-labels" pointer-events="none">${labels}</g></svg>`;
 }
