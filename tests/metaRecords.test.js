@@ -26,6 +26,14 @@ function rawGame(overrides = {}) {
   };
 }
 
+describe('metaRecords: final position', () => {
+  test('the record keeps the final position and the last move', () => {
+    const r = buildFastRecord(rawGame(), 'alice');
+    expectEqual(r.finalFen, 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4');
+    expectEqual(r.lastMove, 'h5f7');
+  });
+});
+
 describe('metaRecords: buildFastRecord', () => {
   test('a win as white, seen from the searched user', () => {
     const r = buildFastRecord(rawGame(), 'alice');

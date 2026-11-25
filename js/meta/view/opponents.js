@@ -1,7 +1,7 @@
 // The "Gegner und Länder" tab: head-to-head with one opponent, countries, most frequent opponents, stronger and weaker ones.
 
 import { countryName } from '../../ui/playerLabel.js';
-import { esc, wdl, score, avg, pc, f0, f1, groupBy, byCountDesc, fold, fmtDate, RES_LETTER, hasRealRating } from './format.js';
+import { esc, wdl, score, avg, pc, f0, f1, groupBy, byCountDesc, fold, fmtDate, RES_LETTER, hasRealRating, finalTip } from './format.js';
 import { card, EMPTY, flag, wdlBar, hbars, bigStats, sortHead, sortRows } from './cards.js';
 import { gamesCount } from './gameLists.js';
 
@@ -32,7 +32,7 @@ export function opponents(rs, ctx) {
         <div><div class="name">${flag(ctx.countryOf(oppName))} ${esc(oppName)}</div><div class="meta-muted small">Ø Gen. ${f1(avg(withEngine, (r) => ctx.engineOf(r).oppAccuracy))}</div></div>
       </div>
       ${wdlBar(rs)}
-      <div class="meta-lastres" aria-label="Letzte Ergebnisse">${chrono.slice(-20).map((r) => `<span class="meta-res ${r.result}" data-tip="${fmtDate(r.endTime)} · ${esc(r.family ?? '')}">${RES_LETTER[r.result]}</span>`).join('')}</div>
+      <div class="meta-lastres" aria-label="Letzte Ergebnisse">${chrono.slice(-20).map((r) => `<span class="meta-res ${r.result}"${finalTip(r)} data-tip="${fmtDate(r.endTime)} · ${esc(r.family ?? '')}">${RES_LETTER[r.result]}</span>`).join('')}</div>
       ${bigStats([[rs.length, 'Partien'], [pc(score(rs)), 'Punkte-Quote'], [esc(fam ?? '–'), 'häufigste Eröffnung'], [f0(avg(rs, (r) => r.moves)), 'Ø Züge']])}`,
       { cls: 'w12', note: 'Alle Tabs zeigen jetzt nur Partien gegen diesen Gegner.' });
   }

@@ -9,6 +9,7 @@ import { Chess } from '../chessLib.js';
 import { openingLine } from '../analysis/openingBook.js';
 import { PIECE_THEMES } from '../ui/pieceThemePicker.js';
 import { loadPieceTheme } from '../persistence.js';
+import { boardGridHtml } from './boardGrid.js';
 
 const FILES = 'abcdefgh';
 const cache = new Map();
@@ -78,4 +79,13 @@ export function openingBoardHtml(name, extra = '', line = '') {
 
 function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+}
+
+/** The result badges' tooltip (data-final): a game's final position from the
+ *  user's side, its last move highlighted, with the result and length above. */
+export function finalBoardHtml(r) {
+  if (!r?.finalFen) return null;
+  const squares = boardGridHtml(r.finalFen, { lastMove: r.lastMove, flip: r.color === 'b', pieceUrl });
+  const word = { W: 'Sieg', D: 'Remis', L: 'Niederlage' }[r.result] ?? '';
+  return `<div class="meta-ob-name">Endstellung · ${word} · ${r.moves} Züge</div><div class="meta-ob">${squares}</div><div class="meta-ob-moves">vs ${escapeHtml(r.opponent ?? '?')}</div>`;
 }

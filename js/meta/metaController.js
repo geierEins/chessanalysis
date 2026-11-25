@@ -19,7 +19,7 @@ const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid']
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
 import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms, resetStreamViews, streamGestureActive } from './metaView.js';
-import { openingBoardHtml } from './openingBoard.js';
+import { openingBoardHtml, finalBoardHtml } from './openingBoard.js';
 import { mateBoardHtml } from './mateBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
 import { syncAutoAnalysis } from './autoAnalysis.js';
@@ -554,16 +554,22 @@ export function initMetaMode(host) {
   // Shared tooltip for every chart mark carrying data-tip, and for opening
   // names (data-opening) and checkmate patterns (data-mate), which get a small board.
   let tipSource = null;
-  const TIP_SEL = '[data-opening], [data-mate], [data-tip]';
+  const TIP_SEL = '[data-final], [data-opening], [data-mate], [data-tip]';
   function hideTip() {
     tipEl.classList.add('hidden');
     tipSource = null;
+  }
+  /** A result badge's board (data-final = the game's url): its final position, plus the badge's own data-tip below. */
+  function finalBoard(t) {
+    const html = finalBoardHtml(records.find((r) => r.url === t.dataset.final));
+    const extra = t.getAttribute('data-tip');
+    return html && extra ? `${html}<div class="meta-ob-extra">${esc(extra)}</div>` : html;
   }
   /** Shows the tooltip of `t` near the point (x, y) - beside the mouse, or under a tapped element. */
   function showTip(t, x0, y0) {
     if (t !== tipSource) {
       tipSource = t;
-      const board = t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants, t.dataset.line) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
+      const board = t.dataset.final ? finalBoard(t) : t.dataset.opening ? openingBoardHtml(t.dataset.opening, t.dataset.variants, t.dataset.line) : t.dataset.mate ? mateBoardHtml(t.dataset.mate) : null;
       tipEl.classList.toggle('board', Boolean(board));
       // data-tip-wide: every line of the tip on one line (e.g. a list of bullet points).
       tipEl.classList.toggle('wide', !board && t.hasAttribute('data-tip-wide'));
@@ -587,6 +593,16 @@ export function initMetaMode(host) {
     else hideTip();
   });
   tabPanelEl.addEventListener('mouseleave', () => {
+    if (!touchOnly.matches) hideTip();
+  });
+  // The games popup (behind a count) lies outside the panel: its result badges' boards.
+  gamesPopEl.addEventListener('mousemove', (e) => {
+    if (touchOnly.matches) return;
+    const t = e.target.closest('[data-final]');
+    if (t) showTip(t, e.clientX, e.clientY);
+    else hideTip();
+  });
+  gamesPopEl.addEventListener('mouseleave', () => {
     if (!touchOnly.matches) hideTip();
   });
   // Touch: the first tap on an element with a tooltip shows it (the row it sits in

@@ -5,7 +5,7 @@
 import { timeClassStyle } from '../../timeClassStyle.js';
 import { iconLabel } from '../metaIcons.js';
 import { hasMoves } from '../metaRecords.js';
-import { esc, RES_LETTER, RES_BADGE, fmtDate, fmtDateTime } from './format.js';
+import { esc, RES_LETTER, RES_BADGE, fmtDate, fmtDateTime, finalTip } from './format.js';
 import { withFlag } from './cards.js';
 
 // A game without a single move (see hasMoves): a gray X where the magnifier
@@ -54,7 +54,7 @@ export function gameListHtml(list, shown) {
   const items = list.slice(0, shown).map((r) => {
     const style = timeClassStyle(r.timeClass);
     const elo = r.oppRating ? ` (${r.oppRating})` : '';
-    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. <span class="outcome-badge ${RES_BADGE[r.result]}">${RES_LETTER[r.result]}</span></button>`;
+    return `<button type="button" class="custom-select-option" role="menuitem" data-game="${esc(r.url)}" style="color:${style.color}">${style.icon} vs ${withFlag(r.opponent)}${elo} — ${esc(r.summary.dateLabel)} — ${r.moves} Zg. <span class="outcome-badge ${RES_BADGE[r.result]}"${finalTip(r)}>${RES_LETTER[r.result]}</span></button>`;
   });
   const n = Math.min(shown, list.length);
   const left = list.length - n;
@@ -116,7 +116,7 @@ export function streakLink(games) {
 export function topGamesTable(sorted, value = (r) => `<b>${r.moves}</b> Zg.`) {
   const rows = sorted.slice(0, 5).map((r, i) => {
     const style = timeClassStyle(r.timeClass);
-    return `<tr class="click" data-game="${esc(r.url)}"${openTip(r)}><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
+    return `<tr class="click" data-game="${esc(r.url)}"${openTip(r)}><td class="meta-rank">${i + 1}</td><td class="r">${value(r)}</td><td><span class="meta-res ${r.result}"${finalTip(r)}>${RES_LETTER[r.result]}</span></td><td class="meta-top-opp" style="color:${style.color}">${style.icon} ${withFlag(r.opponent)}</td><td class="r meta-muted" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td></tr>`;
   });
   return rows.length ? `<div class="meta-tbl"><table class="meta-top">${rows.join('')}</table></div>` : '<p class="meta-muted">Keine Partien.</p>';
 }

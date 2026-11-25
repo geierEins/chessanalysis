@@ -2,7 +2,7 @@
 
 import { timeClassStyle } from '../../timeClassStyle.js';
 import { hasMoves } from '../metaRecords.js';
-import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, DAY_MS, esc, score, wdl, avg, pc, f1, groupBy, fmtDate, fmtDateTime, hasRealRating } from './format.js';
+import { TC_ORDER, TC_LABEL, RES_LETTER, RES_WORD, DAY_MS, esc, score, wdl, avg, pc, f1, groupBy, fmtDate, fmtDateTime, hasRealRating, finalTip } from './format.js';
 import { withFlag, wdlBar, WDL_LEGEND, card, EMPTY, kpi } from './cards.js';
 import { NO_MOVES, openTip, gamesCount, longestStreakGames, streakLink, analyzeCell } from './gameLists.js';
 import { resultPie, fitChart, ZOOM_NOTE, timeTicks } from './charts.js';
@@ -182,7 +182,7 @@ function recentGames(list, ctx) {
     const style = timeClassStyle(r.timeClass);
     const acc = ctx.engineOf(r)?.accuracy;
     return `<tr class="click" data-game="${esc(r.url)}"${openTip(r)}>`
-      + `<td><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span></td>`
+      + `<td><span class="meta-res ${r.result}"${finalTip(r)}>${RES_LETTER[r.result]}</span></td>`
       + `<td><span class="meta-colordot ${r.color}" title="${r.color === 'w' ? 'Weiß' : 'Schwarz'}"></span></td>`
       + `<td class="meta-top-opp" style="color:${style.color}" title="${esc(TC_LABEL[r.timeClass] ?? r.timeClass)} vs ${esc(r.opponent)}">${style.icon} vs ${withFlag(r.opponent)}</td>`
       + `<td class="r">${r.moves} Zg.</td>`

@@ -2,7 +2,7 @@
 
 import { timeClassStyle } from '../../timeClassStyle.js';
 import { MATE_LABEL, hasMoves } from '../metaRecords.js';
-import { TC_LABEL, RES_LETTER, esc, f1, signed, fold, fmtDate, fmtDateTime } from './format.js';
+import { TC_LABEL, RES_LETTER, esc, f1, signed, fold, fmtDate, fmtDateTime, finalTip } from './format.js';
 import { card, EMPTY, withFlag, sortHead } from './cards.js';
 import { openTip, analyzeCell } from './gameLists.js';
 
@@ -68,7 +68,7 @@ export function gamesTab(all, ctx) {
           const e = ctx.engineOf(r);
           const style = timeClassStyle(r.timeClass);
           // g-* classes: phones lay each row out as two lines (css/styles.css "Phones: game list").
-          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}"${openTip(r)}><td class="g-date" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td class="g-type" style="color:${style.color}">${style.icon}<span class="g-type-l"> ${TC_LABEL[r.timeClass] ?? r.timeClass}</span></td><td class="g-color"><span class="meta-colordot ${r.color}"></span></td><td class="g-opp">${withFlag(r.opponent)}</td><td class="g-elo">${r.oppRating ?? '–'}</td><td class="g-open"${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r g-moves">${r.moves}</td>${hasMoves(r) ? `<td class="r g-acc">${f1(e?.accuracy)}</td><td class="r g-blund">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r meta-faint g-acc">–</td><td class="r meta-faint g-blund">–</td>`}<td class="meta-res-elo g-res"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}">${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx, 'r g-an')}</tr>`;
+          return `<tr class="click${ctx.marked?.has(r.url) ? ' meta-marked' : ''}" data-game="${esc(r.url)}"${openTip(r)}><td class="g-date" data-tip="${fmtDateTime(r.endTime)}">${fmtDate(r.endTime)}</td><td class="g-type" style="color:${style.color}">${style.icon}<span class="g-type-l"> ${TC_LABEL[r.timeClass] ?? r.timeClass}</span></td><td class="g-color"><span class="meta-colordot ${r.color}"></span></td><td class="g-opp">${withFlag(r.opponent)}</td><td class="g-elo">${r.oppRating ?? '–'}</td><td class="g-open"${r.opening ? ` data-opening="${esc(r.opening)}"` : ''}>${esc(r.family ?? '–')}</td><td class="r g-moves">${r.moves}</td>${hasMoves(r) ? `<td class="r g-acc">${f1(e?.accuracy)}</td><td class="r g-blund">${e ? e.counts.BLUNDER ?? 0 : '–'}</td>` : `<td class="r meta-faint g-acc">–</td><td class="r meta-faint g-blund">–</td>`}<td class="meta-res-elo g-res"${resultTip(r) ? ` data-tip="${resultTip(r)}"` : ''}><span class="meta-res ${r.result}"${finalTip(r)}>${RES_LETTER[r.result]}</span>${eloDelta(r.ratingDelta)}${r.ownRating != null && r.rated ? `<span class="meta-elo-new" style="color:${style.color}">(${r.ownRating})</span>` : ''}</td>${analyzeCell(r, ctx, 'r g-an')}</tr>`;
         })
         .join('')}
       </tbody></table></div>${left > 0 ? `<button type="button" class="meta-games-more" data-games-more="${list.length}">+ ${Math.min(GAMES_STEP, left)} weitere Partien laden (noch ${left})</button>` : ''}`

@@ -8,6 +8,8 @@ export const RES_LETTER = { W: 'S', D: 'R', L: 'N' };
 // The game list popup marks results with the same S/R/N badges as the game picker (css .outcome-badge).
 export const RES_BADGE = { W: 'win', D: 'draw', L: 'loss' };
 export const RES_WORD ={ W: 'Sieg', D: 'Remis', L: 'Niederlage' };
+// On a result badge (S/R/N): hovering shows the game's final position (metaController, openingBoard's finalBoardHtml).
+export const finalTip = (r) => ` data-final="${esc(r.url)}"`;
 export const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 export const DAY_MS = 864e5;
 

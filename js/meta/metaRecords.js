@@ -346,6 +346,9 @@ export function buildFastRecord(raw, username) {
     minMaterial: material.min,
     firstMover: parser.header().FEN?.split(' ')[1] === 'b' ? 'b' : 'w',
     endsInMate: Boolean(sans[sans.length - 1]?.endsWith('#')),
+    // The final position and its last move ("h5f7") - the result badges' board tooltip.
+    finalFen: parser.fen(),
+    lastMove: verbose.length ? verbose.at(-1).from + verbose.at(-1).to : null,
     mate: mateOf(parser, verbose, sans, color, result),
     raw: slimRawGame(raw),
     summary: summarizeGame(raw),

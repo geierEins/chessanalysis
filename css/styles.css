@@ -2524,7 +2524,7 @@ button.meta-analyze.queued:hover { background: var(--meta-loss); }
 
 #meta-tip {
   position: fixed;
-  z-index: 60;
+  z-index: 61; /* above #meta-games-pop (60): its result badges have board tooltips */
   pointer-events: none;
   max-width: 280px;
   white-space: pre-line;
