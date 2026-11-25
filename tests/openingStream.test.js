@@ -191,6 +191,12 @@ describe('openingStream: svg', () => {
     expectClose(black[0][0], L.x(1), 0.1);
   });
 
+  test('ply labels sit in the middle of their column', () => {
+    const m = svg(1).match(/<text x="([\d.]+)" y="[\d.]+" text-anchor="middle">1\. Zug Weiß<\/text>/);
+    expectTrue(m, '"1. Zug Weiß" drawn');
+    expectClose(Number(m[1]), L.x(0) + L.colW / 2, 0.1);
+  });
+
   test('a start line marks the left edge of the first bands', () => {
     const top = L.top.get(root);
     const line = svg(1).match(/<line class="ostream-start" x1="([\d.]+)" x2="[\d.]+" y1="([\d.]+)" y2="([\d.]+)"/);

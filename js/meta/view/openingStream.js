@@ -147,11 +147,12 @@ export function streamSvg(root, layout, view, { W, H }) {
     cols += `<rect class="ostream-col ${white ? 'w' : 'b'}" x="${f(c0)}" y="0" width="${f(cw)}" height="${H - 18}" fill="${white ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.2)'}"/>`;
   }
   grid = cols;
+  // Column borders, and below each column the ply whose bands it holds.
   for (let p = 1; p <= Math.max(maxPly, layout.cols0); p++) {
     const gx = sx(x(p));
-    if (gx < 0 || gx > W) continue;
-    grid += `<line x1="${f(gx)}" x2="${f(gx)}" y1="0" y2="${H - 18}" stroke="var(--meta-line)" stroke-width="1"/>`
-      + `<text x="${f(gx)}" y="${H - 6}" text-anchor="middle">${plyLabel(p)}</text>`;
+    const mx = sx(x(p) - colW / 2);
+    if (gx >= 0 && gx <= W) grid += `<line x1="${f(gx)}" x2="${f(gx)}" y1="0" y2="${H - 18}" stroke="var(--meta-line)" stroke-width="1"/>`;
+    if (mx >= 0 && mx <= W) grid += `<text x="${f(mx)}" y="${H - 6}" text-anchor="middle">${plyLabel(p)}</text>`;
   }
   let shapes = '';
   let labels = '';
