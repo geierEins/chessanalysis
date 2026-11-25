@@ -179,6 +179,18 @@ describe('openingStream: svg', () => {
     expectTrue(svg(1).includes('1. Zug Weiß'), 'wide keeps long labels');
   });
 
+  // A column holds the bands of one ply: x(p - 1) .. x(p), white's plies odd.
+  test('columns are tinted by the color that moves in them', () => {
+    const s = svg(1);
+    const col = (who) => [...s.matchAll(new RegExp(`<rect class="ostream-col ${who}" x="([\\d.]+)" y="0" width="([\\d.]+)"`, 'g'))].map((m) => [Number(m[1]), Number(m[2])]);
+    const white = col('w');
+    const black = col('b');
+    expectTrue(white.length > 0 && black.length > 0, 'both tints drawn');
+    expectClose(white[0][0], L.x(0), 0.1);
+    expectClose(white[0][1], L.colW, 0.1);
+    expectClose(black[0][0], L.x(1), 0.1);
+  });
+
   test('a start line marks the left edge of the first bands', () => {
     const top = L.top.get(root);
     const line = svg(1).match(/<line class="ostream-start" x1="([\d.]+)" x2="[\d.]+" y1="([\d.]+)" y2="([\d.]+)"/);

@@ -137,6 +137,16 @@ export function streamSvg(root, layout, view, { W, H }) {
   // "1. Zug Weiß" - or "1." / "1…" when the columns are too narrow for it (phones).
   const plyLabel = (p) => (colW * z < 72 ? `${Math.ceil(p / 2)}${p % 2 ? '.' : '…'}` : `${Math.ceil(p / 2)}. Zug ${p % 2 ? 'Weiß' : 'Schwarz'}`);
   let grid = '';
+  // Each column (the bands of one ply, x(p - 1) .. x(p)) is tinted by who moves in it: lighter for white, darker for black.
+  let cols = '';
+  for (let p = 1; p <= Math.max(maxPly, layout.cols0); p++) {
+    const c0 = sx(x(p - 1));
+    const cw = colW * z;
+    if (c0 + cw < 0 || c0 > W) continue;
+    const white = p % 2 === 1;
+    cols += `<rect class="ostream-col ${white ? 'w' : 'b'}" x="${f(c0)}" y="0" width="${f(cw)}" height="${H - 18}" fill="${white ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.2)'}"/>`;
+  }
+  grid = cols;
   for (let p = 1; p <= Math.max(maxPly, layout.cols0); p++) {
     const gx = sx(x(p));
     if (gx < 0 || gx > W) continue;
