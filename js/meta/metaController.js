@@ -18,7 +18,7 @@ const PHONE_QUERY = '(max-width: 640px)';
 const TYPE_ORDER = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rapid'], ['daily', 'Daily']];
 import { buildFastRecord, buildEngineRecord, isCoachGame, hasMoves, gameOpenState } from './metaRecords.js';
 import { loadEngineRecords, saveEngineRecord, loadCountries, saveCountries } from './metaStore.js';
-import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms, resetStreamViews } from './metaView.js';
+import { META_TABS, renderMetaTab, gameListHtml, gameHintHtml, gameListById, LISTED_GAMES_STEP, GAMES_STEP, layoutFitCharts, resetZooms, resetStreamViews, streamGestureActive } from './metaView.js';
 import { openingBoardHtml } from './openingBoard.js';
 import { mateBoardHtml } from './mateBoard.js';
 import { tabPieceSvg } from './tabPieces.js';
@@ -270,7 +270,17 @@ export function initMetaMode(host) {
   function scheduleRender() {
     if (renderTimer) return;
     const wait = Math.max(0, RERENDER_EVERY_MS - (Date.now() - lastRender));
-    renderTimer = setTimeout(render, wait);
+    renderTimer = setTimeout(renderWhenIdle, wait);
+  }
+
+  /** The timed re-render - held back while the opening stream is dragged or
+   *  pinched, which a new box would cut off mid-gesture. */
+  function renderWhenIdle() {
+    if (streamGestureActive()) {
+      renderTimer = setTimeout(renderWhenIdle, 300);
+      return;
+    }
+    render();
   }
 
   function renderStatus(rs) {

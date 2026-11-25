@@ -75,7 +75,7 @@ export function layoutStream(root, { W, H }) {
   };
   place(root, PAD_TOP, PAD_TOP + Hp);
   const cols0 = Math.min(MAX_PLY, Math.max(MIN_COLS, deepest));
-  const colW = (W - 2 * PAD_X) / cols0;
+  const colW = (W - 2 * PAD_X) / (cols0 + STUB); // room for the last column's stubs too
   return { k, colW, cols0, x: (ply) => PAD_X + ply * colW, top, srcTop };
 }
 
@@ -193,6 +193,17 @@ export function streamSvg(root, layout, view, { W, H }) {
 const streamViews = new Map();
 const START = { zoom: 1, x: 0, y: 0 };
 
+// Boxes with a drag or pinch under way (streamCard's bind).
+const gestureBoxes = new Set();
+
+/** Whether the stream is being dragged or pinched right now - the controller
+ *  holds its timed re-renders back meanwhile (they would replace the box mid-gesture).
+ *  Boxes no longer in the page don't count: they never get their pointerup. */
+export function streamGestureActive() {
+  for (const b of gestureBoxes) if (!b.isConnected) gestureBoxes.delete(b);
+  return gestureBoxes.size > 0;
+}
+
 /** Leaving the tab: both colors start unzoomed the next time. */
 export function resetStreamViews() {
   streamViews.clear();
@@ -266,37 +277,37 @@ export function streamCard(records, color) {
       const { px, py } = local(e);
       zoomAround(view(), Math.exp(-e.deltaY * 0.0015), px, py);
     }, { passive: false });
+    // Pointers are captured only once a gesture really starts (moved a few px,
+    // or a second finger): a plain tap keeps its click on the band, which the
+    // touch tooltip needs. While a gesture runs, streamGestureActive() holds
+    // back the controller's timed re-renders, which would replace this box.
     const pointers = new Map();
     let drag = null;
+    let dragging = false;
     let pinch = null;
+    const capture = (id) => {
+      try {
+        box.setPointerCapture(id);
+      } catch {
+        // the pointer is already gone
+      }
+      gestureBoxes.add(box);
+      wrap.classList.add('drag');
+    };
     const startDrag = () => {
       const [p] = pointers.values();
       drag = p ? { ...p, view: view() } : null;
+      dragging = false;
     };
     box.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       pointers.set(e.pointerId, local(e));
-      // Touch: one finger scrolls the page until the stream is zoomed.
-      if (e.pointerType !== 'mouse' && pointers.size === 1 && view().zoom <= 1) return;
-      box.setPointerCapture(e.pointerId);
-      wrap.classList.add('drag');
       if (pointers.size === 2) {
         const [a, b] = pointers.values();
         pinch = { dist: Math.hypot(a.px - b.px, a.py - b.py), mid: { px: (a.px + b.px) / 2, py: (a.py + b.py) / 2 }, view: view() };
         drag = null;
+        for (const id of pointers.keys()) capture(id);
       } else startDrag();
-    });
-    box.addEventListener('pointermove', (e) => {
-      if (!pointers.has(e.pointerId)) return;
-      pointers.set(e.pointerId, local(e));
-      if (pinch && pointers.size === 2) {
-        const [a, b] = pointers.values();
-        const dist = Math.hypot(a.px - b.px, a.py - b.py);
-        zoomAround(pinch.view, dist / Math.max(1, pinch.dist), pinch.mid.px, pinch.mid.py, { px: (a.px + b.px) / 2, py: (a.py + b.py) / 2 });
-      } else if (drag) {
-        const p = pointers.get(e.pointerId);
-        set({ ...drag.view, x: drag.view.x - (p.px - drag.px) / drag.view.zoom, y: drag.view.y - (p.py - drag.py) / drag.view.zoom });
-      }
     });
     const end = (e) => {
       if (!pointers.delete(e.pointerId)) return;
@@ -304,9 +315,32 @@ export function streamCard(records, color) {
       if (pointers.size === 1) startDrag();
       if (!pointers.size) {
         drag = null;
+        dragging = false;
+        gestureBoxes.delete(box);
         wrap.classList.remove('drag');
       }
     };
+    box.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      // A mouse released outside the box (nothing captured yet) sent no pointerup here.
+      if (e.pointerType === 'mouse' && !e.buttons) return end(e);
+      pointers.set(e.pointerId, local(e));
+      if (pinch && pointers.size === 2) {
+        const [a, b] = pointers.values();
+        const dist = Math.hypot(a.px - b.px, a.py - b.py);
+        zoomAround(pinch.view, dist / Math.max(1, pinch.dist), pinch.mid.px, pinch.mid.py, { px: (a.px + b.px) / 2, py: (a.py + b.py) / 2 });
+      } else if (drag) {
+        const p = pointers.get(e.pointerId);
+        if (!dragging) {
+          if (Math.hypot(p.px - drag.px, p.py - drag.py) < 4) return;
+          // Touch: one finger scrolls the page until the stream is zoomed.
+          if (e.pointerType !== 'mouse' && drag.view.zoom <= 1) return;
+          dragging = true;
+          capture(e.pointerId);
+        }
+        set({ ...drag.view, x: drag.view.x - (p.px - drag.px) / drag.view.zoom, y: drag.view.y - (p.py - drag.py) / drag.view.zoom });
+      }
+    });
     box.addEventListener('pointerup', end);
     box.addEventListener('pointercancel', end);
     box.addEventListener('dblclick', () => set(START));

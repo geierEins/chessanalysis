@@ -116,6 +116,12 @@ describe('openingStream: layout', () => {
     expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(12)))), SIZE).cols0, 12);
     expectEqual(layoutStream(buildStream(times(50, () => rec('W', line(20)))), SIZE).cols0, 16);
   });
+
+  // The last column's stubs (0.35 columns) must fit the start view too, or they are cut and 1x can be panned.
+  test('the start view holds the last column with its stubs', () => {
+    const L = layoutStream(buildStream([rec('W', ['e4'])]), SIZE);
+    expectTrue(L.x(L.cols0) + 0.35 * L.colW + 24 <= SIZE.W + 0.001, `ends at ${L.x(L.cols0) + 0.35 * L.colW + 24}`);
+  });
 });
 
 describe('openingStream: svg', () => {
