@@ -34,7 +34,7 @@ dient das Hineinzoomen und die Brettvorschau.
   wie bei 1× deutlich erkennbar sind (mindestens 6); tiefere Spalten liegen rechts und werden durch Zoomen und Verschieben erreicht.
   *(Meine Entscheidung.)*
 - Zoomen zeichnet die Kachel deshalb neu (nicht nur viewBox verschieben). Wie, bleibt dem Umsetzer überlassen; wichtig:
-  flüssig genug für Strg + Mausrad und Ziehen.
+  flüssig genug für Mausrad und Ziehen.
 
 ## Handy
 - *(Meine Entscheidung:)* Auf schmalen Bildschirmen bekommt die Zeichenfläche eine Mindesthöhe (etwa 280 px) statt des
@@ -49,7 +49,7 @@ dient das Hineinzoomen und die Brettvorschau.
 ## Anti-Ziele
 - Der Strom darf nicht beim Neuzeichnen des Tabs (Aufklappen im Baum, Sortieren, laufende Analyse alle paar Sekunden)
   auf die Ausgangsansicht zurückspringen.
-- Das normale Mausrad darf die Seite nicht kapern: Wer über die Kachel scrollt, scrollt die Seite.
+- Die Seite darf über der Kachel nicht hängen bleiben: Ungezoomt scrollt das Mausrad nach unten die Seite weiter.
 - Unlesbarer Textbrei: lieber kein Name als ein überlappender oder über den Bandrand hinausragender.
 
 ## Daten
@@ -78,8 +78,8 @@ dient das Hineinzoomen und die Brettvorschau.
 
 ## Bedienung (vom Nutzer entschieden bzw. meine Entscheidung, markiert)
 - Umschalter Weiß / Schwarz in der Kopfzeile (`card(..., { head })`). Start: Weiß. *(Meine Entscheidung: Start Weiß; beim Verlassen des Tabs wie die Suchfelder zurück auf Weiß.)*
-- *(Meine Entscheidung, abweichend vom Entwurf, nach der Konvention der App in `view/charts.js`:)* Zoomen mit **Strg + Mausrad**
-  um den Mauszeiger, ein normales Mausrad scrollt die Seite. Verschieben durch Ziehen mit der Maus.
+- *(Vom Nutzer entschieden, 2026-11-25, nach dem ersten Test:)* Zoomen mit dem **normalen Mausrad** (ohne Strg)
+  um den Mauszeiger; ungezoomt scrollt das Mausrad nach unten die Seite. Verschieben durch Ziehen mit der Maus.
   Doppelklick und ein Knopf „Zoom zurücksetzen“ in der Kopfzeile (nur sichtbar, wenn gezoomt) setzen zurück.
   Zoom zwischen 1× und etwa 14×; nicht über den Rand des Stroms hinaus verschiebbar.
 - *(Meine Entscheidung:)* Zoom gilt pro Farbe; der Umschalter wechselt auf die gemerkte Ansicht der anderen Farbe.
@@ -97,11 +97,11 @@ dient das Hineinzoomen und die Brettvorschau.
   Die Breite wird aus der Zeichenzahl geschätzt (deterministisch, damit der Render-Snapshot stabil bleibt).
 - Bandhöhe gesamt etwa 82 % der Zeichenfläche; der Rest ist Luft, in die die Kinder auseinanderschwingen.
 - Leere Farbe: „Keine Partien mit dieser Farbe.“ wie in den Bäumen.
-- Kachel-Notiz kurz: Dicke = Partien, Farbe = Quote, Strg + Mausrad zum Zoomen.
+- Kachel-Notiz kurz: Dicke = Partien, Farbe = Quote, Mausrad zum Zoomen.
 
 ## Referenz
 Der gewählte Entwurf ist Variante 4 in `2026-11-25-eroeffnungsstrom-entwurf.html` (neben diesem Dokument):
-Geometrie der Bänder, Farbskala, Beschriftung. Abweichend davon gilt: Zoomen mit Strg + Mausrad statt normalem Mausrad,
+Geometrie der Bänder, Farbskala, Beschriftung. Abweichend davon gilt: ungezoomt scrollt das Mausrad nach unten die Seite,
 Brettvorschau als Tooltip, Umschalter Weiß / Schwarz. Die Zahlen im Entwurf sind ausgedacht.
 
 ## Dem Umsetzer überlassen

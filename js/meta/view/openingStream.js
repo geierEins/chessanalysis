@@ -204,6 +204,13 @@ export function streamGestureActive() {
   return gestureBoxes.size > 0;
 }
 
+/** Whether a wheel turn over the stream zooms it (instead of scrolling the
+ *  page): always, except outward when it isn't zoomed - then there is nothing
+ *  to zoom out of, and the page scrolls on instead of getting stuck. */
+export function wheelZooms(deltaY, zoom) {
+  return deltaY < 0 || zoom > 1;
+}
+
 /** Leaving the tab: both colors start unzoomed the next time. */
 export function resetStreamViews() {
   streamViews.clear();
@@ -221,7 +228,7 @@ function clampView(v, root, layout, { W, H }) {
 
 /**
  * The card body for one color's games: the stream drawn at its box's pixel
- * size (fitChart), zoomed with Ctrl + wheel or two fingers, panned by
+ * size (fitChart), zoomed with the mouse wheel or two fingers, panned by
  * dragging (on touch only while zoomed), reset by double-click or the
  * "Zoom zurücksetzen" button (moved into the card's title row).
  */
@@ -272,7 +279,7 @@ export function streamCard(records, color) {
       return { px: e.clientX - r.left, py: e.clientY - r.top };
     };
     box.addEventListener('wheel', (e) => {
-      if (!e.ctrlKey) return; // a plain wheel keeps scrolling the page
+      if (!wheelZooms(e.deltaY, view().zoom)) return; // the page scrolls on
       e.preventDefault();
       const { px, py } = local(e);
       zoomAround(view(), Math.exp(-e.deltaY * 0.0015), px, py);

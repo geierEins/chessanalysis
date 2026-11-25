@@ -1,5 +1,5 @@
 import { describe, test, expectEqual, expectClose, expectTrue } from './test-runner.js';
-import { buildStream, layoutStream, visibleBands, streamSvg, streamCard } from '../js/meta/view/openingStream.js';
+import { buildStream, layoutStream, visibleBands, streamSvg, streamCard, wheelZooms } from '../js/meta/view/openingStream.js';
 import { esc } from '../js/meta/view/format.js';
 
 // A record with one openingPath step per move; the first step is named.
@@ -189,5 +189,20 @@ describe('openingStream: card', () => {
     const s = streamCard([rec('W', ['e4'])], 'w');
     expectTrue(s.includes('data-fit='), 'fit box');
     expectTrue(s.includes('meta-zoom-reset'), 'reset button');
+  });
+});
+
+describe('openingStream: wheel', () => {
+  test('the plain wheel zooms in', () => {
+    expectTrue(wheelZooms(-100, 1));
+  });
+
+  test('zoomed, the wheel zooms both ways', () => {
+    expectTrue(wheelZooms(100, 2) && wheelZooms(-100, 2));
+  });
+
+  // Unzoomed there is nothing to zoom out of - the page scrolls instead of getting stuck.
+  test('unzoomed, wheeling down scrolls the page', () => {
+    expectTrue(!wheelZooms(100, 1));
   });
 });
