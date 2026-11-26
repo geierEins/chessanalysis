@@ -54,6 +54,8 @@ export class BoardView {
   #legalTargets = new Set(); // destination squares of #selectedSquare - a click on one of these completes the move
   #moveHighlightEls = [];
   #awaitingDeselectToggle = false; // onDragStart re-picked-up the already-selected square - onDrop deselects it if that turns out to be a plain click
+  #isDragging = false; // a piece is currently held with the left button (between onDragStart and onDrop)
+  #cancellingDrag = false; // right button pressed mid-drag - the synthetic drop that follows must snap the piece back
 
   /**
    * @param {{
@@ -113,6 +115,7 @@ export class BoardView {
     observer.observe(container);
 
     this.#setupAnnotationMouseEvents();
+    this.#setupRightClickDragCancel();
     this.#setupClickToMove(this.#canDragStart, this.#onUserDrop, this.#onIllegalClick);
   }
 
@@ -137,9 +140,19 @@ export class BoardView {
         } else {
           this.#showMoveHighlights(source, this.#getLegalMoves?.(source) ?? []);
         }
+        this.#isDragging = true;
         return true;
       },
       onDrop: (source, target) => {
+        this.#isDragging = false;
+        if (this.#cancellingDrag) {
+          // Right button pressed mid-drag (#cancelDrag) - not a move attempt,
+          // just put the piece back where it came from, no buzz.
+          this.#cancellingDrag = false;
+          this.#awaitingDeselectToggle = false;
+          this.clearMoveHighlights();
+          return 'snapback';
+        }
         if (source === target) {
           // No real movement - chessboard.js still runs this whole
           // onDragStart/onDrop lifecycle for a plain click, so this is
@@ -358,6 +371,57 @@ export class BoardView {
       this.clearUserArrows();
       this.clearSquareHighlights();
     });
+  }
+
+  /**
+   * Right click while a piece is held with the left button aborts the drag
+   * (piece snaps back to its source square). Must listen on window, not
+   * #boardEl: during a drag the cursor sits on chessboard.js's dragged-piece
+   * <img>, which it appends to <body> - outside the board - so a board-level
+   * listener never sees that right click. Capture phase so it runs before
+   * #setupAnnotationMouseEvents' handler (stopPropagation keeps that one from
+   * starting an arrow/highlight gesture). The browser's context menu opens
+   * on the later right-button release, after the drag is already over, so
+   * it's suppressed via a one-shot flag rather than via #isDragging.
+   */
+  #setupRightClickDragCancel() {
+    let suppressContextMenu = false;
+    window.addEventListener(
+      'mousedown',
+      (e) => {
+        if (e.button !== 2 || !this.#isDragging) return;
+        e.preventDefault();
+        e.stopPropagation();
+        suppressContextMenu = true;
+        this.#cancelDrag();
+      },
+      { capture: true }
+    );
+    window.addEventListener(
+      'contextmenu',
+      (e) => {
+        if (!suppressContextMenu && !this.#isDragging) return;
+        suppressContextMenu = false;
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      { capture: true }
+    );
+  }
+
+  /** Aborts the piece drag in progress: chessboard.js has no public API for
+   *  that, but its own window-level mouseup handler ends the drag, so a
+   *  synthetic mouseup far off the board makes it call onDrop (which sees
+   *  #cancellingDrag and answers 'snapback'). The real left-button release
+   *  later is then ignored - chessboard.js is no longer dragging, and
+   *  #setupClickToMove skips own-piece squares anyway. */
+  #cancelDrag() {
+    this.#cancellingDrag = true;
+    window.dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: -100000, clientY: -100000 })
+    );
+    // Safety net in case chessboard.js didn't take the synthetic event.
+    this.#cancellingDrag = false;
   }
 
   setPosition(fen) {
